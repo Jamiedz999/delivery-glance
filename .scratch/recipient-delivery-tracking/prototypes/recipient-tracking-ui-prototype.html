@@ -1,0 +1,1002 @@
+<!doctype html>
+<!-- Three variants of the Recipient tracking page, switchable via ?variant= on this standalone throwaway prototype route. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow,nosnippet" />
+    <title>Delivery Glance — Full-product Recipient UI prototype</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #14231d;
+        --muted: #5d6c65;
+        --line: #dce4df;
+        --paper: #fffefa;
+        --canvas: #eef2ed;
+        --green: #176b4d;
+        --green-soft: #dff3e8;
+        --amber: #9a5b0a;
+        --amber-soft: #fff0cf;
+        --red: #9f342c;
+        --red-soft: #fae3df;
+        --blue: #2f5d8a;
+        --blue-soft: #e4eff9;
+        --shadow: 0 18px 60px rgba(20, 35, 29, 0.12);
+      }
+
+      * { box-sizing: border-box; }
+      html { min-height: 100%; background: var(--canvas); }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      button, select { font: inherit; }
+      button:focus-visible, select:focus-visible, a:focus-visible {
+        outline: 3px solid #0b6cff;
+        outline-offset: 3px;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .prototype-ribbon {
+        position: fixed;
+        z-index: 90;
+        top: 12px;
+        right: 12px;
+        padding: 7px 10px;
+        border: 1px solid rgba(20, 35, 29, 0.18);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #3d4d46;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        backdrop-filter: blur(10px);
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: inherit;
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      .brand-mark {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        border-radius: 10px 10px 10px 3px;
+        background: var(--ink);
+        color: white;
+        font-size: 14px;
+      }
+      .eyebrow {
+        margin: 0 0 8px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .headline {
+        margin: 0;
+        font-size: clamp(30px, 9vw, 46px);
+        font-weight: 760;
+        letter-spacing: -0.055em;
+        line-height: 0.98;
+      }
+      .next-step {
+        margin: 14px 0 0;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.5;
+      }
+      .pill {
+        display: inline-flex;
+        min-height: 28px;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: #eef2ef;
+        color: #3f5048;
+        font-size: 11px;
+        font-weight: 750;
+        white-space: nowrap;
+      }
+      .pill::before {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+        content: "";
+      }
+      .pill.live { background: var(--green-soft); color: var(--green); }
+      .pill.delayed, .pill.late, .pill.reconnecting { background: var(--amber-soft); color: var(--amber); }
+      .pill.unavailable, .pill.failed { background: var(--red-soft); color: var(--red); }
+      .pill.info { background: var(--blue-soft); color: var(--blue); }
+      .pulse { position: relative; }
+      .pulse::after {
+        position: absolute;
+        width: 7px;
+        height: 7px;
+        border: 1px solid currentColor;
+        border-radius: 50%;
+        animation: pulse 1.8s ease-out infinite;
+        content: "";
+      }
+      @keyframes pulse { to { opacity: 0; transform: scale(2.2); } }
+      .map-art {
+        position: relative;
+        min-height: 250px;
+        overflow: hidden;
+        background:
+          linear-gradient(32deg, transparent 46%, #d7ded7 47%, #d7ded7 53%, transparent 54%),
+          linear-gradient(118deg, transparent 45%, #d7ded7 46%, #d7ded7 51%, transparent 52%),
+          linear-gradient(8deg, transparent 62%, #d7ded7 63%, #d7ded7 68%, transparent 69%),
+          #edf0e9;
+      }
+      .map-art::before, .map-art::after {
+        position: absolute;
+        border: 18px solid rgba(255, 255, 255, 0.82);
+        border-radius: 48% 52% 40% 60%;
+        content: "";
+        transform: rotate(21deg);
+      }
+      .map-art::before { inset: -40% 32% 38% -20%; }
+      .map-art::after { inset: 58% -30% -40% 26%; }
+      .park {
+        position: absolute;
+        top: 16%;
+        right: 9%;
+        width: 28%;
+        height: 23%;
+        border-radius: 44% 56% 42% 58%;
+        background: #d4e6d1;
+        transform: rotate(-8deg);
+      }
+      .water {
+        position: absolute;
+        inset: auto -20% -24% 34%;
+        height: 48%;
+        border-radius: 55% 0 0;
+        background: #d9e9ec;
+        transform: rotate(-7deg);
+      }
+      .map-label {
+        position: absolute;
+        color: #758079;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .map-label.one { top: 47%; left: 9%; transform: rotate(31deg); }
+      .map-label.two { top: 22%; left: 48%; transform: rotate(-61deg); }
+      .handoff-marker, .courier-marker {
+        position: absolute;
+        z-index: 4;
+        display: grid;
+        place-items: center;
+        filter: drop-shadow(0 6px 7px rgba(20, 35, 29, 0.18));
+      }
+      .handoff-marker {
+        top: 24%;
+        right: 20%;
+        width: 32px;
+        height: 32px;
+        border: 3px solid white;
+        border-radius: 50% 50% 50% 4px;
+        background: var(--ink);
+        color: white;
+        font-size: 13px;
+        transform: rotate(-45deg);
+      }
+      .handoff-marker span { transform: rotate(45deg); }
+      .courier-marker {
+        top: 60%;
+        left: 31%;
+        width: 36px;
+        height: 36px;
+        border: 4px solid white;
+        border-radius: 50%;
+        background: var(--green);
+        color: white;
+        font-size: 12px;
+        font-weight: 850;
+      }
+      .courier-marker.live::before {
+        position: absolute;
+        inset: -10px;
+        border: 2px solid rgba(23, 107, 77, 0.35);
+        border-radius: 50%;
+        animation: map-pulse 2s ease-out infinite;
+        content: "";
+      }
+      @keyframes map-pulse { to { opacity: 0; transform: scale(1.5); } }
+      .accuracy-ring {
+        position: absolute;
+        z-index: 2;
+        top: calc(60% - 24px);
+        left: calc(31% - 24px);
+        width: 84px;
+        height: 84px;
+        border: 1px solid rgba(23, 107, 77, 0.3);
+        border-radius: 50%;
+        background: rgba(23, 107, 77, 0.08);
+      }
+      .map-note {
+        position: absolute;
+        z-index: 5;
+        right: 12px;
+        bottom: 12px;
+        left: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid rgba(20, 35, 29, 0.1);
+        border-radius: 13px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #53635b;
+        font-size: 11px;
+        backdrop-filter: blur(9px);
+      }
+      .map-note strong { color: var(--ink); }
+      .eta-value {
+        display: block;
+        margin-top: 4px;
+        font-size: clamp(25px, 7vw, 34px);
+        font-weight: 780;
+        letter-spacing: -0.045em;
+        line-height: 1;
+      }
+      .eta-meta {
+        display: block;
+        margin-top: 7px;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.35;
+      }
+      .data-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+        padding: 14px 0;
+        border-top: 1px solid var(--line);
+      }
+      .data-label {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 750;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .data-value {
+        margin-top: 5px;
+        font-size: 14px;
+        font-weight: 690;
+        line-height: 1.35;
+      }
+      .timeline { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+      .timeline li {
+        position: relative;
+        display: grid;
+        grid-template-columns: 22px 1fr auto;
+        gap: 10px;
+        min-height: 52px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .timeline li:not(:last-child)::before {
+        position: absolute;
+        top: 18px;
+        bottom: -3px;
+        left: 7px;
+        width: 1px;
+        background: var(--line);
+        content: "";
+      }
+      .timeline-dot {
+        z-index: 1;
+        width: 15px;
+        height: 15px;
+        margin-top: 2px;
+        border: 3px solid var(--paper);
+        border-radius: 50%;
+        background: #aab5af;
+        box-shadow: 0 0 0 1px #aab5af;
+      }
+      .timeline li.done .timeline-dot { background: var(--green); box-shadow: 0 0 0 1px var(--green); }
+      .timeline li.current { color: var(--ink); font-weight: 720; }
+      .timeline li.current .timeline-dot { background: var(--amber); box-shadow: 0 0 0 1px var(--amber); }
+      .timeline time { color: var(--muted); font-variant-numeric: tabular-nums; }
+      .notice {
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: var(--amber-soft);
+        color: #744307;
+        font-size: 12px;
+        font-weight: 650;
+        line-height: 1.45;
+      }
+      .notice.failed { background: var(--red-soft); color: #792820; }
+      .notice.info { background: var(--blue-soft); color: #244d75; }
+      .section-title {
+        margin: 0 0 15px;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+      }
+      .help-link {
+        color: inherit;
+        font-weight: 750;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 3px;
+      }
+
+      /* Variant A: status first with progressive disclosure. */
+      .a-page {
+        min-height: 100vh;
+        padding: 18px 12px 150px;
+        background: radial-gradient(circle at 12% -4%, rgba(143, 186, 158, 0.28), transparent 34%), var(--canvas);
+      }
+      .a-shell {
+        width: min(100%, 450px);
+        margin: 0 auto;
+        overflow: hidden;
+        border: 1px solid rgba(20, 35, 29, 0.08);
+        border-radius: 32px;
+        background: var(--paper);
+        box-shadow: var(--shadow);
+      }
+      .a-header { display: flex; align-items: center; justify-content: space-between; padding: 22px 22px 8px; }
+      .a-reference { color: var(--muted); font-size: 11px; font-weight: 750; }
+      .a-hero { padding: 36px 22px 24px; }
+      .a-status-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .a-eta-card {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 18px;
+        align-items: end;
+        margin-top: 24px;
+        padding: 18px;
+        border: 1px solid #cfe1d6;
+        border-radius: 18px;
+        background: #f1f8f4;
+      }
+      .a-map { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+      .a-card { padding: 22px; }
+      .a-card + .a-card { border-top: 1px solid var(--line); }
+      .a-footer {
+        padding: 18px 22px 24px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.5;
+      }
+
+      /* Variant B: map first with a floating bottom sheet. */
+      .b-page { min-height: 100vh; padding-bottom: 132px; background: #dfe6df; }
+      .b-shell { position: relative; min-height: calc(100vh - 132px); overflow: hidden; background: #e9eee8; }
+      .b-map { position: absolute; inset: 0; min-height: 100%; }
+      .b-map .map-art { min-height: 100%; }
+      .b-topbar {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 16px;
+      }
+      .b-topbar .brand, .b-topbar .pill { box-shadow: 0 8px 30px rgba(20, 35, 29, 0.14); }
+      .b-topbar .brand { padding: 8px 11px 8px 8px; border-radius: 15px; background: rgba(255, 255, 255, 0.94); }
+      .b-sheet {
+        position: absolute;
+        z-index: 8;
+        right: 10px;
+        bottom: 10px;
+        left: 10px;
+        max-height: 58vh;
+        overflow: auto;
+        padding: 9px 20px 22px;
+        border: 1px solid rgba(20, 35, 29, 0.1);
+        border-radius: 28px;
+        background: rgba(255, 254, 250, 0.97);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(16px);
+      }
+      .b-handle { width: 42px; height: 4px; margin: 0 auto 18px; border-radius: 999px; background: #c4cec8; }
+      .b-status-grid { display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 10px; margin: 18px 0; }
+      .b-mini-card {
+        min-height: 92px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: white;
+      }
+      .b-progress { display: grid; grid-template-columns: repeat(var(--steps), 1fr); gap: 4px; margin-top: 18px; }
+      .b-progress span { height: 5px; border-radius: 999px; background: #dce3df; }
+      .b-progress span.done { background: var(--green); }
+      .b-progress span.current { background: var(--amber); }
+      .b-no-map {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(circle at 72% 18%, #ddebdc, transparent 31%), linear-gradient(145deg, #e9f0e8, #d9e2dc);
+      }
+      .b-no-map::before {
+        width: 58vw;
+        height: 58vw;
+        max-width: 310px;
+        max-height: 310px;
+        border: 1px solid rgba(20, 35, 29, 0.08);
+        border-radius: 50%;
+        box-shadow: 0 0 0 42px rgba(255, 255, 255, 0.2), 0 0 0 84px rgba(255, 255, 255, 0.12);
+        content: "";
+      }
+
+      /* Variant C: timeline first and document-like. */
+      .c-page { min-height: 100vh; padding: 0 0 140px; background: #f7f4ec; }
+      .c-top { padding: 18px 18px 16px; border-bottom: 1px solid #d8d3c8; background: #1c2924; color: white; }
+      .c-top-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+      .c-top .brand-mark { background: white; color: var(--ink); }
+      .c-top .pill { background: rgba(255, 255, 255, 0.12); color: white; }
+      .c-shell { width: min(100%, 840px); margin: 0 auto; }
+      .c-summary { display: grid; gap: 18px; padding: 28px 18px 22px; }
+      .c-state-block { padding-bottom: 22px; border-bottom: 1px solid #d8d3c8; }
+      .c-state-block .headline { max-width: 560px; }
+      .c-keyline {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1px;
+        overflow: hidden;
+        border: 1px solid #d8d3c8;
+        border-radius: 2px;
+        background: #d8d3c8;
+      }
+      .c-keyline > div { min-height: 96px; padding: 15px; background: var(--paper); }
+      .c-body { display: grid; gap: 24px; padding: 4px 18px 28px; }
+      .c-map { overflow: hidden; border: 1px solid #d8d3c8; border-radius: 4px; }
+      .c-timeline-card { padding: 20px; border: 1px solid #d8d3c8; background: var(--paper); }
+      .c-details { padding: 0 2px; }
+      .c-footer {
+        padding: 18px;
+        border-top: 1px solid #d8d3c8;
+        color: var(--muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 10px;
+        line-height: 1.5;
+      }
+
+      .unavailable-page {
+        min-height: calc(100vh - 120px);
+        display: grid;
+        place-items: center;
+        padding: 30px 20px 130px;
+        background: var(--canvas);
+      }
+      .unavailable-card {
+        width: min(100%, 430px);
+        padding: 28px;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--paper);
+        box-shadow: var(--shadow);
+      }
+      .unavailable-symbol {
+        display: grid;
+        width: 52px;
+        height: 52px;
+        margin: 24px 0;
+        place-items: center;
+        border-radius: 18px;
+        background: #e8ece9;
+        color: #526159;
+        font-size: 22px;
+        font-weight: 800;
+      }
+
+      .prototype-tools {
+        position: fixed;
+        z-index: 100;
+        right: 10px;
+        bottom: 10px;
+        left: 10px;
+        width: min(720px, calc(100% - 20px));
+        margin: auto;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 18px;
+        background: rgba(13, 22, 18, 0.96);
+        color: white;
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+        backdrop-filter: blur(16px);
+      }
+      .prototype-main-row {
+        display: grid;
+        grid-template-columns: minmax(150px, 1fr) auto auto auto;
+        gap: 8px;
+        align-items: center;
+        padding: 9px;
+      }
+      .prototype-tools select, .prototype-tools button {
+        min-height: 42px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 11px;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+      }
+      .prototype-tools select { width: 100%; padding: 0 36px 0 12px; }
+      .prototype-tools option { color: #111; }
+      .prototype-tools button { min-width: 42px; padding: 0 13px; cursor: pointer; }
+      .prototype-variant-label { min-width: 138px; text-align: center; font-size: 12px; font-weight: 800; }
+      .prototype-state { border-top: 1px solid rgba(255, 255, 255, 0.12); }
+      .prototype-state summary { padding: 9px 13px; color: #b9c7c0; cursor: pointer; font-size: 11px; font-weight: 700; }
+      .prototype-state pre {
+        max-height: 210px;
+        margin: 0;
+        overflow: auto;
+        padding: 0 13px 13px;
+        color: #d8e6de;
+        font-size: 10px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+
+      @media (min-width: 720px) {
+        .a-page { padding-top: 44px; }
+        .b-shell { width: min(100%, 1000px); min-height: calc(100vh - 132px); margin: 0 auto; }
+        .b-sheet { top: 84px; right: 24px; bottom: 24px; left: auto; width: 380px; max-height: none; }
+        .c-summary { grid-template-columns: 1.35fr 0.65fr; align-items: end; padding: 48px 28px 28px; }
+        .c-state-block { padding-right: 30px; padding-bottom: 0; border-right: 1px solid #d8d3c8; border-bottom: 0; }
+        .c-keyline { grid-template-columns: 1fr; }
+        .c-body { grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr); padding: 12px 28px 42px; }
+        .c-map { grid-row: span 2; }
+      }
+      @media (max-width: 520px) {
+        .prototype-main-row { grid-template-columns: 1fr auto auto; }
+        .prototype-variant-label { grid-column: 1 / -1; grid-row: 2; min-height: 24px; padding: 4px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="prototype-ribbon">Full product · Future Work included</div>
+    <div id="app"></div>
+    <aside class="prototype-tools" aria-label="Prototype controls">
+      <div class="prototype-main-row">
+        <label>
+          <span class="sr-only">Delivery scenario</span>
+          <select id="scenario-select"></select>
+        </label>
+        <button id="previous-variant" type="button" aria-label="Previous UI variant">←</button>
+        <div id="variant-label" class="prototype-variant-label" aria-live="polite"></div>
+        <button id="next-variant" type="button" aria-label="Next UI variant">→</button>
+      </div>
+      <details class="prototype-state">
+        <summary>Full prototype state</summary>
+        <pre id="state-inspector"></pre>
+      </details>
+    </aside>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var variants = [
+          { key: "A", name: "Status story" },
+          { key: "B", name: "Map first" },
+          { key: "C", name: "Timeline first" }
+        ];
+
+        var scenarios = {
+          awaiting: {
+            label: "Awaiting courier",
+            lifecycle: "AWAITING_COURIER",
+            tone: "info",
+            headline: "We’re preparing your delivery",
+            nextStep: "A courier is being arranged. An arrival estimate will appear after assignment.",
+            showIdentity: true,
+            reference: "DG-48271",
+            address: "14 Merrion Square North, Dublin 2",
+            courier: null,
+            eta: null,
+            map: false,
+            connection: { kind: "live", label: "Live updates" },
+            location: null,
+            late: false,
+            timeline: [
+              { label: "Delivery created", time: "1:42 PM", state: "done" },
+              { label: "Preparing your delivery", time: "Now", state: "current" }
+            ]
+          },
+          assigned: {
+            label: "Assigned · provisional ETA",
+            lifecycle: "ASSIGNED",
+            tone: "info",
+            headline: "A courier has been assigned",
+            nextStep: "Maya will collect your delivery next. Courier location appears only after pickup.",
+            showIdentity: true,
+            reference: "DG-48271",
+            address: "14 Merrion Square North, Dublin 2",
+            courier: "Maya",
+            eta: { value: "2:25–2:45 PM", meta: "Provisional · calculated 1 min ago", kind: "info" },
+            map: false,
+            connection: { kind: "live", label: "Live updates" },
+            location: null,
+            late: false,
+            timeline: [
+              { label: "Delivery created", time: "1:42 PM", state: "done" },
+              { label: "Courier assigned", time: "1:51 PM", state: "current" }
+            ]
+          },
+          in_transit_live: {
+            label: "In transit · live",
+            lifecycle: "IN_TRANSIT",
+            tone: "live",
+            headline: "Your delivery is on the way",
+            nextStep: "Maya is heading to the handoff address.",
+            showIdentity: true,
+            reference: "DG-48271",
+            address: "14 Merrion Square North, Dublin 2",
+            courier: "Maya",
+            eta: { value: "2:25–2:35 PM", meta: "Calculated just now", kind: "live" },
+            map: true,
+            connection: { kind: "live", label: "Live updates" },
+            location: { kind: "live", label: "Live location", age: "Updated 12 sec ago", accuracy: "Accuracy ±18 m", marker: true },
+            late: false,
+            timeline: [
+              { label: "Delivery created", time: "1:42 PM", state: "done" },
+              { label: "Courier assigned", time: "1:51 PM", state: "done" },
+              { label: "Collected by Maya", time: "2:03 PM", state: "current" }
+            ]
+          },
+          in_transit_delayed: {
+            label: "In transit · delayed location",
+            lifecycle: "IN_TRANSIT",
+            tone: "delayed",
+            headline: "Your delivery is on the way",
+            nextStep: "Maya is heading to the handoff address. The last location is delayed.",
+            showIdentity: true,
+            reference: "DG-48271",
+            address: "14 Merrion Square North, Dublin 2",
+            courier: "Maya",
+            eta: { value: "2:25–2:35 PM", meta: "Last calculated 2 min ago", kind: "delayed" },
+            map: true,
+            connection: { kind: "live", label: "Live updates" },
+            location: { kind: "delayed", label: "Delayed location", age: "Updated 1 min 18 sec ago", accuracy: "Accuracy ±24 m", marker: true },
+            late: false,
+            timeline: [
+              { label: "Delivery created", time: "1:42 PM", state: "done" },
+              { label: "Courier assigned", time: "1:51 PM", state: "done" },
+              { label: "Collected by Maya", time: "2:03 PM", state: "current" }
+            ]
+          },
+          reconnecting: {
+            label: "In transit · reconnecting",
+            lifecycle: "IN_TRANSIT",
+            tone: "live",
+            headline: "Your delivery is on the way",
+            nextStep: "Maya is heading to the handoff address. We’re reconnecting for new updates.",
+            showIdentity: true,
+            reference: "DG-48271",
+            address: "14 Merrion Square North, Dublin 2",
+            courier: "Maya",
+            eta: { value: "2:25–2:35 PM", meta: "Calculated 1 min ago", kind: "live" },
+            map: true,
+            connection: { kind: "reconnecting", label: "Reconnecting" },
+            location: { kind: "live", label: "Last received location", age: "Reported 18 sec ago", accuracy: "Accuracy ±18 m", marker: true },
+            late: false,
+            timeline: [
+              { label: "Delivery created", time: "1:42 PM", state: "done" },
+              { label: "Courier assigned", time: "1:51 PM", state: "done" },
+              { label: "Collected by Maya", time: "2:03 PM", state: "current" }
+            ]
+          },
+          unavailable_late: {
+            label: "In transit · unavailable and late",
+            lifecycle: "IN_TRANSIT",
+            tone: "unavailable",
+            headline: "Running later than expected",
+            nextStep: "Maya is still completing the delivery. New location and ETA information are temporarily unavailable.",
+            showIdentity: true,
+            reference: "DG-48271",
+            address: "14 Merrion Square North, Dublin 2",
+            courier: "Maya",
+            eta: null,
+            etaUnavailable: "ETA temporarily unavailable",
+            map: true,
+            connection: { kind: "live", label: "Live updates" },
+            location: { kind: "unavailable", label: "Location unavailable", age: "Last report 4 min ago", accuracy: null, marker: false },
+            late: true,
+            timeline: [
+              { label: "Delivery created", time: "1:42 PM", state: "done" },
+              { label: "Courier assigned", time: "1:51 PM", state: "done" },
+              { label: "Collected by Maya", time: "2:03 PM", state: "current" }
+            ]
+          },
+          delivered: {
+            label: "Delivered",
+            lifecycle: "DELIVERED",
+            tone: "live",
+            headline: "Delivered",
+            nextStep: "Your delivery was handed off successfully.",
+            showIdentity: true,
+            reference: "DG-48271",
+            address: "14 Merrion Square North, Dublin 2",
+            courier: null,
+            eta: null,
+            map: false,
+            connection: null,
+            location: null,
+            outcomeTime: "Delivered today at 2:31 PM IST",
+            late: false,
+            timeline: [
+              { label: "Delivered", time: "2:31 PM", state: "current" }
+            ]
+          },
+          cancelled: {
+            label: "Cancelled",
+            lifecycle: "CANCELLED",
+            tone: "failed",
+            headline: "This delivery was cancelled",
+            nextStep: "Contact the delivery team if you have questions.",
+            showIdentity: false,
+            reference: null,
+            address: null,
+            courier: null,
+            eta: null,
+            map: false,
+            connection: null,
+            location: null,
+            outcomeTime: "Cancelled today at 1:58 PM IST",
+            contact: "help@deliveryteam.example",
+            late: false,
+            timeline: [
+              { label: "Cancelled", time: "1:58 PM", state: "current" }
+            ]
+          },
+          undeliverable: {
+            label: "Undeliverable",
+            lifecycle: "UNDELIVERABLE",
+            tone: "failed",
+            headline: "We couldn’t complete this delivery",
+            nextStep: "A later attempt is not automatically scheduled. Contact the delivery team if you have questions.",
+            showIdentity: false,
+            reference: null,
+            address: null,
+            courier: null,
+            eta: null,
+            map: false,
+            connection: null,
+            location: null,
+            outcomeTime: "Delivery ended today at 2:31 PM IST",
+            contact: "help@deliveryteam.example",
+            late: false,
+            timeline: [
+              { label: "Couldn’t complete delivery", time: "2:31 PM", state: "current" }
+            ]
+          },
+          unavailable_link: {
+            label: "Unavailable tracking link",
+            lifecycle: null,
+            tone: "unavailable",
+            unavailableLink: true,
+            headline: "This tracking link is no longer available",
+            nextStep: "Contact the delivery team that shared it."
+          }
+        };
+
+        function getQuery() { return new URLSearchParams(window.location.search); }
+        function currentVariant() {
+          var requested = (getQuery().get("variant") || "A").toUpperCase();
+          return variants.some(function (item) { return item.key === requested; }) ? requested : "A";
+        }
+        function currentScenarioKey() {
+          var requested = getQuery().get("state") || "in_transit_live";
+          return scenarios[requested] ? requested : "in_transit_live";
+        }
+        function replaceQuery(key, value) {
+          var query = getQuery();
+          query.set(key, value);
+          window.history.replaceState({}, "", window.location.pathname + "?" + query.toString());
+          render();
+        }
+        function pill(text, kind, usePulse) {
+          if (!text) return "";
+          return '<span class="pill ' + (kind || "") + (usePulse ? " pulse" : "") + '">' + text + "</span>";
+        }
+        function isTerminal(state) {
+          return state.lifecycle === "DELIVERED" || state.lifecycle === "CANCELLED" || state.lifecycle === "UNDELIVERABLE";
+        }
+        function identityRows(state) {
+          if (!state.showIdentity) return "";
+          return '<div class="data-row"><div><div class="data-label">Handoff address</div><div class="data-value">' +
+            state.address + '</div></div></div><div class="data-row"><div><div class="data-label">Delivery reference</div><div class="data-value">' +
+            state.reference + "</div></div></div>";
+        }
+        function courierRows(state) {
+          if (!state.courier) return "";
+          return '<div class="data-row"><div><div class="data-label">Courier</div><div class="data-value">' +
+            state.courier + '</div></div><span class="pill info">Assigned</span></div>';
+        }
+        function timelineMarkup(state) {
+          if (!state.timeline) return "";
+          return '<ol class="timeline">' + state.timeline.map(function (item) {
+            return '<li class="' + item.state + '"><span class="timeline-dot" aria-hidden="true"></span><span>' +
+              item.label + "</span><time>" + item.time + "</time></li>";
+          }).join("") + "</ol>";
+        }
+        function progressMarkup(state) {
+          if (!state.timeline) return "";
+          return '<div class="b-progress" style="--steps:' + state.timeline.length + '" aria-label="Delivery progress">' +
+            state.timeline.map(function (item) { return '<span class="' + item.state + '"></span>'; }).join("") + "</div>";
+        }
+        function etaMarkup(state, compact) {
+          if (state.eta) {
+            return '<div><span class="data-label">Estimated arrival</span><strong class="eta-value">' +
+              state.eta.value + '</strong><span class="eta-meta">' + state.eta.meta + "</span></div>" +
+              (compact ? pill(state.eta.kind === "live" ? "Updated" : "Provisional", state.eta.kind, false) : "");
+          }
+          if (state.etaUnavailable) {
+            return '<div><span class="data-label">Estimated arrival</span><strong class="eta-value">Unavailable</strong><span class="eta-meta">' +
+              state.etaUnavailable + "</span></div>";
+          }
+          return '<div><span class="data-label">Estimated arrival</span><strong class="eta-value">Not available</strong><span class="eta-meta">Shown when this Delivery state supports an ETA.</span></div>';
+        }
+        function locationNotice(state) {
+          if (!state.location) return "";
+          var extra = state.location.accuracy ? " · " + state.location.accuracy : "";
+          var usePulse = state.location.kind === "live" && state.connection && state.connection.kind === "live";
+          return '<div class="map-note"><div><strong>' + state.location.label + "</strong><br>" +
+            state.location.age + extra + "</div>" +
+            pill(state.location.kind === "live" ? "Current" : state.location.kind, state.location.kind, usePulse) + "</div>";
+        }
+        function mapMarkup(state, extraClass) {
+          if (!state.map) return "";
+          var marker = state.location && state.location.marker;
+          var markerKind = state.location ? state.location.kind : "";
+          return '<section class="map-art ' + (extraClass || "") + '" aria-label="Map showing the handoff address' +
+            (marker ? " and the courier’s last known location" : "") + '">' +
+            '<div class="park"></div><div class="water"></div>' +
+            '<span class="map-label one">Mount Street</span><span class="map-label two">Merrion Square</span>' +
+            '<div class="handoff-marker" aria-label="Handoff address"><span>H</span></div>' +
+            (marker ? '<div class="accuracy-ring" aria-hidden="true"></div><div class="courier-marker ' + markerKind + '" aria-label="Courier location">M</div>' : "") +
+            locationNotice(state) + "</section>";
+        }
+        function outcomeMarkup(state) {
+          if (!state.outcomeTime) return "";
+          var contact = state.contact
+            ? '<div class="data-row"><div><div class="data-label">Delivery team contact</div><div class="data-value"><a class="help-link" href="mailto:' +
+              state.contact + '">' + state.contact + "</a></div></div></div>"
+            : "";
+          return '<div class="notice ' + (state.tone === "failed" ? "failed" : "info") + '">' + state.outcomeTime + "</div>" + contact;
+        }
+        function unavailableMarkup(variant) {
+          var shape = variant === "B" ? "border-radius:8px" : variant === "C" ? "border-radius:2px;box-shadow:none" : "";
+          return '<main class="unavailable-page"><section class="unavailable-card" style="' + shape + '">' +
+            '<div class="brand"><span class="brand-mark">DG</span>Delivery Glance</div>' +
+            '<div class="unavailable-symbol" aria-hidden="true">—</div>' +
+            '<p class="eyebrow">Tracking unavailable</p>' +
+            '<h1 class="headline" style="font-size:34px">This tracking link is no longer available</h1>' +
+            '<p class="next-step">Contact the delivery team that shared it.</p></section></main>';
+        }
+        function renderVariantA(state) {
+          if (state.unavailableLink) return unavailableMarkup("A");
+          var connection = state.connection ? pill(state.connection.label, state.connection.kind, false) : "";
+          var statusPill = pill(state.lifecycle.replaceAll("_", " "), state.tone, state.tone === "live" && state.lifecycle === "IN_TRANSIT");
+          return '<main class="a-page"><article class="a-shell">' +
+            '<header class="a-header"><div class="brand"><span class="brand-mark">DG</span>Delivery Glance</div>' +
+            (state.showIdentity ? '<span class="a-reference">' + state.reference + "</span>" : "") + "</header>" +
+            '<section class="a-hero" aria-live="polite"><div class="a-status-line">' + statusPill + connection + "</div>" +
+            '<h1 class="headline">' + state.headline + '</h1><p class="next-step">' + state.nextStep + "</p>" +
+            (state.late ? '<div class="notice" style="margin-top:18px">The previous ETA window has passed. We will show a new window only when reliable inputs return.</div>' : "") +
+            (state.eta || state.etaUnavailable ? '<div class="a-eta-card">' + etaMarkup(state, true) + "</div>" : "") +
+            "</section>" + (state.map ? '<div class="a-map">' + mapMarkup(state, "a-map-art") + "</div>" : "") +
+            '<section class="a-card"><h2 class="section-title">Delivery details</h2>' + outcomeMarkup(state) + courierRows(state) + identityRows(state) + "</section>" +
+            (isTerminal(state) ? "" : '<section class="a-card"><h2 class="section-title">Progress</h2>' + timelineMarkup(state) + "</section>") +
+            '<footer class="a-footer">Times are shown in the handoff address time zone. This page updates automatically while it remains open.</footer>' +
+            "</article></main>";
+        }
+        function renderVariantB(state) {
+          if (state.unavailableLink) return unavailableMarkup("B");
+          var mapLayer = state.map ? '<div class="b-map">' + mapMarkup(state, "b-map-art") + "</div>" : '<div class="b-no-map" aria-hidden="true"></div>';
+          var connection = state.connection ? pill(state.connection.label, state.connection.kind, false) : pill(state.lifecycle.replaceAll("_", " "), state.tone, false);
+          return '<main class="b-page"><article class="b-shell">' + mapLayer +
+            '<header class="b-topbar"><div class="brand"><span class="brand-mark">DG</span>Delivery Glance</div>' + connection + "</header>" +
+            '<section class="b-sheet" aria-live="polite"><div class="b-handle" aria-hidden="true"></div>' +
+            '<p class="eyebrow">' + state.lifecycle.replaceAll("_", " ") + '</p><h1 class="headline" style="font-size:36px">' + state.headline + "</h1>" +
+            '<p class="next-step">' + state.nextStep + "</p>" + (isTerminal(state) ? "" : progressMarkup(state)) +
+            (state.late ? '<div class="notice" style="margin-top:16px">The previous ETA window has passed.</div>' : "") +
+            (isTerminal(state) ? "" : '<div class="b-status-grid"><div class="b-mini-card">' + etaMarkup(state, false) + '</div><div class="b-mini-card"><span class="data-label">Courier</span>' +
+            '<strong class="eta-value" style="font-size:22px">' + (state.courier || "—") + '</strong><span class="eta-meta">' +
+            (state.courier ? "Assigned to this Delivery" : "Not publicly shown") + "</span></div></div>") +
+            outcomeMarkup(state) + '<div style="margin-top:14px">' + identityRows(state) + "</div></section></article></main>";
+        }
+        function renderVariantC(state) {
+          if (state.unavailableLink) return unavailableMarkup("C");
+          var connection = state.connection ? pill(state.connection.label, state.connection.kind, false) : pill(state.lifecycle.replaceAll("_", " "), state.tone, false);
+          return '<main class="c-page"><header class="c-top"><div class="c-shell c-top-row">' +
+            '<div class="brand"><span class="brand-mark">DG</span>Delivery Glance</div>' + connection + "</div></header>" +
+            '<article class="c-shell"><section class="c-summary"><div class="c-state-block" aria-live="polite">' +
+            '<p class="eyebrow">' + state.lifecycle.replaceAll("_", " ") + '</p><h1 class="headline">' + state.headline + "</h1>" +
+            '<p class="next-step">' + state.nextStep + "</p>" +
+            (state.late ? '<div class="notice" style="margin-top:16px">Running later than the published ETA window.</div>' : "") +
+            "</div>" + (isTerminal(state) ? "" : '<div class="c-keyline"><div>' + etaMarkup(state, false) + '</div><div><span class="data-label">Courier</span>' +
+            '<strong class="eta-value" style="font-size:22px">' + (state.courier || "Not shown") + '</strong><span class="eta-meta">' +
+            (state.courier ? "Display name only" : "Hidden in this state") + "</span></div></div>") + "</section>" +
+            '<section class="c-body">' + (state.map ? '<div class="c-map">' + mapMarkup(state, "c-map-art") + "</div>" : "") +
+            (isTerminal(state) ? "" : '<div class="c-timeline-card"><h2 class="section-title">Delivery timeline</h2>' + timelineMarkup(state) + "</div>") +
+            '<div class="c-details"><h2 class="section-title">Reference and handoff</h2>' + outcomeMarkup(state) + identityRows(state) + "</div></section>" +
+            '<footer class="c-footer">CURRENT PUBLIC TRUTH · TIMES IN HANDOFF TIME ZONE · NO ROUTE HISTORY</footer></article></main>';
+        }
+        function render() {
+          var variantKey = currentVariant();
+          var scenarioKey = currentScenarioKey();
+          var state = scenarios[scenarioKey];
+          var renderer = variantKey === "B" ? renderVariantB : variantKey === "C" ? renderVariantC : renderVariantA;
+          document.getElementById("app").innerHTML = renderer(state);
+          var variant = variants.find(function (item) { return item.key === variantKey; });
+          document.getElementById("variant-label").textContent = variant.key + " — " + variant.name;
+          document.getElementById("scenario-select").value = scenarioKey;
+          document.getElementById("state-inspector").textContent = JSON.stringify({ variant: variant, scenario: scenarioKey, publicState: state }, null, 2);
+        }
+        function cycleVariant(direction) {
+          var index = variants.findIndex(function (item) { return item.key === currentVariant(); });
+          var nextIndex = (index + direction + variants.length) % variants.length;
+          replaceQuery("variant", variants[nextIndex].key);
+        }
+
+        var select = document.getElementById("scenario-select");
+        Object.keys(scenarios).forEach(function (key) {
+          var option = document.createElement("option");
+          option.value = key;
+          option.textContent = scenarios[key].label;
+          select.appendChild(option);
+        });
+        select.addEventListener("change", function (event) { replaceQuery("state", event.target.value); });
+        document.getElementById("previous-variant").addEventListener("click", function () { cycleVariant(-1); });
+        document.getElementById("next-variant").addEventListener("click", function () { cycleVariant(1); });
+        window.addEventListener("keydown", function (event) {
+          var target = event.target;
+          var tagName = target && target.tagName ? target.tagName.toLowerCase() : "";
+          if (tagName === "input" || tagName === "textarea" || tagName === "select" || (target && target.isContentEditable)) return;
+          if (event.key === "ArrowLeft") cycleVariant(-1);
+          if (event.key === "ArrowRight") cycleVariant(1);
+        });
+        window.addEventListener("popstate", render);
+        render();
+      })();
+    </script>
+  </body>
+</html>

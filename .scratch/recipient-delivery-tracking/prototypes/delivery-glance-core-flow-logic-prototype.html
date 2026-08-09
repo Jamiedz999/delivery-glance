@@ -1,0 +1,687 @@
+<!doctype html>
+<!-- Throwaway logic prototype for the reduced Delivery Glance Core. No production code or persistence. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow,nosnippet" />
+    <title>Delivery Glance — Core flow logic prototype</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #14231d;
+        --muted: #627069;
+        --line: #d8e1dc;
+        --paper: #fffef9;
+        --canvas: #edf2ee;
+        --green: #176b4d;
+        --green-dark: #0d4b36;
+        --green-soft: #dff3e8;
+        --amber: #945a08;
+        --amber-soft: #fff0cf;
+        --red: #9f342c;
+        --red-soft: #fae3df;
+        --blue: #315f8d;
+        --blue-soft: #e5eff9;
+        --shadow: 0 16px 48px rgba(20, 35, 29, 0.11);
+      }
+      * { box-sizing: border-box; }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        background:
+          radial-gradient(circle at 12% 0%, rgba(23, 107, 77, 0.12), transparent 32rem),
+          var(--canvas);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      button { font: inherit; cursor: pointer; }
+      button:focus-visible, summary:focus-visible {
+        outline: 3px solid #0b6cff;
+        outline-offset: 3px;
+      }
+      h1, h2, h3, p { margin-top: 0; }
+      .shell { width: min(1180px, calc(100% - 28px)); margin: 0 auto; padding: 28px 0 64px; }
+      .topline { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 850; }
+      .mark {
+        display: grid; width: 34px; height: 34px; place-items: center;
+        border-radius: 12px 12px 12px 3px; background: var(--ink); color: white;
+      }
+      .ribbon {
+        padding: 7px 10px; border: 1px solid #a6cbb9; border-radius: 999px;
+        background: rgba(255,255,255,.78); color: var(--green-dark);
+        font-size: 11px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase;
+      }
+      .hero { padding: 54px 0 24px; }
+      .eyebrow { margin-bottom: 9px; color: var(--green); font-size: 12px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+      h1 { max-width: 760px; margin-bottom: 14px; font-size: clamp(32px, 6vw, 62px); line-height: .98; letter-spacing: -.055em; }
+      .lede { max-width: 790px; color: var(--muted); font-size: 17px; line-height: 1.6; }
+      .scope-strip {
+        display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px;
+      }
+      .chip { padding: 7px 10px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); font-size: 12px; font-weight: 750; }
+      .chip.no { color: var(--red); background: var(--red-soft); border-color: #efc5be; }
+      .guide, .panel {
+        border: 1px solid var(--line); border-radius: 22px; background: rgba(255,254,249,.95); box-shadow: var(--shadow);
+      }
+      .guide { padding: 18px; margin: 18px 0; }
+      .tabs { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; }
+      .tab, .button {
+        min-height: 38px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 11px;
+        background: white; color: var(--ink); font-weight: 750;
+      }
+      .tab[aria-selected="true"], .button.primary { border-color: var(--green); background: var(--green); color: white; }
+      .button.secondary { background: var(--green-soft); border-color: #afd8c4; color: var(--green-dark); }
+      .button.danger { background: var(--red-soft); border-color: #efc5be; color: var(--red); }
+      .button:disabled { cursor: not-allowed; opacity: .42; }
+      .guide-body { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: end; padding-top: 16px; }
+      .guide-body p { margin-bottom: 5px; color: var(--muted); line-height: 1.5; }
+      .step-title { font-size: 18px; font-weight: 850; color: var(--ink) !important; }
+      .button-row { display: flex; gap: 8px; flex-wrap: wrap; }
+      .status-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 18px 0; }
+      .status-card { min-height: 112px; padding: 15px; border: 1px solid var(--line); border-radius: 17px; background: var(--paper); }
+      .label { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+      .value { margin-top: 8px; font-size: 17px; font-weight: 850; overflow-wrap: anywhere; }
+      .subvalue { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.35; }
+      .notice { margin: 0 0 18px; padding: 12px 14px; border-radius: 13px; background: var(--blue-soft); color: #234c75; font-weight: 700; }
+      .notice.error { background: var(--red-soft); color: var(--red); }
+      .workspace-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr); gap: 16px; }
+      .panel { padding: 19px; }
+      .panel-head { display: flex; justify-content: space-between; gap: 12px; align-items: start; margin-bottom: 16px; }
+      .panel-head h2 { margin-bottom: 4px; font-size: 20px; }
+      .panel-head p { margin-bottom: 0; color: var(--muted); font-size: 13px; }
+      .courier-list { display: grid; gap: 10px; }
+      .courier {
+        padding: 14px; border: 1px solid var(--line); border-radius: 15px; background: #fafbf7;
+      }
+      .courier-top { display: flex; justify-content: space-between; gap: 12px; }
+      .courier-name { font-weight: 850; }
+      .courier-meta { margin-top: 3px; color: var(--muted); font-size: 12px; }
+      .badge { display: inline-flex; align-items: center; height: 25px; padding: 0 8px; border-radius: 999px; background: #edf0ed; color: var(--muted); font-size: 11px; font-weight: 850; }
+      .badge.good { background: var(--green-soft); color: var(--green-dark); }
+      .badge.warn { background: var(--amber-soft); color: var(--amber); }
+      .badge.bad { background: var(--red-soft); color: var(--red); }
+      .courier .button-row { margin-top: 12px; }
+      .courier .button { min-height: 34px; padding: 6px 9px; font-size: 12px; }
+      .section-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+      .recommendation { display: grid; gap: 7px; }
+      .candidate { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--green-soft); }
+      .candidate strong { font-size: 13px; }
+      .recipient-phone {
+        min-height: 500px; padding: 12px; border: 8px solid var(--ink); border-radius: 30px; background: white;
+      }
+      .phone-bar { display: flex; justify-content: space-between; padding: 5px 4px 14px; color: var(--muted); font-size: 11px; font-weight: 800; }
+      .recipient-content { padding: 10px; }
+      .recipient-content h3 { margin: 9px 0; font-size: 27px; letter-spacing: -.035em; }
+      .recipient-content p { color: var(--muted); line-height: 1.5; }
+      .map {
+        position: relative; height: 165px; margin: 16px 0; overflow: hidden;
+        border-radius: 17px; background:
+          linear-gradient(32deg, transparent 48%, rgba(255,255,255,.88) 49%, rgba(255,255,255,.88) 53%, transparent 54%),
+          linear-gradient(145deg, transparent 40%, rgba(255,255,255,.7) 41%, rgba(255,255,255,.7) 45%, transparent 46%),
+          #dceadf;
+      }
+      .map:before, .map:after { content: ""; position: absolute; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+      .map:before { width: 18px; height: 18px; left: 72%; top: 38%; background: var(--ink); }
+      .map:after { width: 22px; height: 22px; left: 28%; top: 57%; background: var(--green); box-shadow: 0 0 0 9px rgba(23,107,77,.16); }
+      .map.delayed:after { background: var(--amber); box-shadow: 0 0 0 9px rgba(148,90,8,.16); }
+      .freshness { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; }
+      .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); }
+      .dot.warn { background: var(--amber); }
+      .empty {
+        display: grid; min-height: 380px; place-items: center; padding: 26px; border: 1px dashed var(--line); border-radius: 18px; text-align: center; color: var(--muted);
+      }
+      details { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 15px; background: var(--paper); }
+      summary { cursor: pointer; font-weight: 850; }
+      pre { max-height: 360px; overflow: auto; padding: 14px; border-radius: 12px; background: #17241f; color: #dff3e8; font-size: 12px; line-height: 1.5; }
+      .footer-note { max-width: 820px; margin: 22px auto 0; color: var(--muted); text-align: center; font-size: 12px; line-height: 1.6; }
+      @media (max-width: 900px) {
+        .status-grid { grid-template-columns: repeat(2, 1fr); }
+        .workspace-grid { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 620px) {
+        .shell { width: min(100% - 18px, 1180px); padding-top: 14px; }
+        .hero { padding-top: 36px; }
+        .guide-body { grid-template-columns: 1fr; }
+        .status-grid { grid-template-columns: 1fr 1fr; }
+        .status-card:last-child { grid-column: 1 / -1; }
+        .panel { padding: 14px; }
+        .courier-top { display: block; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation: none !important; scroll-behavior: auto !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <div class="topline">
+        <div class="brand"><span class="mark">DG</span> Delivery Glance</div>
+        <div class="ribbon">Current Core · logic prototype</div>
+      </div>
+
+      <header class="hero">
+        <p class="eyebrow">Question this prototype answers</p>
+        <h1>Is the reduced three-role loop coherent without the heavy branches?</h1>
+        <p class="lede">Exercise Direct Assignment, guarded lifecycle, latest-only foreground location and a no-account Tracking Link. The state machine below is isolated from the UI so the future implementation can test the same rules through real module interfaces.</p>
+        <div class="scope-strip">
+          <span class="chip">Nearest-three Direct Assignment</span>
+          <span class="chip">Latest-only location</span>
+          <span class="chip">Recipient freshness</span>
+          <span class="chip">Secure-link boundary</span>
+          <span class="chip no">No Matching Round</span>
+          <span class="chip no">No ETA</span>
+          <span class="chip no">No Reassignment</span>
+          <span class="chip no">No Route History</span>
+        </div>
+      </header>
+
+      <section class="guide" aria-labelledby="guide-title">
+        <h2 id="guide-title">Guided checks</h2>
+        <div id="scenario-tabs" class="tabs" role="tablist" aria-label="Guided scenarios"></div>
+        <div class="guide-body">
+          <div>
+            <p id="scenario-purpose"></p>
+            <p id="step-title" class="step-title"></p>
+            <p id="step-detail"></p>
+          </div>
+          <div class="button-row">
+            <button id="run-step" class="button primary" type="button">Run next step</button>
+            <button id="reset-scenario" class="button" type="button">Reset scenario</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="status-grid" class="status-grid" aria-label="Current Core state"></section>
+      <p id="notice" class="notice" role="status" aria-live="polite"></p>
+
+      <div class="workspace-grid">
+        <section class="panel" aria-labelledby="operations-title">
+          <div class="panel-head">
+            <div>
+              <h2 id="operations-title">Dispatcher + Courier controls</h2>
+              <p>Free play: every button sends one action through the pure Core reducer.</p>
+            </div>
+            <span class="badge">T+<span id="clock">0s</span></span>
+          </div>
+          <div id="courier-list" class="courier-list"></div>
+          <div class="section-actions">
+            <button class="button secondary" data-action="REFRESH_RECOMMENDATION" type="button">Refresh nearest three</button>
+            <button class="button" data-action="OPEN_LINK" type="button">Open Tracking Link</button>
+            <button class="button" data-action="ADVANCE_TIME" data-seconds="35" type="button">Advance +35s</button>
+            <button class="button" data-action="ADVANCE_TIME" data-seconds="90" type="button">Advance +90s</button>
+            <button class="button" data-action="DISCONNECT" type="button">Disconnect Recipient</button>
+            <button class="button" data-action="RECONNECT" type="button">Reconnect + snapshot</button>
+            <button class="button" data-action="RESTART" type="button">Restart application</button>
+            <button class="button danger" data-action="CANCEL_DELIVERY" type="button">Cancel before pickup</button>
+          </div>
+          <h3>Current recommendation</h3>
+          <div id="recommendation" class="recommendation"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="recipient-title">
+          <div class="panel-head">
+            <div>
+              <h2 id="recipient-title">Recipient phone</h2>
+              <p>Read-only projection; never the internal aggregate.</p>
+            </div>
+          </div>
+          <div id="recipient-phone" class="recipient-phone"></div>
+        </section>
+      </div>
+
+      <details>
+        <summary>Inspect complete prototype state</summary>
+        <pre id="state-output"></pre>
+      </details>
+      <p class="footer-note">Throwaway prototype: no framework, database, network, secret or persistent data. Complete-product UI prototypes remain separate Future Work evidence.</p>
+    </main>
+
+    <script>
+      (function () {
+        "use strict";
+
+        function clone(value) {
+          return JSON.parse(JSON.stringify(value));
+        }
+
+        var CoreFlow = {
+          initialState: function () {
+            return {
+              now: 0,
+              delivery: {
+                id: "delivery-1",
+                reference: "DG-1042",
+                state: "AWAITING_COURIER",
+                version: 1,
+                pickup: { label: "Smithfield pickup", latitude: 53.3498, longitude: -6.2786 },
+                handoff: { label: "18 Merrion Square, Dublin", latitude: 53.3394, longitude: -6.2493 },
+                assignment: null,
+                terminalAt: null
+              },
+              couriers: [
+                { id: "maya", name: "Maya", onDuty: false, sharing: false, generation: 0, secretHeld: false, location: null, point: { latitude: 53.3477, longitude: -6.2755 } },
+                { id: "leon", name: "Leon", onDuty: false, sharing: false, generation: 0, secretHeld: false, location: null, point: { latitude: 53.3542, longitude: -6.2681 } },
+                { id: "priya", name: "Priya", onDuty: false, sharing: false, generation: 0, secretHeld: false, location: null, point: { latitude: 53.3409, longitude: -6.2862 } }
+              ],
+              recommendation: { calculatedAt: null, candidateIds: [] },
+              tracking: {
+                createdAt: 0,
+                absoluteExpiry: 604800,
+                opened: false,
+                connection: "NOT_OPENED",
+                copyFingerprint: "…same-43-char-capability"
+              },
+              notice: "Delivery DG-1042 exists. No Courier has been considered yet.",
+              error: false,
+              revision: 1
+            };
+          },
+
+          selectors: {
+            active: function (state) {
+              return state.delivery.state === "ASSIGNED" || state.delivery.state === "IN_TRANSIT";
+            },
+            freshness: function (state, courier) {
+              if (!courier.location || !courier.sharing) return "UNAVAILABLE";
+              var age = state.now - courier.location.recordedAt;
+              if (age <= 30) return "LIVE";
+              if (age <= 120) return "DELAYED";
+              return "UNAVAILABLE";
+            },
+            eligible: function (state, courier) {
+              var busy = CoreFlow.selectors.active(state) && state.delivery.assignment && state.delivery.assignment.courierId === courier.id;
+              return courier.onDuty && CoreFlow.selectors.freshness(state, courier) !== "UNAVAILABLE" && !busy;
+            },
+            haversineKm: function (a, b) {
+              var toRad = function (degrees) { return degrees * Math.PI / 180; };
+              var earth = 6371;
+              var dLat = toRad(b.latitude - a.latitude);
+              var dLon = toRad(b.longitude - a.longitude);
+              var lat1 = toRad(a.latitude);
+              var lat2 = toRad(b.latitude);
+              var sinLat = Math.sin(dLat / 2);
+              var sinLon = Math.sin(dLon / 2);
+              var value = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLon * sinLon;
+              return earth * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
+            },
+            candidates: function (state) {
+              return state.couriers
+                .filter(function (courier) { return CoreFlow.selectors.eligible(state, courier); })
+                .map(function (courier) {
+                  return { id: courier.id, distance: CoreFlow.selectors.haversineKm(courier.location, state.delivery.pickup) };
+                })
+                .sort(function (left, right) { return left.distance - right.distance || left.id.localeCompare(right.id); })
+                .slice(0, 3);
+            },
+            effectiveExpiry: function (state) {
+              if (state.delivery.terminalAt === null) return state.tracking.absoluteExpiry;
+              return Math.min(state.tracking.absoluteExpiry, state.delivery.terminalAt + 86400);
+            },
+            linkUsable: function (state) {
+              return state.now < CoreFlow.selectors.effectiveExpiry(state);
+            }
+          },
+
+          reduce: function (previous, action) {
+            var state = clone(previous);
+            var courier = action.courierId ? state.couriers.find(function (item) { return item.id === action.courierId; }) : null;
+            state.error = false;
+
+            function fail(message) {
+              state.error = true;
+              state.notice = "Blocked: " + message;
+              return state;
+            }
+            function succeed(message) {
+              state.notice = message;
+              state.revision += 1;
+              return state;
+            }
+
+            switch (action.type) {
+              case "TOGGLE_DUTY":
+                courier.onDuty = !courier.onDuty;
+                return succeed(courier.name + " is now " + (courier.onDuty ? "On Duty" : "Off Duty") + ". Sharing remains a separate choice.");
+              case "START_SHARING":
+                courier.sharing = true;
+                courier.secretHeld = true;
+                courier.generation += 1;
+                courier.location = null;
+                return succeed(courier.name + " explicitly started a new foreground sharing generation.");
+              case "STOP_SHARING":
+                courier.sharing = false;
+                courier.secretHeld = false;
+                courier.location = null;
+                return succeed(courier.name + " stopped sharing; the latest coordinates were removed immediately.");
+              case "REPORT_LOCATION":
+                if (!courier.sharing || !courier.secretHeld) return fail(courier.name + " must explicitly Start sharing first.");
+                courier.location = {
+                  latitude: courier.point.latitude,
+                  longitude: courier.point.longitude,
+                  accuracy: 18,
+                  recordedAt: state.now,
+                  generation: courier.generation
+                };
+                return succeed(courier.name + " reported one usable current position. No earlier position was retained.");
+              case "REFRESH_RECOMMENDATION":
+                state.recommendation.calculatedAt = state.now;
+                state.recommendation.candidateIds = CoreFlow.selectors.candidates(state).map(function (item) { return item.id; });
+                return succeed(state.recommendation.candidateIds.length ? "Recommendation recalculated from current eligibility and distance." : "No Courier is currently Eligible.");
+              case "ASSIGN":
+                if (state.delivery.state !== "AWAITING_COURIER") return fail("the Delivery is no longer awaiting a Courier; a second Assignment cannot be created.");
+                if (state.recommendation.calculatedAt === null || state.recommendation.candidateIds.indexOf(courier.id) === -1) return fail(courier.name + " is not in the current recommendation.");
+                if (!CoreFlow.selectors.eligible(state, courier)) return fail(courier.name + " changed eligibility; refresh before assigning.");
+                state.delivery.state = "ASSIGNED";
+                state.delivery.version += 1;
+                state.delivery.assignment = { courierId: courier.id, assignedAt: state.now, endedAt: null };
+                return succeed(courier.name + " was atomically assigned after revalidation. No invitation or click race exists.");
+              case "CONFIRM_PICKUP":
+                if (state.delivery.state !== "ASSIGNED" || !state.delivery.assignment || state.delivery.assignment.courierId !== courier.id) return fail("only the assigned Courier can confirm pickup from Assigned.");
+                state.delivery.state = "IN_TRANSIT";
+                state.delivery.version += 1;
+                return succeed(courier.name + " confirmed pickup; Recipient location may now be shown when usable.");
+              case "DELIVER":
+                if (state.delivery.state !== "IN_TRANSIT" || !state.delivery.assignment || state.delivery.assignment.courierId !== courier.id) return fail("only the assigned Courier can confirm handoff from In Transit.");
+                state.delivery.state = "DELIVERED";
+                state.delivery.version += 1;
+                state.delivery.terminalAt = state.now;
+                state.delivery.assignment.endedAt = state.now;
+                return succeed("Handoff confirmed. Recipient Courier identity and location disappeared immediately.");
+              case "CANCEL_DELIVERY":
+                if (state.delivery.state !== "AWAITING_COURIER" && state.delivery.state !== "ASSIGNED") return fail("Core permits cancellation only before pickup.");
+                state.delivery.state = "CANCELLED";
+                state.delivery.version += 1;
+                state.delivery.terminalAt = state.now;
+                if (state.delivery.assignment) state.delivery.assignment.endedAt = state.now;
+                return succeed("Dispatcher cancelled before pickup. The Recipient sees only a generic terminal result.");
+              case "OPEN_LINK":
+                state.tracking.opened = true;
+                state.tracking.connection = CoreFlow.selectors.linkUsable(state) ? "CONNECTED" : "UNAVAILABLE";
+                return CoreFlow.selectors.linkUsable(state) ? succeed("Fragment exchanged once, removed from history, and replaced by a scoped read-only grant.") : fail("the Link Holder receives the same data-free unavailable view.");
+              case "DISCONNECT":
+                if (!state.tracking.opened) return fail("the Tracking Link has not been opened.");
+                state.tracking.connection = "RECONNECTING";
+                return succeed("Recipient connection is interrupted; timestamped facts remain, but freshness keeps aging.");
+              case "RECONNECT":
+                if (!state.tracking.opened || !CoreFlow.selectors.linkUsable(state)) return fail("no usable Tracking grant exists.");
+                state.tracking.connection = "CONNECTED";
+                return succeed("SSE reconnected and fetched revision " + state.revision + " from authorised current truth.");
+              case "ADVANCE_TIME":
+                state.now += action.seconds;
+                return succeed("Clock advanced by " + action.seconds + " seconds. Freshness was derived again, without a server event.");
+              case "RESTART":
+                state.couriers.forEach(function (item) {
+                  item.location = null;
+                  item.sharing = false;
+                  item.secretHeld = false;
+                });
+                if (state.tracking.opened) state.tracking.connection = "RECONNECTING";
+                return succeed("Application restarted: durable Delivery/Assignment/Link remained; ephemeral location and emitters disappeared.");
+              default:
+                return fail("unknown action.");
+            }
+          }
+        };
+
+        var scenarios = [
+          {
+            id: "happy",
+            name: "Happy path",
+            purpose: "Proves the smallest Dispatcher → Courier → Recipient loop.",
+            steps: [
+              ["Maya goes On Duty", "Availability alone does not grant location permission.", { type: "TOGGLE_DUTY", courierId: "maya" }],
+              ["Maya starts sharing", "A fresh generation holds no position until a report arrives.", { type: "START_SHARING", courierId: "maya" }],
+              ["Maya reports one fix", "Only this newest usable position exists.", { type: "REPORT_LOCATION", courierId: "maya" }],
+              ["Dispatcher recalculates", "Current eligibility produces the nearest shortlist.", { type: "REFRESH_RECOMMENDATION" }],
+              ["Dispatcher assigns Maya", "Assignment revalidates and commits without an invitation.", { type: "ASSIGN", courierId: "maya" }],
+              ["Recipient opens the link", "The fragment becomes a scoped read-only grant.", { type: "OPEN_LINK" }],
+              ["Maya confirms pickup", "Only now may Recipient location appear.", { type: "CONFIRM_PICKUP", courierId: "maya" }],
+              ["Maya reports in transit", "The marker is Live and replaces the prior snapshot.", { type: "REPORT_LOCATION", courierId: "maya" }],
+              ["Maya confirms handoff", "Delivered immediately removes public Courier/location.", { type: "DELIVER", courierId: "maya" }]
+            ]
+          },
+          {
+            id: "race",
+            name: "Double assignment guard",
+            purpose: "Shows why recommendation is not assignment and the Delivery still has one winner.",
+            steps: [
+              ["Prepare Maya", "On Duty, sharing and one fresh location.", [
+                { type: "TOGGLE_DUTY", courierId: "maya" }, { type: "START_SHARING", courierId: "maya" }, { type: "REPORT_LOCATION", courierId: "maya" }
+              ]],
+              ["Prepare Leon", "A second Eligible Courier makes the shortlist meaningful.", [
+                { type: "TOGGLE_DUTY", courierId: "leon" }, { type: "START_SHARING", courierId: "leon" }, { type: "REPORT_LOCATION", courierId: "leon" }
+              ]],
+              ["Calculate candidates", "Both are ranked from current snapshots.", { type: "REFRESH_RECOMMENDATION" }],
+              ["Assign Maya", "One atomic Assignment moves the Delivery to Assigned.", { type: "ASSIGN", courierId: "maya" }],
+              ["Try to assign Leon", "The second command must conflict, even though Leon was previously recommended.", { type: "ASSIGN", courierId: "leon" }]
+            ]
+          },
+          {
+            id: "freshness",
+            name: "Freshness + privacy",
+            purpose: "Proves that a frozen marker never masquerades as live and Stop is immediate.",
+            steps: [
+              ["Prepare the active trip", "Set up Maya, assignment, Tracking grant and pickup.", [
+                { type: "TOGGLE_DUTY", courierId: "maya" }, { type: "START_SHARING", courierId: "maya" }, { type: "REPORT_LOCATION", courierId: "maya" },
+                { type: "REFRESH_RECOMMENDATION" }, { type: "ASSIGN", courierId: "maya" }, { type: "OPEN_LINK" }, { type: "CONFIRM_PICKUP", courierId: "maya" }
+              ]],
+              ["Advance 35 seconds", "The same measured position becomes Delayed.", { type: "ADVANCE_TIME", seconds: 35 }],
+              ["Disconnect Recipient", "Connection and location freshness remain different facts.", { type: "DISCONNECT" }],
+              ["Advance another 90 seconds", "The marker becomes Unavailable locally after two minutes.", { type: "ADVANCE_TIME", seconds: 90 }],
+              ["Report a fresh fix", "One new snapshot restores Live even while the stream reconnects.", { type: "REPORT_LOCATION", courierId: "maya" }],
+              ["Reconnect", "The page rereads authorised current truth rather than replaying coordinates.", { type: "RECONNECT" }],
+              ["Stop sharing", "Coordinates disappear immediately; the two-minute clock is not a grace period.", { type: "STOP_SHARING", courierId: "maya" }]
+            ]
+          },
+          {
+            id: "cancel",
+            name: "Cancellation guard",
+            purpose: "Keeps one simple pre-pickup escape without implementing Reassignment or Undeliverable.",
+            steps: [
+              ["Prepare and assign Maya", "The Delivery is Assigned but not picked up.", [
+                { type: "TOGGLE_DUTY", courierId: "maya" }, { type: "START_SHARING", courierId: "maya" }, { type: "REPORT_LOCATION", courierId: "maya" },
+                { type: "REFRESH_RECOMMENDATION" }, { type: "ASSIGN", courierId: "maya" }, { type: "OPEN_LINK" }
+              ]],
+              ["Dispatcher cancels", "The Assignment ends and the public result is generic.", { type: "CANCEL_DELIVERY" }],
+              ["Maya tries pickup", "A terminal Delivery rejects the transition.", { type: "CONFIRM_PICKUP", courierId: "maya" }]
+            ]
+          }
+        ];
+
+        var state = CoreFlow.initialState();
+        var selectedScenario = 0;
+        var scenarioStep = 0;
+
+        function formatAge(seconds) {
+          if (seconds < 60) return seconds + "s";
+          return Math.floor(seconds / 60) + "m " + (seconds % 60) + "s";
+        }
+
+        function courierById(id) {
+          return state.couriers.find(function (courier) { return courier.id === id; });
+        }
+
+        function dispatch(action) {
+          state = CoreFlow.reduce(state, action);
+          render();
+        }
+
+        function runStepAction(action) {
+          if (Array.isArray(action)) {
+            action.forEach(function (item) { state = CoreFlow.reduce(state, item); });
+            render();
+          } else {
+            dispatch(action);
+          }
+        }
+
+        function reset() {
+          state = CoreFlow.initialState();
+          scenarioStep = 0;
+          render();
+        }
+
+        function renderTabs() {
+          var container = document.getElementById("scenario-tabs");
+          container.innerHTML = scenarios.map(function (scenario, index) {
+            return '<button class="tab" role="tab" aria-selected="' + (index === selectedScenario) + '" data-scenario="' + index + '" type="button">' + scenario.name + '</button>';
+          }).join("");
+        }
+
+        function renderGuide() {
+          var scenario = scenarios[selectedScenario];
+          var done = scenarioStep >= scenario.steps.length;
+          var step = done ? ["Scenario complete", "Reset it or use the free-play controls.", null] : scenario.steps[scenarioStep];
+          document.getElementById("scenario-purpose").textContent = scenario.purpose;
+          document.getElementById("step-title").textContent = done ? step[0] : "Step " + (scenarioStep + 1) + " of " + scenario.steps.length + " · " + step[0];
+          document.getElementById("step-detail").textContent = step[1];
+          document.getElementById("run-step").disabled = done;
+          document.getElementById("run-step").textContent = done ? "Scenario complete" : "Run next step";
+        }
+
+        function renderStatus() {
+          var assignment = state.delivery.assignment;
+          var assignedCourier = assignment ? courierById(assignment.courierId) : null;
+          var activeCourier = assignedCourier && CoreFlow.selectors.active(state) ? assignedCourier : null;
+          var freshness = activeCourier ? CoreFlow.selectors.freshness(state, activeCourier) : "N/A";
+          var fields = [
+            ["Delivery", state.delivery.state, "Version " + state.delivery.version],
+            ["Assignment", activeCourier ? activeCourier.name : "None active", assignment && assignment.endedAt !== null ? "ended at T+" + assignment.endedAt + "s" : "database-guarded"],
+            ["Current location", freshness, activeCourier && activeCourier.location ? "measured " + formatAge(state.now - activeCourier.location.recordedAt) + " ago" : "latest-only memory"],
+            ["Tracking link", CoreFlow.selectors.linkUsable(state) ? "Usable" : "Unavailable", "same Copy · expires T+" + CoreFlow.selectors.effectiveExpiry(state) + "s"],
+            ["Recipient SSE", state.tracking.connection, "snapshot revision " + state.revision]
+          ];
+          document.getElementById("status-grid").innerHTML = fields.map(function (field) {
+            return '<article class="status-card"><div class="label">' + field[0] + '</div><div class="value">' + field[1] + '</div><div class="subvalue">' + field[2] + '</div></article>';
+          }).join("");
+        }
+
+        function renderCouriers() {
+          document.getElementById("courier-list").innerHTML = state.couriers.map(function (courier) {
+            var freshness = CoreFlow.selectors.freshness(state, courier);
+            var eligible = CoreFlow.selectors.eligible(state, courier);
+            var assigned = state.delivery.assignment && state.delivery.assignment.courierId === courier.id && CoreFlow.selectors.active(state);
+            var statusClass = eligible ? "good" : (freshness === "DELAYED" ? "warn" : "");
+            return '<article class="courier">' +
+              '<div class="courier-top"><div><div class="courier-name">' + courier.name + (assigned ? " · assigned" : "") + '</div>' +
+              '<div class="courier-meta">' + (courier.onDuty ? "On Duty" : "Off Duty") + ' · ' + (courier.sharing ? "Sharing generation " + courier.generation : "Sharing Off") + ' · ' + freshness + '</div></div>' +
+              '<span class="badge ' + statusClass + '">' + (eligible ? "Eligible" : "Not eligible") + '</span></div>' +
+              '<div class="button-row">' +
+              '<button class="button" data-action="TOGGLE_DUTY" data-courier="' + courier.id + '" type="button">' + (courier.onDuty ? "Go Off Duty" : "Go On Duty") + '</button>' +
+              '<button class="button" data-action="' + (courier.sharing ? "STOP_SHARING" : "START_SHARING") + '" data-courier="' + courier.id + '" type="button">' + (courier.sharing ? "Stop sharing" : "Start sharing") + '</button>' +
+              '<button class="button" data-action="REPORT_LOCATION" data-courier="' + courier.id + '" type="button">Report location</button>' +
+              '<button class="button secondary" data-action="ASSIGN" data-courier="' + courier.id + '" type="button">Direct assign</button>' +
+              '<button class="button" data-action="CONFIRM_PICKUP" data-courier="' + courier.id + '" type="button">Confirm pickup</button>' +
+              '<button class="button" data-action="DELIVER" data-courier="' + courier.id + '" type="button">Confirm handoff</button>' +
+              '</div></article>';
+          }).join("");
+        }
+
+        function renderRecommendation() {
+          var container = document.getElementById("recommendation");
+          if (state.recommendation.calculatedAt === null) {
+            container.innerHTML = '<p class="subvalue">Not calculated. Assignment still revalidates at command time.</p>';
+            return;
+          }
+          if (!state.recommendation.candidateIds.length) {
+            container.innerHTML = '<p class="subvalue">No Eligible Courier at T+' + state.recommendation.calculatedAt + 's.</p>';
+            return;
+          }
+          var currentDistances = {};
+          CoreFlow.selectors.candidates(state).forEach(function (candidate) { currentDistances[candidate.id] = candidate.distance; });
+          container.innerHTML = state.recommendation.candidateIds.map(function (id, index) {
+            var courier = courierById(id);
+            var distance = currentDistances[id];
+            return '<div class="candidate"><strong>' + (index + 1) + ' · ' + courier.name + '</strong><span>' + (distance === undefined ? "eligibility changed" : distance.toFixed(2) + " km") + '</span></div>';
+          }).join("");
+        }
+
+        function recipientProjection() {
+          if (!state.tracking.opened) return { unavailable: true, title: "Tracking Link not opened", detail: "Use Open Tracking Link to establish the read-only view." };
+          if (!CoreFlow.selectors.linkUsable(state) || state.tracking.connection === "UNAVAILABLE") return { unavailable: true, title: "Tracking unavailable", detail: "This generic view reveals no Delivery or link status." };
+          var delivery = state.delivery;
+          var assigned = delivery.assignment ? courierById(delivery.assignment.courierId) : null;
+          var base = { reference: delivery.reference, address: delivery.handoff.label, connection: state.tracking.connection };
+          if (delivery.state === "AWAITING_COURIER") return Object.assign(base, { title: "Finding a courier", next: "We will update this page when a Courier is assigned." });
+          if (delivery.state === "ASSIGNED") return Object.assign(base, { title: "Courier heading to pickup", next: "The map appears only after pickup.", courier: assigned.name });
+          if (delivery.state === "IN_TRANSIT") {
+            var freshness = CoreFlow.selectors.freshness(state, assigned);
+            return Object.assign(base, {
+              title: "Your delivery is on the way",
+              next: freshness === "UNAVAILABLE" ? "Location is unavailable; delivery status is still current." : "Courier location is " + freshness.toLowerCase() + ".",
+              courier: assigned.name,
+              freshness: freshness,
+              age: assigned.location ? state.now - assigned.location.recordedAt : null
+            });
+          }
+          if (delivery.state === "DELIVERED") return Object.assign(base, { title: "Delivered", next: "Handoff confirmed at T+" + delivery.terminalAt + "s." });
+          return { title: "Delivery cancelled", next: "Contact the Delivery Team for questions.", connection: state.tracking.connection };
+        }
+
+        function renderRecipient() {
+          var view = recipientProjection();
+          var phone = document.getElementById("recipient-phone");
+          if (view.unavailable) {
+            phone.innerHTML = '<div class="phone-bar"><span>Delivery Glance</span><span>Read only</span></div><div class="empty"><div><h3>' + view.title + '</h3><p>' + view.detail + '</p></div></div>';
+            return;
+          }
+          var map = "";
+          if (view.freshness && view.freshness !== "UNAVAILABLE") {
+            map = '<div class="map ' + (view.freshness === "DELAYED" ? "delayed" : "") + '" aria-label="Prototype map with Handoff and current Courier markers"></div>' +
+              '<div class="freshness"><span class="dot ' + (view.freshness === "DELAYED" ? "warn" : "") + '"></span>' + view.freshness + ' · measured ' + formatAge(view.age) + ' ago</div>';
+          } else if (state.delivery.state === "IN_TRANSIT") {
+            map = '<div class="empty" style="min-height:165px"><div><strong>Location unavailable</strong><p>The marker has been removed.</p></div></div>';
+          }
+          phone.innerHTML = '<div class="phone-bar"><span>Delivery Glance</span><span>' + view.connection + '</span></div>' +
+            '<div class="recipient-content"><p class="eyebrow">' + (view.reference || "Delivery update") + '</p><h3>' + view.title + '</h3>' +
+            '<p>' + view.next + '</p>' + (view.address ? '<p><strong>Handoff</strong><br>' + view.address + '</p>' : "") +
+            (view.courier ? '<p><strong>Courier</strong><br>' + view.courier + '</p>' : "") + map + '</div>';
+        }
+
+        function render() {
+          renderTabs();
+          renderGuide();
+          renderStatus();
+          renderCouriers();
+          renderRecommendation();
+          renderRecipient();
+          document.getElementById("clock").textContent = formatAge(state.now);
+          var notice = document.getElementById("notice");
+          notice.textContent = state.notice;
+          notice.className = "notice" + (state.error ? " error" : "");
+          document.getElementById("state-output").textContent = JSON.stringify(state, null, 2);
+        }
+
+        document.addEventListener("click", function (event) {
+          var scenarioButton = event.target.closest("[data-scenario]");
+          if (scenarioButton) {
+            selectedScenario = Number(scenarioButton.getAttribute("data-scenario"));
+            reset();
+            return;
+          }
+          var actionButton = event.target.closest("[data-action]");
+          if (actionButton) {
+            var action = { type: actionButton.getAttribute("data-action") };
+            if (actionButton.dataset.courier) action.courierId = actionButton.dataset.courier;
+            if (actionButton.dataset.seconds) action.seconds = Number(actionButton.dataset.seconds);
+            dispatch(action);
+          }
+        });
+
+        document.getElementById("run-step").addEventListener("click", function () {
+          var scenario = scenarios[selectedScenario];
+          if (scenarioStep >= scenario.steps.length) return;
+          runStepAction(scenario.steps[scenarioStep][2]);
+          scenarioStep += 1;
+          renderGuide();
+        });
+        document.getElementById("reset-scenario").addEventListener("click", reset);
+
+        window.CoreFlow = CoreFlow;
+        render();
+      }());
+    </script>
+  </body>
+</html>
