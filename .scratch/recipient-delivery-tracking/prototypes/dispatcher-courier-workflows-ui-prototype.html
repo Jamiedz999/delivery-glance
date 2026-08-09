@@ -1,0 +1,1321 @@
+<!doctype html>
+<!-- Three variants of the Dispatcher and Courier workspaces, switchable via ?variant= on this standalone throwaway prototype route. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow,nosnippet" />
+    <title>Delivery Glance — Full-product operations workflow prototype</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #17241f;
+        --muted: #607069;
+        --line: #dce4df;
+        --canvas: #edf1ed;
+        --paper: #fffefa;
+        --paper-2: #f7f8f4;
+        --green: #176b4d;
+        --green-2: #0d4c37;
+        --green-soft: #e0f3e9;
+        --amber: #945a08;
+        --amber-soft: #fff0cf;
+        --red: #9f342c;
+        --red-soft: #fae3df;
+        --blue: #315f8d;
+        --blue-soft: #e5eff9;
+        --violet: #6555a3;
+        --violet-soft: #eeeafa;
+        --shadow: 0 18px 60px rgba(23, 36, 31, 0.13);
+        --shadow-soft: 0 8px 26px rgba(23, 36, 31, 0.09);
+      }
+
+      * { box-sizing: border-box; }
+      html { min-height: 100%; background: var(--canvas); }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      button, input, select, textarea { font: inherit; }
+      button { cursor: pointer; }
+      button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
+        outline: 3px solid #0b6cff;
+        outline-offset: 3px;
+      }
+      h1, h2, h3, p { margin-top: 0; }
+      a { color: inherit; }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .prototype-ribbon {
+        position: fixed;
+        z-index: 95;
+        top: 12px;
+        right: 12px;
+        padding: 7px 10px;
+        border: 1px solid rgba(23, 36, 31, 0.18);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.94);
+        color: #405149;
+        font-size: 10px;
+        font-weight: 850;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        backdrop-filter: blur(10px);
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: inherit;
+        font-size: 15px;
+        font-weight: 820;
+        letter-spacing: -0.02em;
+        white-space: nowrap;
+      }
+      .brand-mark {
+        display: grid;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border-radius: 11px 11px 11px 3px;
+        background: var(--ink);
+        color: #fff;
+        font-size: 13px;
+        letter-spacing: -0.04em;
+      }
+      .eyebrow {
+        margin: 0 0 7px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 850;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+      .subtle { color: var(--muted); }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .badge {
+        display: inline-flex;
+        min-height: 27px;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: #edf1ee;
+        color: #43534c;
+        font-size: 10px;
+        font-weight: 820;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+      .badge::before {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+        content: "";
+      }
+      .badge.good { background: var(--green-soft); color: var(--green); }
+      .badge.warn { background: var(--amber-soft); color: var(--amber); }
+      .badge.bad { background: var(--red-soft); color: var(--red); }
+      .badge.info { background: var(--blue-soft); color: var(--blue); }
+      .badge.violet { background: var(--violet-soft); color: var(--violet); }
+      .badge.neutral::before { background: #7a8881; }
+      .button {
+        display: inline-flex;
+        min-height: 40px;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 9px 14px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        background: var(--ink);
+        color: #fff;
+        font-weight: 760;
+        line-height: 1.1;
+        text-decoration: none;
+      }
+      .button:hover { filter: brightness(1.06); }
+      .button.secondary { border-color: var(--line); background: #fff; color: var(--ink); }
+      .button.ghost { background: transparent; color: var(--ink); }
+      .button.good { background: var(--green); }
+      .button.warn { border-color: #e8bd72; background: var(--amber-soft); color: #734609; }
+      .button.danger { border-color: #e8aaa4; background: #fff; color: var(--red); }
+      .button.small { min-height: 34px; padding: 7px 10px; border-radius: 8px; font-size: 12px; }
+      .button:disabled { cursor: not-allowed; opacity: 0.48; }
+      .button-row { display: flex; flex-wrap: wrap; gap: 9px; }
+      .divider { height: 1px; margin: 18px 0; background: var(--line); }
+      .field { display: grid; gap: 6px; }
+      .field label { color: var(--muted); font-size: 11px; font-weight: 750; }
+      .field input, .field select, .field textarea, .search-input {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid #cfd8d2;
+        border-radius: 9px;
+        background: #fff;
+        color: var(--ink);
+        padding: 9px 11px;
+      }
+      .field textarea { min-height: 82px; resize: vertical; }
+      .field-grid { display: grid; gap: 13px; }
+      .notice {
+        padding: 12px 13px;
+        border: 1px solid #ecd099;
+        border-radius: 10px;
+        background: #fff8e8;
+        color: #65460f;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .notice.bad { border-color: #e8aaa4; background: #fff3f1; color: #7e2b25; }
+      .notice.good { border-color: #a8d4bc; background: #edf9f2; color: #155b42; }
+      .mini-label { color: var(--muted); font-size: 10px; font-weight: 820; letter-spacing: 0.08em; text-transform: uppercase; }
+      .stat-value { display: block; margin-top: 4px; font-size: 19px; font-weight: 820; letter-spacing: -0.035em; }
+
+      /* Variant A — role-specific master/detail workspaces */
+      .a-dispatch {
+        display: grid;
+        min-height: 100vh;
+        grid-template-columns: 178px minmax(250px, 310px) minmax(560px, 1fr);
+        background: #eef1ed;
+      }
+      .a-nav {
+        display: flex;
+        min-height: 100vh;
+        flex-direction: column;
+        padding: 24px 15px 110px;
+        background: #183129;
+        color: #f5fbf7;
+      }
+      .a-nav .brand-mark { background: #f1f8f3; color: #173027; }
+      .a-nav-section { margin-top: 34px; }
+      .a-nav-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        margin-bottom: 4px;
+        padding: 10px;
+        border: 0;
+        border-radius: 9px;
+        background: transparent;
+        color: #bdd0c6;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .a-nav-link.active { background: rgba(255,255,255,0.12); color: #fff; }
+      .a-nav-link .nav-icon { width: 18px; text-align: center; }
+      .a-account { margin-top: auto; color: #bdd0c6; font-size: 11px; line-height: 1.5; }
+      .a-account strong { display: block; color: #fff; font-size: 12px; }
+      .a-index {
+        min-height: 100vh;
+        border-right: 1px solid var(--line);
+        background: #f9faf7;
+        padding: 24px 14px 112px;
+      }
+      .a-index-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .a-index h1 { margin: 0; font-size: 22px; letter-spacing: -0.04em; }
+      .a-search { margin: 16px 0 10px; }
+      .a-filter-row { display: flex; gap: 7px; margin-bottom: 14px; overflow-x: auto; }
+      .filter-chip {
+        padding: 6px 9px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 750;
+        white-space: nowrap;
+      }
+      .filter-chip.active { border-color: var(--ink); background: var(--ink); color: #fff; }
+      .delivery-row {
+        width: 100%;
+        margin-bottom: 7px;
+        padding: 12px;
+        border: 1px solid transparent;
+        border-radius: 11px;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+      }
+      .delivery-row:hover { background: #fff; }
+      .delivery-row.selected { border-color: #cbd8d0; background: #fff; box-shadow: var(--shadow-soft); }
+      .delivery-row-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .delivery-row strong { font-size: 12px; }
+      .delivery-row p { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.35; }
+      .tiny-state { color: var(--green); font-size: 9px; font-weight: 850; letter-spacing: 0.05em; text-transform: uppercase; }
+      .tiny-state.warn { color: var(--amber); }
+      .tiny-state.neutral { color: #68766f; }
+      .a-record { min-width: 0; padding: 26px clamp(22px, 4vw, 58px) 126px; }
+      .a-record-shell { max-width: 1050px; margin: 0 auto; }
+      .a-record-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+      .a-record-head h1 { margin: 3px 0 7px; font-size: clamp(30px, 3vw, 43px); letter-spacing: -0.055em; }
+      .a-record-head p { margin-bottom: 0; color: var(--muted); font-size: 13px; }
+      .a-record-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(245px, 0.75fr); gap: 18px; margin-top: 24px; }
+      .a-card {
+        padding: 19px;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        background: var(--paper);
+        box-shadow: 0 2px 10px rgba(23,36,31,0.03);
+      }
+      .a-card + .a-card { margin-top: 14px; }
+      .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+      .card-head h2 { margin: 0; font-size: 16px; letter-spacing: -0.025em; }
+      .card-head p { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+      .address-pair { position: relative; display: grid; gap: 17px; padding-left: 23px; }
+      .address-pair::before { position: absolute; top: 8px; bottom: 9px; left: 6px; width: 1px; background: #b9c8bf; content: ""; }
+      .address-point { position: relative; }
+      .address-point::before {
+        position: absolute;
+        top: 5px;
+        left: -22px;
+        width: 11px;
+        height: 11px;
+        border: 3px solid #fff;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 0 1px #9fb2a7;
+        content: "";
+      }
+      .address-point:last-child::before { border-radius: 50% 50% 50% 2px; background: var(--ink); transform: rotate(-45deg); }
+      .address-point strong { display: block; margin-top: 4px; font-size: 12px; line-height: 1.4; }
+      .candidate-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+      .candidate-table th { padding: 7px 8px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 9px; letter-spacing: 0.07em; text-align: left; text-transform: uppercase; }
+      .candidate-table td { padding: 10px 8px; border-bottom: 1px solid #e8ede9; vertical-align: middle; }
+      .candidate-table tr:last-child td { border-bottom: 0; }
+      .candidate-rank { width: 27px; color: var(--muted); font-weight: 850; }
+      .candidate-name { font-weight: 780; }
+      .candidate-meta { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; }
+      .response-list { display: grid; gap: 8px; }
+      .response-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 10px 11px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+      .response-row strong { display: block; font-size: 11px; }
+      .response-row span { color: var(--muted); font-size: 10px; }
+      .countdown { color: var(--green); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 21px; font-weight: 850; letter-spacing: -0.05em; }
+      .side-action { position: sticky; top: 22px; }
+      .next-card { padding: 20px; border-radius: 14px; background: #183129; color: #fff; box-shadow: var(--shadow); }
+      .next-card .eyebrow { color: #afc8bb; }
+      .next-card h2 { margin-bottom: 9px; font-size: 22px; letter-spacing: -0.04em; }
+      .next-card p { color: #c9d9d0; font-size: 12px; line-height: 1.5; }
+      .next-card .button.secondary { border-color: rgba(255,255,255,0.3); background: transparent; color: #fff; }
+      .fact-list { display: grid; gap: 12px; }
+      .fact { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding-bottom: 11px; border-bottom: 1px solid var(--line); }
+      .fact:last-child { padding-bottom: 0; border: 0; }
+      .fact span { color: var(--muted); font-size: 10px; }
+      .fact strong { font-size: 11px; text-align: right; }
+      .timeline { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+      .timeline li { position: relative; display: grid; grid-template-columns: 13px 1fr auto; gap: 9px; color: var(--muted); font-size: 11px; }
+      .timeline-dot { width: 9px; height: 9px; margin-top: 2px; border: 2px solid #aebbb4; border-radius: 50%; background: #fff; }
+      .timeline li.done { color: var(--ink); }
+      .timeline li.done .timeline-dot { border-color: var(--green); background: var(--green); }
+      .timeline time { font-variant-numeric: tabular-nums; }
+
+      .a-courier-canvas { min-height: 100vh; padding: 40px 18px 126px; background: radial-gradient(circle at 20% 0%, #d9ebe0 0, transparent 32%), #e9eee9; }
+      .a-phone { width: min(100%, 430px); min-height: 720px; margin: 0 auto; overflow: hidden; border: 1px solid #ced8d1; border-radius: 28px; background: var(--paper); box-shadow: var(--shadow); }
+      .a-phone-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 19px 14px; }
+      .avatar { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 50%; background: #e2eae5; color: #29453a; font-size: 11px; font-weight: 850; }
+      .courier-control-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 0 16px 14px; }
+      .courier-control {
+        min-height: 62px;
+        padding: 11px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        text-align: left;
+      }
+      .courier-control strong { display: block; margin-top: 5px; font-size: 12px; }
+      .courier-control.good { border-color: #afd3bf; background: #eef8f2; }
+      .courier-control.warn { border-color: #e9cd93; background: #fff9ed; }
+      .a-phone-main { padding: 6px 16px 88px; }
+      .courier-hero { padding: 22px; border-radius: 16px; background: #19332a; color: #fff; }
+      .courier-hero .eyebrow { color: #abc6b8; }
+      .courier-hero h1 { margin-bottom: 9px; font-size: 29px; letter-spacing: -0.05em; line-height: 1.02; }
+      .courier-hero p { margin-bottom: 17px; color: #c9d9d0; font-size: 13px; line-height: 1.5; }
+      .courier-hero .button.secondary { border-color: rgba(255,255,255,0.35); background: transparent; color: #fff; }
+      .phone-card { margin-top: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+      .phone-card h2 { margin-bottom: 5px; font-size: 15px; }
+      .phone-card p { margin-bottom: 12px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+      .phone-route { display: grid; gap: 10px; margin: 13px 0; }
+      .phone-route div { padding-left: 13px; border-left: 3px solid #b8c9bf; }
+      .phone-route div:last-child { border-color: var(--ink); }
+      .phone-route span { display: block; color: var(--muted); font-size: 9px; font-weight: 820; text-transform: uppercase; }
+      .phone-route strong { display: block; margin-top: 3px; font-size: 11px; line-height: 1.35; }
+      .phone-nav { position: sticky; bottom: 0; display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid var(--line); background: rgba(255,254,250,0.96); backdrop-filter: blur(12px); }
+      .phone-nav button { padding: 13px; border: 0; background: transparent; color: var(--muted); font-size: 10px; font-weight: 750; }
+      .phone-nav button.active { color: var(--green); }
+
+      /* Variant B — visual operations board and Delivery deck */
+      .b-dispatch { min-height: 100vh; padding: 22px 22px 128px; background: #f3efe7; }
+      .b-topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; max-width: 1500px; margin: 0 auto 18px; }
+      .b-topbar-actions { display: flex; align-items: center; gap: 9px; }
+      .b-board { display: grid; max-width: 1500px; margin: 0 auto; grid-template-columns: repeat(4, minmax(190px, 1fr)) minmax(330px, 1.25fr); gap: 11px; align-items: start; }
+      .board-column { min-height: 620px; padding: 12px; border: 1px solid #ddd8cd; border-radius: 15px; background: rgba(255,255,255,0.5); }
+      .board-column-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+      .board-column-head h2 { margin: 0; font-size: 12px; letter-spacing: -0.01em; }
+      .board-count { display: grid; min-width: 24px; height: 24px; place-items: center; border-radius: 999px; background: #ebe6dc; color: #6a655c; font-size: 10px; font-weight: 800; }
+      .board-card { margin-bottom: 9px; padding: 12px; border: 1px solid #ddd8cf; border-radius: 11px; background: #fffefa; box-shadow: 0 3px 10px rgba(50,42,28,0.04); }
+      .board-card.selected { border: 2px solid #1d5e47; box-shadow: 0 8px 24px rgba(27,75,57,0.12); }
+      .board-card strong { display: block; font-size: 11px; }
+      .board-card p { margin: 7px 0 9px; color: #6d6961; font-size: 10px; line-height: 1.4; }
+      .board-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #7b766e; font-size: 9px; }
+      .b-drawer { min-height: 620px; padding: 18px; border-radius: 15px; background: #1d2d27; color: #fff; box-shadow: var(--shadow); }
+      .b-drawer .eyebrow { color: #afc2b8; }
+      .b-drawer h1 { margin-bottom: 8px; font-size: 28px; letter-spacing: -0.05em; }
+      .b-drawer > p { color: #bfd0c7; font-size: 11px; line-height: 1.5; }
+      .b-drawer-section { margin-top: 14px; padding: 14px; border-radius: 11px; background: rgba(255,255,255,0.08); }
+      .b-drawer-section h2 { margin-bottom: 10px; font-size: 13px; }
+      .b-drawer .response-row { border-color: rgba(255,255,255,0.13); background: rgba(255,255,255,0.06); }
+      .b-drawer .response-row span { color: #c0d0c7; }
+      .b-drawer .button.secondary { border-color: rgba(255,255,255,0.25); background: transparent; color: #fff; }
+      .b-drawer .fact { border-color: rgba(255,255,255,0.13); }
+      .b-drawer .fact span { color: #abc0b5; }
+
+      .b-courier-canvas { min-height: 100vh; padding: 54px 18px 130px; background: linear-gradient(155deg, #1d352c 0 36%, #e8e3d8 36%); }
+      .b-courier { width: min(100%, 450px); margin: 0 auto; }
+      .b-status-float { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 26px; color: #fff; }
+      .b-status-float .brand-mark { background: #fff; color: #193129; }
+      .b-status-pills { display: flex; gap: 7px; }
+      .b-status-pills .badge { border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.12); color: #fff; }
+      .deck-wrap { position: relative; min-height: 520px; }
+      .deck-ghost { position: absolute; inset: 22px 13px auto; height: 460px; border-radius: 22px; background: #d7d1c5; transform: rotate(3deg); }
+      .deck-ghost.two { inset: 12px 8px auto; background: #eee9df; transform: rotate(-2deg); }
+      .task-deck { position: relative; min-height: 500px; padding: 22px; border-radius: 22px; background: #fffefa; box-shadow: var(--shadow); }
+      .deck-timer { display: inline-grid; min-width: 66px; min-height: 66px; place-items: center; border: 6px solid #e0eee6; border-radius: 50%; color: var(--green); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 17px; font-weight: 850; }
+      .deck-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      .task-deck h1 { margin: 21px 0 9px; font-size: 34px; letter-spacing: -0.055em; line-height: 1; }
+      .task-deck > p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+      .deck-action-grid { display: grid; grid-template-columns: 1fr 1.35fr; gap: 9px; margin-top: 19px; }
+      .deck-action-grid .button { min-height: 52px; }
+      .ranking-note { margin-top: 14px; padding: 11px; border-radius: 9px; background: var(--blue-soft); color: #294f75; font-size: 10px; line-height: 1.45; }
+      .deck-dots { display: flex; justify-content: center; gap: 6px; margin-top: 16px; }
+      .deck-dots span { width: 6px; height: 6px; border-radius: 50%; background: #b8b3aa; }
+      .deck-dots span.active { width: 18px; border-radius: 99px; background: var(--green); }
+
+      /* Variant C — action path / guided checklist */
+      .c-dispatch { min-height: 100vh; padding: 24px 24px 130px; background: #101714; color: #eef5f1; }
+      .c-top { display: flex; max-width: 1400px; margin: 0 auto 22px; align-items: center; justify-content: space-between; gap: 18px; }
+      .c-top .brand-mark { background: #e7f4eb; color: #13271f; }
+      .c-top-meta { color: #85978e; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+      .c-console { display: grid; max-width: 1400px; margin: 0 auto; grid-template-columns: 230px minmax(420px, 1fr) 330px; gap: 1px; overflow: hidden; border: 1px solid #2a3731; border-radius: 12px; background: #2a3731; }
+      .c-panel { min-height: 680px; padding: 19px; background: #151e1a; }
+      .c-panel.center { background: #f7f7f2; color: var(--ink); }
+      .c-queue-title { margin-bottom: 17px; color: #82958b; font-size: 9px; font-weight: 850; letter-spacing: 0.12em; text-transform: uppercase; }
+      .c-queue-item { width: 100%; margin-bottom: 7px; padding: 11px; border: 1px solid #2b3a33; border-radius: 8px; background: transparent; color: #afbeb6; text-align: left; }
+      .c-queue-item.active { border-color: #709c84; background: #1c2c25; color: #fff; }
+      .c-queue-item strong { display: block; margin-bottom: 4px; font-size: 11px; }
+      .c-queue-item span { color: #82958b; font-size: 9px; }
+      .c-next-action { padding: 23px; border: 1px solid #d8e1db; border-radius: 10px; background: #fff; }
+      .c-next-action h1 { margin-bottom: 9px; font-size: 34px; letter-spacing: -0.055em; line-height: 1; }
+      .c-next-action > p { color: var(--muted); font-size: 12px; line-height: 1.5; }
+      .c-flow { margin-top: 23px; }
+      .flow-step { position: relative; display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; min-height: 64px; }
+      .flow-step::after { position: absolute; top: 27px; bottom: 0; left: 13px; width: 1px; background: #cbd6cf; content: ""; }
+      .flow-step:last-child::after { display: none; }
+      .flow-node { z-index: 1; display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid #afbeb5; border-radius: 50%; background: #f7f7f2; color: #7b8b82; font-size: 9px; font-weight: 850; }
+      .flow-step.done .flow-node { border-color: var(--green); background: var(--green); color: #fff; }
+      .flow-step.current .flow-node { border: 6px solid #cce7d8; background: var(--green); color: transparent; }
+      .flow-copy strong { display: block; margin-top: 5px; font-size: 12px; }
+      .flow-copy span { color: var(--muted); font-size: 10px; }
+      .flow-step time { margin-top: 7px; color: var(--muted); font-size: 9px; }
+      .c-evidence h2 { margin-bottom: 6px; font-size: 16px; }
+      .c-evidence > p { color: #8ea198; font-size: 10px; line-height: 1.45; }
+      .evidence-block { margin-top: 16px; padding-top: 15px; border-top: 1px solid #2d3b35; }
+      .evidence-block h3 { margin-bottom: 10px; color: #cbd7d1; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+      .evidence-row { display: flex; justify-content: space-between; gap: 12px; margin: 9px 0; color: #8ea198; font-size: 10px; }
+      .evidence-row strong { color: #f1f6f3; text-align: right; }
+      .c-evidence .button.secondary { border-color: #43534b; background: transparent; color: #e7efeb; }
+
+      .c-courier-canvas { min-height: 100vh; padding: 40px 18px 128px; background: #f0f3ee; }
+      .c-courier { width: min(100%, 570px); margin: 0 auto; }
+      .c-courier-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 20px; }
+      .c-checklist { overflow: hidden; border: 1px solid #ced9d2; border-radius: 8px; background: #fff; }
+      .check-step { display: grid; grid-template-columns: 42px 1fr; border-bottom: 1px solid var(--line); }
+      .check-step:last-child { border-bottom: 0; }
+      .check-num { display: grid; place-items: start center; padding-top: 18px; border-right: 1px solid var(--line); color: #819087; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+      .check-body { min-height: 63px; padding: 16px; }
+      .check-body h2 { margin: 0; font-size: 13px; }
+      .check-body > p { margin: 5px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+      .check-step.done .check-num { background: var(--green-soft); color: var(--green); }
+      .check-step.current { background: #fcfdf9; }
+      .check-step.current .check-num { background: #183129; color: #fff; }
+      .check-expanded { margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--line); }
+      .check-expanded h1 { margin-bottom: 8px; font-size: 27px; letter-spacing: -0.05em; }
+      .check-expanded > p { color: var(--muted); font-size: 11px; line-height: 1.5; }
+      .c-mobile-context { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; margin-top: 12px; }
+      .context-tile { padding: 12px; border: 1px solid var(--line); border-radius: 7px; background: #fafbf8; }
+      .context-tile strong { display: block; margin-top: 4px; font-size: 11px; }
+
+      /* Shared prototype controls, modal, and toast */
+      .prototype-controls {
+        position: fixed;
+        z-index: 100;
+        right: 12px;
+        bottom: 12px;
+        left: 12px;
+        display: flex;
+        width: fit-content;
+        max-width: calc(100% - 24px);
+        min-height: 48px;
+        margin: auto;
+        align-items: center;
+        gap: 7px;
+        padding: 7px;
+        border: 1px solid rgba(255,255,255,0.18);
+        border-radius: 15px;
+        background: rgba(17, 27, 23, 0.96);
+        color: #fff;
+        box-shadow: 0 18px 50px rgba(0,0,0,0.28);
+        backdrop-filter: blur(16px);
+      }
+      .prototype-controls button, .prototype-controls select {
+        min-height: 34px;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 9px;
+        background: rgba(255,255,255,0.08);
+        color: #fff;
+      }
+      .prototype-controls button { min-width: 36px; padding: 6px 10px; font-weight: 800; }
+      .prototype-controls select { max-width: 190px; padding: 6px 28px 6px 9px; font-size: 11px; }
+      .prototype-label { min-width: 168px; padding: 0 7px; font-size: 11px; font-weight: 800; text-align: center; }
+      .control-separator { width: 1px; height: 26px; background: rgba(255,255,255,0.18); }
+      .state-inspector {
+        position: fixed;
+        z-index: 98;
+        right: 14px;
+        bottom: 78px;
+        width: min(500px, calc(100vw - 28px));
+        max-height: min(580px, calc(100vh - 110px));
+        overflow: auto;
+        border: 1px solid #3a4a43;
+        border-radius: 12px;
+        background: #111a16;
+        color: #dce8e1;
+        box-shadow: var(--shadow);
+      }
+      .state-inspector[hidden] { display: none; }
+      .state-inspector-head { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 11px 13px; background: #17231e; }
+      .state-inspector-head strong { font-size: 11px; }
+      .state-inspector-head button { border: 0; background: transparent; color: #fff; }
+      .state-inspector pre { margin: 0; padding: 14px; font-size: 10px; line-height: 1.5; white-space: pre-wrap; }
+      .modal-layer { position: fixed; z-index: 92; inset: 0; display: grid; place-items: center; padding: 20px 20px 96px; background: rgba(10,18,14,0.52); }
+      .modal-card { width: min(100%, 470px); max-height: calc(100vh - 130px); overflow: auto; padding: 21px; border-radius: 15px; background: #fffefa; box-shadow: 0 26px 90px rgba(0,0,0,0.32); }
+      .modal-card h2 { margin-bottom: 7px; font-size: 23px; letter-spacing: -0.04em; }
+      .modal-card > p { color: var(--muted); font-size: 12px; line-height: 1.5; }
+      .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; }
+      .toast {
+        position: fixed;
+        z-index: 110;
+        top: 18px;
+        left: 50%;
+        max-width: calc(100vw - 32px);
+        padding: 11px 14px;
+        border-radius: 10px;
+        background: #101b16;
+        color: #fff;
+        font-size: 11px;
+        box-shadow: var(--shadow);
+        transform: translateX(-50%);
+      }
+
+      @media (max-width: 1120px) {
+        .a-dispatch { grid-template-columns: 150px 250px minmax(500px, 1fr); }
+        .a-record { padding-right: 24px; padding-left: 24px; }
+        .b-board { grid-template-columns: repeat(4, minmax(170px, 1fr)); overflow-x: auto; }
+        .b-drawer { position: sticky; right: 0; min-width: 330px; }
+        .c-console { grid-template-columns: 190px minmax(400px, 1fr) 290px; overflow-x: auto; }
+      }
+      @media (max-width: 760px) {
+        .prototype-ribbon { top: 8px; right: 8px; }
+        .a-dispatch { display: block; }
+        .a-nav { min-height: auto; padding: 14px 14px 12px; }
+        .a-nav-section, .a-account { display: none; }
+        .a-index { min-height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 16px 12px; }
+        .a-index .delivery-row:not(.selected), .a-filter-row { display: none; }
+        .a-record { padding: 19px 13px 132px; }
+        .a-record-grid { grid-template-columns: 1fr; }
+        .side-action { position: static; }
+        .a-record-head { display: block; }
+        .a-record-head .button-row { margin-top: 13px; }
+        .candidate-table th:nth-child(4), .candidate-table td:nth-child(4) { display: none; }
+        .b-dispatch { padding: 62px 12px 132px; }
+        .b-topbar { align-items: flex-start; }
+        .b-topbar-actions .search-input { display: none; }
+        .b-board { display: flex; padding-bottom: 10px; }
+        .board-column { min-width: 210px; min-height: 450px; }
+        .b-drawer { min-width: 310px; min-height: 450px; }
+        .c-dispatch { padding: 62px 12px 132px; }
+        .c-console { display: block; }
+        .c-panel { min-height: auto; }
+        .c-panel:first-child { display: none; }
+        .prototype-controls { overflow-x: auto; justify-content: flex-start; }
+        .prototype-label { min-width: 145px; }
+        .prototype-controls select { min-width: 132px; }
+        .control-separator { flex: 0 0 1px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="prototype-ribbon">Full product · Future Work included</div>
+    <div id="app"></div>
+
+    <section class="prototype-controls" aria-label="Prototype controls">
+      <button id="previous-variant" type="button" aria-label="Previous variant">←</button>
+      <div id="variant-label" class="prototype-label" aria-live="polite"></div>
+      <button id="next-variant" type="button" aria-label="Next variant">→</button>
+      <span class="control-separator" aria-hidden="true"></span>
+      <label class="sr-only" for="role-select">Role</label>
+      <select id="role-select" aria-label="Role">
+        <option value="dispatcher">Dispatcher</option>
+        <option value="courier">Courier</option>
+      </select>
+      <label class="sr-only" for="stage-select">Workflow stage</label>
+      <select id="stage-select" aria-label="Workflow stage"></select>
+      <button id="state-toggle" type="button" aria-expanded="false" aria-controls="state-inspector">State</button>
+    </section>
+
+    <aside id="state-inspector" class="state-inspector" hidden>
+      <div class="state-inspector-head"><strong>Complete prototype state</strong><button id="state-close" type="button" aria-label="Close state inspector">×</button></div>
+      <pre id="state-output"></pre>
+    </aside>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var variants = [
+          { key: "A", name: "Focused workspaces" },
+          { key: "B", name: "Operations board" },
+          { key: "C", name: "Action path" }
+        ];
+
+        var candidates = [
+          { rank: 1, id: "CR-014", name: "Maya Chen", distance: "1.2 km", idle: "38 min", freshness: "8 sec", accuracy: "14 m", response: "Invited" },
+          { rank: 2, id: "CR-027", name: "Leo Byrne", distance: "1.8 km", idle: "52 min", freshness: "13 sec", accuracy: "22 m", response: "Invited" },
+          { rank: 3, id: "CR-031", name: "Priya Shah", distance: "2.4 km", idle: "21 min", freshness: "18 sec", accuracy: "19 m", response: "Invited" }
+        ];
+
+        var base = {
+          delivery: {
+            reference: "DG-2048",
+            state: "AWAITING_COURIER",
+            pickup: "18 Camden Row, Dublin 8",
+            handoff: "42 Mount Street Upper, Dublin 2",
+            contact: "help@deliveryteam.example",
+            courier: null,
+            eta: null
+          },
+          courier: {
+            id: "CR-014",
+            name: "Maya Chen",
+            onDuty: true,
+            sharing: "REPORTING",
+            sharingReason: null,
+            lastReport: "8 seconds ago",
+            accuracy: "14 m",
+            eligible: true,
+            invitation: null,
+            interest: false,
+            activeDelivery: false
+          },
+          recommendation: {
+            calculatedAt: "14:03:18 IST",
+            candidates: candidates,
+            exclusions: { offDuty: 13, staleLocation: 2, activeDelivery: 4, outsideZone: 5 }
+          },
+          round: null,
+          next: {
+            dispatcher: "Review the recommendation and start a Matching Round.",
+            courier: "You are ready to receive Match Invitations."
+          },
+          history: [
+            { label: "Delivery created", detail: "Nora Patel", time: "13:42", state: "done" },
+            { label: "Courier recommendation", detail: "Calculated now", time: "14:03", state: "current" },
+            { label: "Matching Round", detail: "Not started", time: "—", state: "future" },
+            { label: "Assignment", detail: "Waiting", time: "—", state: "future" },
+            { label: "Pickup", detail: "Waiting", time: "—", state: "future" },
+            { label: "Outcome", detail: "Waiting", time: "—", state: "future" }
+          ],
+          can: ["start_round", "show_override", "copy_link"]
+        };
+
+        var scenarioSpecs = {
+          courier_off_duty: {
+            label: "Setup · Off Duty",
+            courier: { onDuty: false, sharing: "OFF", lastReport: null, accuracy: null, eligible: false },
+            next: { dispatcher: "Maya is excluded while Off Duty; other eligible Couriers remain ranked.", courier: "Go On Duty when you are ready to receive invitations." },
+            can: ["go_on_duty", "copy_link"]
+          },
+          courier_needs_location: {
+            label: "Setup · Sharing off",
+            courier: { onDuty: true, sharing: "OFF", lastReport: null, accuracy: null, eligible: false },
+            next: { dispatcher: "Maya is not eligible until a fresh usable location is available.", courier: "Start foreground Location Sharing to become eligible." },
+            can: ["start_sharing", "go_off_duty", "copy_link"]
+          },
+          awaiting_recommendation: {
+            label: "Awaiting · Recommendation",
+            next: { dispatcher: "Review the current top three and authorize a sixty-second round.", courier: "You are ready to receive Match Invitations." },
+            can: ["start_round", "show_override", "copy_link", "go_off_duty"]
+          },
+          matching_round: {
+            label: "Matching · Invitation open",
+            round: {
+              state: "ACTIVE",
+              closesIn: "00:42",
+              startedAt: "14:03:21 IST",
+              candidates: [
+                { name: "Maya Chen", rank: 1, response: "Invited", tone: "info" },
+                { name: "Leo Byrne", rank: 2, response: "No response", tone: "neutral" },
+                { name: "Priya Shah", rank: 3, response: "Declined", tone: "bad" }
+              ]
+            },
+            courier: { invitation: "OPEN", interest: false },
+            next: { dispatcher: "Wait for the round to close or cancel it with a reason.", courier: "Express Match Interest or decline before the timer ends." },
+            history: [
+              { label: "Delivery created", detail: "Nora Patel", time: "13:42", state: "done" },
+              { label: "Courier recommendation", detail: "Top three confirmed", time: "14:03", state: "done" },
+              { label: "Matching Round", detail: "42 seconds left", time: "14:03", state: "current" },
+              { label: "Assignment", detail: "Waiting for close", time: "—", state: "future" },
+              { label: "Pickup", detail: "Waiting", time: "—", state: "future" },
+              { label: "Outcome", detail: "Waiting", time: "—", state: "future" }
+            ],
+            can: ["match", "decline", "close_round", "show_cancel_round", "go_off_duty", "copy_link"]
+          },
+          interest_registered: {
+            label: "Matching · Interest registered",
+            round: {
+              state: "ACTIVE",
+              closesIn: "00:31",
+              startedAt: "14:03:21 IST",
+              candidates: [
+                { name: "Maya Chen", rank: 1, response: "Interested", tone: "good" },
+                { name: "Leo Byrne", rank: 2, response: "No response", tone: "neutral" },
+                { name: "Priya Shah", rank: 3, response: "Declined", tone: "bad" }
+              ]
+            },
+            courier: { invitation: "OPEN", interest: true },
+            next: { dispatcher: "The system will revalidate and rank interested Couriers when the round closes.", courier: "Interest is binding at close; you may withdraw it while the round is open." },
+            history: [
+              { label: "Delivery created", detail: "Nora Patel", time: "13:42", state: "done" },
+              { label: "Courier recommendation", detail: "Top three confirmed", time: "14:03", state: "done" },
+              { label: "Matching Round", detail: "Maya interested · 31 sec", time: "14:03", state: "current" },
+              { label: "Assignment", detail: "Selection at close", time: "—", state: "future" },
+              { label: "Pickup", detail: "Waiting", time: "—", state: "future" },
+              { label: "Outcome", detail: "Waiting", time: "—", state: "future" }
+            ],
+            can: ["withdraw_interest", "close_round", "show_cancel_round", "go_off_duty", "copy_link"]
+          },
+          no_match: {
+            label: "Matching · No winner",
+            round: { state: "CLOSED_NO_WINNER", closesIn: null, startedAt: "14:03:21 IST", candidates: [
+              { name: "Maya Chen", rank: 1, response: "Timed out", tone: "warn" },
+              { name: "Leo Byrne", rank: 2, response: "Timed out", tone: "warn" },
+              { name: "Priya Shah", rank: 3, response: "Declined", tone: "bad" }
+            ] },
+            courier: { invitation: null, interest: false },
+            next: { dispatcher: "Refresh eligibility, then explicitly start a new Matching Round.", courier: "No Delivery was assigned. You remain On Duty." },
+            can: ["start_round", "copy_link"]
+          },
+          round_cancelled: {
+            label: "Matching · Round cancelled",
+            round: { state: "CANCELLED", closesIn: null, reason: "CANDIDATES_CHANGED", candidates: [] },
+            courier: { invitation: null, interest: false },
+            next: { dispatcher: "Review the refreshed recommendation before starting another round.", courier: "The round ended without a decline or penalty. You remain On Duty." },
+            can: ["start_round", "show_override", "copy_link"]
+          },
+          assigned: {
+            label: "Delivery · Assigned",
+            delivery: { state: "ASSIGNED", courier: "Maya Chen", eta: "14:35–14:55 IST" },
+            courier: { invitation: null, interest: false, activeDelivery: true },
+            round: { state: "SELECTED", closesIn: null, selected: "Maya Chen", candidates: [
+              { name: "Maya Chen", rank: 1, response: "Selected", tone: "good" },
+              { name: "Leo Byrne", rank: 2, response: "Not selected", tone: "neutral" },
+              { name: "Priya Shah", rank: 3, response: "Declined", tone: "bad" }
+            ] },
+            next: { dispatcher: "Monitor the Assignment; Reassignment remains available only before pickup.", courier: "Collect the item, then explicitly confirm pickup." },
+            history: [
+              { label: "Delivery created", detail: "Nora Patel", time: "13:42", state: "done" },
+              { label: "Courier recommendation", detail: "Top three confirmed", time: "14:03", state: "done" },
+              { label: "Matching Round", detail: "Maya selected by rank", time: "14:04", state: "done" },
+              { label: "Assignment", detail: "Maya Chen", time: "14:04", state: "current" },
+              { label: "Pickup", detail: "Courier action required", time: "—", state: "future" },
+              { label: "Outcome", detail: "Waiting", time: "—", state: "future" }
+            ],
+            can: ["confirm_pickup", "show_reassign", "show_courier_withdrawal", "stop_sharing", "go_off_duty", "copy_link"]
+          },
+          reassigned: {
+            label: "Delivery · Reassignment",
+            delivery: { state: "AWAITING_COURIER", courier: null, eta: null },
+            courier: { invitation: null, interest: false, activeDelivery: false },
+            recommendation: {
+              calculatedAt: "14:11:07 IST",
+              candidates: [
+                { rank: 1, id: "CR-027", name: "Leo Byrne", distance: "1.5 km", idle: "60 min", freshness: "7 sec", accuracy: "22 m", response: "Recommended" },
+                { rank: 2, id: "CR-031", name: "Priya Shah", distance: "2.1 km", idle: "29 min", freshness: "11 sec", accuracy: "19 m", response: "Recommended" },
+                { rank: 3, id: "CR-042", name: "Arun Singh", distance: "2.9 km", idle: "46 min", freshness: "16 sec", accuracy: "31 m", response: "Recommended" }
+              ],
+              exclusions: { offDuty: 13, staleLocation: 2, activeDelivery: 4, outsideZone: 5, suppressed: 1 }
+            },
+            round: null,
+            next: { dispatcher: "Maya is suppressed for this Delivery; authorize a new round from the refreshed list.", courier: "Your Assignment ended. You remain On Duty for other Deliveries." },
+            history: [
+              { label: "Delivery created", detail: "Nora Patel", time: "13:42", state: "done" },
+              { label: "First Assignment", detail: "Maya Chen", time: "14:04", state: "done" },
+              { label: "Dispatcher Revocation", detail: "Operational change", time: "14:10", state: "done" },
+              { label: "Courier recommendation", detail: "Maya suppressed", time: "14:11", state: "current" },
+              { label: "New Matching Round", detail: "Requires Dispatcher", time: "—", state: "future" },
+              { label: "Outcome", detail: "Waiting", time: "—", state: "future" }
+            ],
+            can: ["start_round", "show_override", "copy_link"]
+          },
+          in_transit: {
+            label: "Delivery · In Transit",
+            delivery: { state: "IN_TRANSIT", courier: "Maya Chen", eta: "14:29–14:39 IST" },
+            courier: { invitation: null, interest: false, activeDelivery: true, sharing: "REPORTING", sharingReason: null, lastReport: "8 seconds ago", accuracy: "14 m" },
+            round: { state: "SELECTED", selected: "Maya Chen", candidates: [] },
+            next: { dispatcher: "Location and ETA are healthy; post-pickup Reassignment and Cancellation are unavailable.", courier: "Continue to handoff, then record Delivered or Undeliverable." },
+            history: [
+              { label: "Delivery created", detail: "Nora Patel", time: "13:42", state: "done" },
+              { label: "Assignment", detail: "Maya selected by rank", time: "14:04", state: "done" },
+              { label: "Pickup", detail: "Confirmed by Maya", time: "14:16", state: "done" },
+              { label: "In Transit", detail: "Location live · 14 m", time: "Now", state: "current" },
+              { label: "Outcome", detail: "Courier confirmation required", time: "—", state: "future" }
+            ],
+            can: ["show_delivered", "show_undeliverable", "stop_sharing", "interrupt_location", "go_off_duty", "copy_link"]
+          },
+          sharing_stopped_active: {
+            label: "In Transit · Sharing stopped",
+            delivery: { state: "IN_TRANSIT", courier: "Maya Chen", eta: null },
+            courier: { invitation: null, interest: false, activeDelivery: true, sharing: "OFF", sharingReason: "COURIER_STOPPED", lastReport: "14:24:10 IST", accuracy: null, eligible: false },
+            round: { state: "SELECTED", selected: "Maya Chen", candidates: [] },
+            next: { dispatcher: "Location and ETA are unavailable; contact Maya outside this product if operational follow-up is needed.", courier: "The Delivery remains In Transit. Restart sharing to restore location and ETA." },
+            history: [
+              { label: "Delivery created", detail: "Nora Patel", time: "13:42", state: "done" },
+              { label: "Assignment", detail: "Maya selected by rank", time: "14:04", state: "done" },
+              { label: "Pickup", detail: "Confirmed by Maya", time: "14:16", state: "done" },
+              { label: "Location Sharing", detail: "Stopped by Courier", time: "14:24", state: "current" },
+              { label: "Outcome", detail: "Courier confirmation required", time: "—", state: "future" }
+            ],
+            can: ["start_sharing_active", "show_delivered", "show_undeliverable", "go_off_duty", "copy_link"]
+          },
+          location_interrupted: {
+            label: "In Transit · Reporting interrupted",
+            delivery: { state: "IN_TRANSIT", courier: "Maya Chen", eta: "Last calculated 2 min ago" },
+            courier: { invitation: null, interest: false, activeDelivery: true, sharing: "INTERRUPTED", sharingReason: "NETWORK_UNAVAILABLE", lastReport: "46 seconds ago", accuracy: "14 m", eligible: false },
+            round: { state: "SELECTED", selected: "Maya Chen", candidates: [] },
+            next: { dispatcher: "The last position is Delayed; wait for recovery without treating it as live.", courier: "Keep this page open. Reporting resumes with only the newest fix when connectivity returns." },
+            history: [
+              { label: "Delivery created", detail: "Nora Patel", time: "13:42", state: "done" },
+              { label: "Assignment", detail: "Maya selected by rank", time: "14:04", state: "done" },
+              { label: "Pickup", detail: "Confirmed by Maya", time: "14:16", state: "done" },
+              { label: "Location Reporting", detail: "Network unavailable · 46 sec", time: "Now", state: "current" },
+              { label: "Outcome", detail: "Courier confirmation required", time: "—", state: "future" }
+            ],
+            can: ["recover_location", "stop_sharing", "show_delivered", "show_undeliverable", "go_off_duty", "copy_link"]
+          },
+          delivered: {
+            label: "Outcome · Delivered",
+            delivery: { state: "DELIVERED", courier: null, eta: null },
+            courier: { invitation: null, interest: false, activeDelivery: false, sharing: "REPORTING", sharingReason: null, lastReport: "6 seconds ago", accuracy: "12 m", eligible: true },
+            round: { state: "SELECTED", selected: "Maya Chen", candidates: [] },
+            next: { dispatcher: "The Delivery is terminal. Its transition history remains available.", courier: "Handoff is complete. You remain On Duty and sharing for future matching." },
+            history: [
+              { label: "Delivery created", detail: "Nora Patel", time: "13:42", state: "done" },
+              { label: "Assignment", detail: "Maya selected by rank", time: "14:04", state: "done" },
+              { label: "Pickup", detail: "Confirmed by Maya", time: "14:16", state: "done" },
+              { label: "Delivered", detail: "Handoff confirmed", time: "14:31", state: "done" }
+            ],
+            can: ["copy_link", "go_off_duty"]
+          },
+          undeliverable: {
+            label: "Outcome · Undeliverable",
+            delivery: { state: "UNDELIVERABLE", courier: null, eta: null },
+            courier: { invitation: null, interest: false, activeDelivery: false, sharing: "REPORTING", sharingReason: null, lastReport: "6 seconds ago", accuracy: "12 m", eligible: true },
+            round: { state: "SELECTED", selected: "Maya Chen", candidates: [] },
+            next: { dispatcher: "The Delivery is terminal; a later attempt must be a new Delivery.", courier: "The outcome is recorded. You remain On Duty for other Deliveries." },
+            history: [
+              { label: "Delivery created", detail: "Nora Patel", time: "13:42", state: "done" },
+              { label: "Assignment", detail: "Maya selected by rank", time: "14:04", state: "done" },
+              { label: "Pickup", detail: "Confirmed by Maya", time: "14:16", state: "done" },
+              { label: "Undeliverable", detail: "Recipient unavailable", time: "14:31", state: "done" }
+            ],
+            can: ["copy_link", "go_off_duty"]
+          },
+          cancelled: {
+            label: "Outcome · Cancelled",
+            delivery: { state: "CANCELLED", courier: null, eta: null },
+            courier: { invitation: null, interest: false, activeDelivery: false },
+            round: null,
+            next: { dispatcher: "The pre-pickup cancellation is terminal and cannot be reopened.", courier: "No Delivery was assigned. Your availability is unchanged." },
+            history: [
+              { label: "Delivery created", detail: "Nora Patel", time: "13:42", state: "done" },
+              { label: "Cancelled", detail: "Delivery no longer required", time: "14:07", state: "done" }
+            ],
+            can: ["copy_link"]
+          }
+        };
+
+        var ui = { panel: null, overrideApplied: false, inspectorOpen: false, toast: null, onDutyOverride: null, sharingOverride: null, reassignmentKind: null };
+        var toastTimer = null;
+
+        function clone(value) { return JSON.parse(JSON.stringify(value)); }
+        function mergeObject(left, right) { return Object.assign({}, left || {}, right || {}); }
+        function buildState(key) {
+          var spec = scenarioSpecs[key] || scenarioSpecs.matching_round;
+          var result = clone(base);
+          result.key = key;
+          result.label = spec.label;
+          result.delivery = mergeObject(result.delivery, spec.delivery);
+          result.courier = mergeObject(result.courier, spec.courier);
+          result.recommendation = spec.recommendation ? clone(spec.recommendation) : result.recommendation;
+          result.round = Object.prototype.hasOwnProperty.call(spec, "round") ? clone(spec.round) : result.round;
+          result.next = mergeObject(result.next, spec.next);
+          result.history = spec.history ? clone(spec.history) : result.history;
+          result.can = spec.can ? spec.can.slice() : result.can;
+          if (ui.onDutyOverride !== null) result.courier.onDuty = ui.onDutyOverride;
+          if (ui.sharingOverride !== null) result.courier.sharing = ui.sharingOverride;
+          if (!result.courier.onDuty && !result.courier.activeDelivery) {
+            result.courier.sharing = "OFF";
+            result.courier.lastReport = null;
+            result.courier.accuracy = null;
+          }
+          if (result.courier.activeDelivery && result.courier.sharing === "OFF") result.delivery.eta = null;
+          result.courier.eligible = Boolean(result.courier.onDuty && result.courier.sharing === "REPORTING" && !result.courier.activeDelivery);
+          if (ui.overrideApplied && result.recommendation) {
+            result.recommendation.override = { reason: "LOCAL_KNOWLEDGE", note: "Road closure near the pickup", replacement: "Leo Byrne" };
+          }
+          if (key === "reassigned" && ui.reassignmentKind === "COURIER_WITHDRAWAL") {
+            result.history[2] = { label: "Courier Withdrawal", detail: "Cannot reach pickup", time: "14:10", state: "done" };
+            result.next.dispatcher = "Maya withdrew before pickup and is suppressed; authorize a new round from the refreshed list.";
+            result.next.courier = "Your Withdrawal ended the Assignment. You remain On Duty for other Deliveries.";
+          }
+          return result;
+        }
+
+        function getQuery() { return new URLSearchParams(window.location.search); }
+        function currentVariant() {
+          var value = (getQuery().get("variant") || "A").toUpperCase();
+          return variants.some(function (item) { return item.key === value; }) ? value : "A";
+        }
+        function currentRole() {
+          return getQuery().get("role") === "courier" ? "courier" : "dispatcher";
+        }
+        function currentStage() {
+          var value = getQuery().get("stage") || "matching_round";
+          return scenarioSpecs[value] ? value : "matching_round";
+        }
+        function setQuery(values) {
+          var query = getQuery();
+          Object.keys(values).forEach(function (key) { query.set(key, values[key]); });
+          window.history.replaceState({}, "", window.location.pathname + "?" + query.toString());
+          render();
+        }
+        function has(state, action) { return state.can.indexOf(action) !== -1; }
+        function escapeHtml(value) {
+          return String(value == null ? "" : value).replace(/[&<>\"']/g, function (char) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[char];
+          });
+        }
+        function stateTone(value) {
+          if (value === "REPORTING" || value === "DELIVERED" || value === "ASSIGNED") return "good";
+          if (value === "INTERRUPTED" || value === "AWAITING_COURIER") return "warn";
+          if (value === "OFF" || value === "CANCELLED" || value === "UNDELIVERABLE") return "bad";
+          if (value === "IN_TRANSIT") return "info";
+          return "neutral";
+        }
+        function badge(label, tone) { return '<span class="badge ' + (tone || "neutral") + '">' + escapeHtml(label) + '</span>'; }
+        function button(label, action, style, extra) {
+          return '<button type="button" class="button ' + (style || "") + '" data-action="' + action + '" ' + (extra || "") + '>' + label + '</button>';
+        }
+        function roleButton(label, role) {
+          return '<button type="button" class="button secondary small" data-action="switch_role" data-role="' + role + '">' + label + '</button>';
+        }
+        function titleCase(value) {
+          return String(value || "").toLowerCase().replaceAll("_", " ").replace(/(^|\s)\S/g, function (letter) { return letter.toUpperCase(); });
+        }
+        function deliveryStateBadge(state) { return badge(titleCase(state.delivery.state), stateTone(state.delivery.state)); }
+        function sharingBadge(state) {
+          var label = state.courier.sharing === "REPORTING" ? "Location reporting" : state.courier.sharing === "INTERRUPTED" ? "Reporting interrupted" : "Sharing off";
+          return badge(label, stateTone(state.courier.sharing));
+        }
+        function onDutyBadge(state) { return badge(state.courier.onDuty ? "On Duty" : "Off Duty", state.courier.onDuty ? "good" : "neutral"); }
+        function deliveryRows() {
+          return [
+            { reference: "DG-2048", address: "42 Mount Street Upper", state: "Selected scenario", selected: true },
+            { reference: "DG-2043", address: "8 Hanover Quay", state: "In Transit" },
+            { reference: "DG-2039", address: "16 Leeson Street", state: "Assigned" },
+            { reference: "DG-2034", address: "71 Pembroke Road", state: "Delivered" }
+          ];
+        }
+        function recommendationTable(state) {
+          if (!state.recommendation) return "";
+          return '<table class="candidate-table"><thead><tr><th>#</th><th>Eligible Courier</th><th>Pickup</th><th>Idle</th><th>Location</th></tr></thead><tbody>' +
+            state.recommendation.candidates.map(function (candidate) {
+              return '<tr><td class="candidate-rank">' + candidate.rank + '</td><td><span class="candidate-name">' + escapeHtml(candidate.name) + '</span><span class="candidate-meta">' + escapeHtml(candidate.id) + '</span></td><td>' + escapeHtml(candidate.distance) + '</td><td>' + escapeHtml(candidate.idle) + '</td><td>' + escapeHtml(candidate.freshness) + '<span class="candidate-meta">±' + escapeHtml(candidate.accuracy) + '</span></td></tr>';
+            }).join("") + '</tbody></table>';
+        }
+        function responseList(state) {
+          if (!state.round || !state.round.candidates || !state.round.candidates.length) return "";
+          return '<div class="response-list">' + state.round.candidates.map(function (candidate) {
+            return '<div class="response-row"><div><strong>#' + candidate.rank + ' · ' + escapeHtml(candidate.name) + '</strong><span>Original recommendation rank</span></div>' + badge(candidate.response, candidate.tone) + '</div>';
+          }).join("") + '</div>';
+        }
+        function timeline(state) {
+          return '<ol class="timeline">' + state.history.map(function (event) {
+            return '<li class="' + event.state + '"><span class="timeline-dot" aria-hidden="true"></span><span><strong>' + escapeHtml(event.label) + '</strong><br><span class="subtle">' + escapeHtml(event.detail) + '</span></span><time>' + escapeHtml(event.time) + '</time></li>';
+          }).join("") + '</ol>';
+        }
+        function addresses(state) {
+          return '<div class="address-pair"><div class="address-point"><span class="mini-label">Pickup · internal</span><strong>' + escapeHtml(state.delivery.pickup) + '</strong></div><div class="address-point"><span class="mini-label">Handoff</span><strong>' + escapeHtml(state.delivery.handoff) + '</strong></div></div>';
+        }
+        function exclusionSummary(state) {
+          var exclusions = state.recommendation ? state.recommendation.exclusions : {};
+          return Object.keys(exclusions).map(function (key) {
+            var label = key.replace(/([A-Z])/g, " $1").replace(/^./, function (c) { return c.toUpperCase(); });
+            return '<div class="fact"><span>' + escapeHtml(label) + '</span><strong>' + exclusions[key] + '</strong></div>';
+          }).join("");
+        }
+        function locationFacts(state) {
+          var reason = state.courier.sharingReason ? '<div class="fact"><span>Reason</span><strong class="mono">' + escapeHtml(state.courier.sharingReason) + '</strong></div>' : "";
+          return '<div class="fact-list"><div class="fact"><span>Sharing</span><strong>' + escapeHtml(state.courier.sharing) + '</strong></div><div class="fact"><span>Last usable report</span><strong>' + escapeHtml(state.courier.lastReport || "None") + '</strong></div><div class="fact"><span>Accuracy</span><strong>' + escapeHtml(state.courier.accuracy || "Unavailable") + '</strong></div>' + reason + '</div>';
+        }
+        function dispatcherPrimaryActions(state) {
+          var parts = [];
+          if (has(state, "start_round")) parts.push(button("Start 60-second round", "start_round", "good"));
+          if (has(state, "show_override")) parts.push(button("Change shortlist", "show_override", "secondary"));
+          if (has(state, "close_round")) parts.push(button("Simulate round close", "close_round", "good"));
+          if (has(state, "show_cancel_round")) parts.push(button("Cancel round", "show_cancel_round", "secondary"));
+          if (has(state, "show_reassign")) parts.push(button("Revoke Assignment", "show_reassign", "danger"));
+          if (state.delivery.state === "AWAITING_COURIER" && !state.round) parts.push(button("Cancel Delivery", "show_cancel_delivery", "danger"));
+          return parts.join("");
+        }
+        function courierPrimaryActions(state) {
+          var parts = [];
+          if (has(state, "go_on_duty") || (!state.courier.onDuty && has(state, "go_off_duty"))) parts.push(button("Go On Duty", "go_on_duty", "good"));
+          if (has(state, "go_off_duty") && state.courier.onDuty) parts.push(button("Go Off Duty", "go_off_duty", "secondary"));
+          if (has(state, "start_sharing") || (state.courier.onDuty && state.courier.sharing === "OFF" && !state.courier.activeDelivery)) parts.push(button("Start sharing", "start_sharing", "good"));
+          if (has(state, "start_sharing_active") || (state.courier.activeDelivery && state.courier.sharing === "OFF")) parts.push(button("Restart sharing", "start_sharing_active", "good"));
+          if (has(state, "match")) parts.push(button("Match", "match", "good"));
+          if (has(state, "decline")) parts.push(button("Decline", "decline", "secondary"));
+          if (has(state, "withdraw_interest")) parts.push(button("Withdraw interest", "withdraw_interest", "danger"));
+          if (has(state, "confirm_pickup")) parts.push(button("Confirm pickup", "confirm_pickup", "good"));
+          if (has(state, "show_courier_withdrawal")) parts.push(button("Withdraw from Delivery", "show_courier_withdrawal", "danger"));
+          if (has(state, "show_delivered")) parts.push(button("Mark Delivered", "show_delivered", "good"));
+          if (has(state, "show_undeliverable")) parts.push(button("Could not hand off", "show_undeliverable", "secondary"));
+          if (has(state, "recover_location")) parts.push(button("Simulate recovery", "recover_location", "good"));
+          if (has(state, "interrupt_location")) parts.push(button("Simulate interruption", "interrupt_location", "secondary"));
+          if (has(state, "stop_sharing") && state.courier.activeDelivery && state.courier.sharing !== "OFF") parts.push(button("Stop sharing", "show_stop_sharing", "danger"));
+          return parts.join("");
+        }
+        function dispatcherCore(state) {
+          if (state.round && state.round.state === "ACTIVE") {
+            return '<section class="a-card"><div class="card-head"><div><p class="eyebrow">Matching Round</p><h2>Interest, not a claim race</h2><p>At close, current eligibility and the original policy determine one winner.</p></div><strong class="countdown">' + state.round.closesIn + '</strong></div>' + responseList(state) + '</section>';
+          }
+          if (state.round && state.round.state === "SELECTED") {
+            return '<section class="a-card"><div class="card-head"><div><p class="eyebrow">Assignment result</p><h2>' + escapeHtml(state.round.selected) + ' selected</h2><p>The highest-ranked interested Courier remained eligible at close.</p></div>' + badge(state.delivery.state, stateTone(state.delivery.state)) + '</div>' + locationFacts(state) + '</section>';
+          }
+          if (state.round && (state.round.state === "CLOSED_NO_WINNER" || state.round.state === "CANCELLED")) {
+            return '<section class="a-card"><div class="card-head"><div><p class="eyebrow">Round outcome</p><h2>' + (state.round.state === "CANCELLED" ? 'Round cancelled' : 'No Courier selected') + '</h2><p>The Delivery remains Awaiting Courier. A new round is never automatic.</p></div>' + badge(state.round.state.replaceAll("_", " "), "warn") + '</div>' + responseList(state) + '</section>';
+          }
+          return '<section class="a-card"><div class="card-head"><div><p class="eyebrow">Courier Recommendation</p><h2>Top eligible Couriers</h2><p>Calculated ' + escapeHtml(state.recommendation.calculatedAt) + ' · refreshed again before sending.</p></div>' + (state.recommendation.override ? badge("Override recorded", "violet") : badge("3 eligible", "good")) + '</div>' + recommendationTable(state) + (state.recommendation.override ? '<div class="notice" style="margin-top:12px">LOCAL_KNOWLEDGE · Leo Byrne replaces Maya Chen · Road closure near the pickup</div>' : '') + '</section>';
+        }
+
+        function renderDispatcherA(state) {
+          var rows = deliveryRows().map(function (row) {
+            var label = row.selected ? titleCase(state.delivery.state) : row.state;
+            var stateClass = label === "In Transit" || label === "Assigned" ? "" : label === "Delivered" ? "neutral" : "warn";
+            return '<button type="button" class="delivery-row ' + (row.selected ? "selected" : "") + '"><div class="delivery-row-top"><strong>' + row.reference + '</strong><span class="tiny-state ' + stateClass + '">' + escapeHtml(label) + '</span></div><p>' + row.address + '</p></button>';
+          }).join("");
+          return '<main class="a-dispatch"><aside class="a-nav"><div class="brand"><span class="brand-mark">DG</span>Delivery Glance</div><div class="a-nav-section"><button class="a-nav-link active"><span class="nav-icon">◇</span>Deliveries</button></div><div class="a-account"><strong>Nora Patel</strong>Dispatcher · Dublin team</div></aside>' +
+            '<section class="a-index"><div class="a-index-head"><h1>Deliveries</h1>' + button("+ New", "show_create", "small") + '</div><div class="a-search"><label class="sr-only" for="a-search">Search Delivery Reference</label><input id="a-search" class="search-input" placeholder="Search reference" /></div><div class="a-filter-row"><button class="filter-chip active">All</button><button class="filter-chip">Awaiting</button><button class="filter-chip">Active</button></div>' + rows + '</section>' +
+            '<section class="a-record"><div class="a-record-shell"><header class="a-record-head"><div><p class="eyebrow">Delivery detail</p><h1>' + state.delivery.reference + '</h1><p>Created today at 13:42 IST · current public state is derived, never freely edited.</p></div><div class="button-row">' + deliveryStateBadge(state) + button("Copy tracking link", "copy_link", "secondary small") + '</div></header><div class="a-record-grid"><div><section class="a-card"><div class="card-head"><div><h2>Pickup and handoff</h2><p>The pickup remains internal; the handoff appears through a valid Tracking Link.</p></div></div>' + addresses(state) + '</section>' + dispatcherCore(state) + '<section class="a-card"><div class="card-head"><div><h2>Delivery Transition history</h2><p>Matching evidence stays separate from lifecycle truth.</p></div></div>' + timeline(state) + '</section></div><aside class="side-action"><section class="next-card"><p class="eyebrow">Next operational action</p><h2>' + titleCase(state.delivery.state) + '</h2><p>' + escapeHtml(state.next.dispatcher) + '</p><div class="button-row">' + dispatcherPrimaryActions(state) + '</div></section><section class="a-card"><div class="card-head"><div><h2>Eligibility exclusions</h2><p>Hard boundaries are never relaxed.</p></div></div><div class="fact-list">' + exclusionSummary(state) + '</div></section>' + roleButton("Open Courier view", "courier") + '</aside></div></div></section></main>';
+        }
+
+        function courierHeroContent(state) {
+          if (!state.courier.onDuty) return { eyebrow: "Availability", title: "You are Off Duty", copy: "No Match Invitations will arrive and no position is collected.", content: courierPrimaryActions(state) };
+          if (state.courier.sharing === "OFF" && !state.courier.activeDelivery) return { eyebrow: "Location needed", title: "Start sharing to become eligible", copy: "On Duty does not start location access. Sharing works only while this page is open in the foreground.", content: courierPrimaryActions(state) };
+          if (state.courier.invitation === "OPEN" && !state.courier.interest) return { eyebrow: "Match Invitation · " + state.round.closesIn, title: "Interested in DG-2048?", copy: "Match expresses willingness. The system selects by eligibility and ranking when the round closes—not by response speed.", content: courierPrimaryActions(state) };
+          if (state.courier.interest) return { eyebrow: "Match Interest · " + state.round.closesIn, title: "Interest registered", copy: "You are temporarily reserved to this round. Interest becomes binding at close if you are selected.", content: courierPrimaryActions(state) };
+          if (state.delivery.state === "ASSIGNED") return { eyebrow: "Current Delivery", title: "Collect from Camden Row", copy: "You have the Assignment. Confirm pickup only after the item is in your care.", content: courierPrimaryActions(state) };
+          if (state.delivery.state === "IN_TRANSIT" && state.courier.sharing === "OFF") return { eyebrow: "Current Delivery · Location unavailable", title: "The Delivery is still In Transit", copy: "Stopping sharing did not change the Delivery. Restart it to restore Recipient location and ETA.", content: courierPrimaryActions(state) };
+          if (state.delivery.state === "IN_TRANSIT" && state.courier.sharing === "INTERRUPTED") return { eyebrow: "Reporting interrupted", title: "Keep this page open", copy: "NETWORK_UNAVAILABLE · only the newest fix will be sent after recovery. No offline route is queued.", content: courierPrimaryActions(state) };
+          if (state.delivery.state === "IN_TRANSIT") return { eyebrow: "Current Delivery", title: "Handoff at Mount Street", copy: "Location is reporting. Record the real handoff outcome; proximity does not finish the Delivery.", content: courierPrimaryActions(state) };
+          if (state.delivery.state === "DELIVERED") return { eyebrow: "Outcome recorded", title: "Delivery completed", copy: "Handoff was confirmed at 14:31 IST. You remain available for other Deliveries.", content: courierPrimaryActions(state) };
+          if (state.delivery.state === "UNDELIVERABLE") return { eyebrow: "Outcome recorded", title: "Delivery ended", copy: "Recipient unavailable was recorded. A later attempt is a new Delivery.", content: courierPrimaryActions(state) };
+          if (state.key === "reassigned") return { eyebrow: "Assignment ended", title: "You are ready for other Deliveries", copy: "This Delivery returned to Awaiting Courier. Your On Duty setting did not change.", content: courierPrimaryActions(state) };
+          if (state.round && state.round.state === "CLOSED_NO_WINNER") return { eyebrow: "Round closed", title: "No Delivery assigned", copy: "Timeout did not take you Off Duty. A five-minute cooldown applies only to this Delivery.", content: courierPrimaryActions(state) };
+          return { eyebrow: "Ready", title: "Waiting for invitations", copy: "Your location is fresh and you have no Active Delivery.", content: courierPrimaryActions(state) };
+        }
+
+        function renderCourierA(state) {
+          var hero = courierHeroContent(state);
+          var activeCard = state.courier.activeDelivery || state.courier.invitation || state.courier.interest ? '<section class="phone-card"><div class="card-head"><div><h2>' + state.delivery.reference + '</h2><p>' + titleCase(state.delivery.state) + (state.delivery.eta ? ' · ETA ' + state.delivery.eta : '') + '</p></div>' + deliveryStateBadge(state) + '</div><div class="phone-route"><div><span>Pickup</span><strong>' + state.delivery.pickup + '</strong></div><div><span>Handoff</span><strong>' + state.delivery.handoff + '</strong></div></div></section>' : '';
+          return '<main class="a-courier-canvas"><article class="a-phone"><header class="a-phone-head"><div class="brand"><span class="brand-mark">DG</span>Courier</div><div class="avatar">MC</div></header><section class="courier-control-strip"><button class="courier-control ' + (state.courier.onDuty ? 'good' : '') + '" data-action="' + (state.courier.onDuty ? (has(state, 'go_off_duty') ? 'go_off_duty' : 'noop') : 'go_on_duty') + '"><span class="mini-label">Availability</span><strong>' + (state.courier.onDuty ? 'On Duty' : 'Off Duty') + '</strong></button><button class="courier-control ' + (state.courier.sharing === 'REPORTING' ? 'good' : state.courier.sharing === 'INTERRUPTED' ? 'warn' : '') + '" data-action="' + (state.courier.sharing === 'OFF' ? (state.courier.activeDelivery ? 'start_sharing_active' : 'start_sharing') : state.courier.activeDelivery ? 'show_stop_sharing' : 'noop') + '"><span class="mini-label">Location</span><strong>' + titleCase(state.courier.sharing) + '</strong></button></section><div class="a-phone-main"><section class="courier-hero"><p class="eyebrow">' + escapeHtml(hero.eyebrow) + '</p><h1>' + escapeHtml(hero.title) + '</h1><p>' + escapeHtml(hero.copy) + '</p><div class="button-row">' + hero.content + '</div></section>' + activeCard + '<section class="phone-card"><div class="card-head"><div><h2>Location Sharing</h2><p>Foreground-only · about every 10 seconds · no Route History</p></div>' + sharingBadge(state) + '</div>' + locationFacts(state) + '</section>' + roleButton("Open Dispatcher view", "dispatcher") + '</div><nav class="phone-nav" aria-label="Courier navigation"><button class="active">Today</button><button>Invitations' + (state.courier.invitation ? ' · 1' : '') + '</button></nav></article></main>';
+        }
+
+        function boardCard(reference, address, label, selected) {
+          return '<article class="board-card ' + (selected ? 'selected' : '') + '"><strong>' + reference + '</strong><p>' + address + '</p><div class="board-card-foot"><span>' + label + '</span><span>›</span></div></article>';
+        }
+        function boardColumn(title, count, content) {
+          return '<section class="board-column"><div class="board-column-head"><h2>' + title + '</h2><span class="board-count">' + count + '</span></div>' + content + '</section>';
+        }
+        function selectedBoardColumn(state, targetState) {
+          return state.delivery.state === targetState ? boardCard(state.delivery.reference, state.delivery.handoff, state.label, true) : '';
+        }
+        function renderBoardDrawer(state) {
+          var inner;
+          if (state.delivery.state === "AWAITING_COURIER" && (!state.round || state.round.state !== "ACTIVE")) {
+            inner = '<section class="b-drawer-section"><h2>Recommended shortlist</h2>' + recommendationTable(state) + '</section>';
+          } else if (state.round && state.round.state === "ACTIVE") {
+            inner = '<section class="b-drawer-section"><div class="card-head"><h2>Matching responses</h2><strong class="countdown">' + state.round.closesIn + '</strong></div>' + responseList(state) + '</section>';
+          } else {
+            inner = '<section class="b-drawer-section"><h2>Current responsibility</h2>' + locationFacts(state) + '</section>';
+          }
+          return '<aside class="b-drawer"><p class="eyebrow">Selected · ' + state.delivery.reference + '</p><h1>' + titleCase(state.delivery.state) + '</h1><p>' + escapeHtml(state.next.dispatcher) + '</p><section class="b-drawer-section"><h2>Handoff</h2><p style="margin:0;color:#c0d0c7;font-size:11px;line-height:1.45">' + escapeHtml(state.delivery.handoff) + '</p></section>' + inner + '<section class="b-drawer-section"><h2>Actions</h2><div class="button-row">' + dispatcherPrimaryActions(state) + button("Copy link", "copy_link", "secondary") + '</div></section>' + roleButton("Open Courier view", "courier") + '</aside>';
+        }
+        function renderDispatcherB(state) {
+          var selectedAwaiting = selectedBoardColumn(state, "AWAITING_COURIER");
+          var selectedAssigned = selectedBoardColumn(state, "ASSIGNED");
+          var selectedTransit = selectedBoardColumn(state, "IN_TRANSIT");
+          var isOutcome = ["DELIVERED", "CANCELLED", "UNDELIVERABLE"].indexOf(state.delivery.state) !== -1;
+          return '<main class="b-dispatch"><header class="b-topbar"><div><div class="brand"><span class="brand-mark">DG</span>Delivery board</div><p style="margin:6px 0 0;color:#746e64;font-size:10px">Dublin Delivery Team · current operational state</p></div><div class="b-topbar-actions"><input class="search-input" aria-label="Search Delivery Reference" placeholder="Search reference" />' + button("New Delivery", "show_create", "") + '</div></header><section class="b-board">' +
+            boardColumn("Awaiting Courier", selectedAwaiting ? 4 : 3, selectedAwaiting + boardCard("DG-2046", "9 Fitzwilliam Square", "Recommendation ready", false) + boardCard("DG-2041", "33 Pearse Street", "No eligible Courier", false)) +
+            boardColumn("Assigned", selectedAssigned ? 3 : 2, selectedAssigned + boardCard("DG-2039", "16 Leeson Street", "Courier collecting", false)) +
+            boardColumn("In Transit", selectedTransit ? 5 : 4, selectedTransit + boardCard("DG-2043", "8 Hanover Quay", "Location live", false) + boardCard("DG-2038", "29 Baggot Street", "Reporting delayed", false)) +
+            boardColumn("Outcomes", isOutcome ? 12 : 11, (isOutcome ? boardCard(state.delivery.reference, state.delivery.handoff, titleCase(state.delivery.state), true) : '') + boardCard("DG-2034", "71 Pembroke Road", "Delivered 13:51", false)) + renderBoardDrawer(state) + '</section></main>';
+        }
+
+        function deckContent(state) {
+          var hero = courierHeroContent(state);
+          var timer = state.round && state.round.closesIn ? '<div class="deck-timer">' + state.round.closesIn + '</div>' : sharingBadge(state);
+          return '<div class="deck-head"><div>' + onDutyBadge(state) + '</div>' + timer + '</div><p class="eyebrow" style="margin-top:24px">' + escapeHtml(hero.eyebrow) + '</p><h1>' + escapeHtml(hero.title) + '</h1><p>' + escapeHtml(hero.copy) + '</p>' + ((state.courier.invitation || state.courier.activeDelivery) ? '<div class="phone-route"><div><span>Pickup</span><strong>' + state.delivery.pickup + '</strong></div><div><span>Handoff</span><strong>' + state.delivery.handoff + '</strong></div></div>' : '') + '<div class="deck-action-grid">' + hero.content + '</div>' + (state.courier.invitation ? '<div class="ranking-note">Responding earlier does not improve your rank. If several Couriers are interested, the system selects the highest-ranked eligible Courier at close.</div>' : '') + '<div class="deck-dots" aria-hidden="true"><span></span><span class="active"></span><span></span></div>';
+        }
+        function renderCourierB(state) {
+          return '<main class="b-courier-canvas"><section class="b-courier"><header class="b-status-float"><div class="brand"><span class="brand-mark">DG</span>Maya</div><div class="b-status-pills">' + onDutyBadge(state) + sharingBadge(state) + '</div></header><div class="deck-wrap"><div class="deck-ghost"></div><div class="deck-ghost two"></div><article class="task-deck">' + deckContent(state) + '</article></div><div style="display:flex;justify-content:center;margin-top:20px">' + roleButton("Open Dispatcher board", "dispatcher") + '</div></section></main>';
+        }
+
+        function phaseFor(state) {
+          if (state.delivery.state === "DELIVERED" || state.delivery.state === "UNDELIVERABLE" || state.delivery.state === "CANCELLED") return 5;
+          if (state.delivery.state === "IN_TRANSIT") return 4;
+          if (state.delivery.state === "ASSIGNED") return 3;
+          if (state.round && state.round.state === "ACTIVE") return 2;
+          if (state.recommendation) return 1;
+          return 0;
+        }
+        function flow(state) {
+          var current = phaseFor(state);
+          var items = [
+            ["Delivery", "Created and validated", "13:42"],
+            ["Recommendation", "Eligible Couriers ranked", "14:03"],
+            ["Matching Round", "Interest gathered for 60 sec", state.round && state.round.closesIn ? state.round.closesIn : "—"],
+            ["Assignment", state.delivery.courier || "Waiting", state.delivery.state === "ASSIGNED" ? "Now" : "—"],
+            ["Pickup", state.delivery.state === "IN_TRANSIT" ? "Confirmed" : "Waiting", state.delivery.state === "IN_TRANSIT" ? "14:16" : "—"],
+            ["Outcome", ["DELIVERED", "UNDELIVERABLE", "CANCELLED"].indexOf(state.delivery.state) !== -1 ? titleCase(state.delivery.state) : "Waiting", ["DELIVERED", "UNDELIVERABLE"].indexOf(state.delivery.state) !== -1 ? "14:31" : "—"]
+          ];
+          return '<div class="c-flow">' + items.map(function (item, index) {
+            var cls = index < current ? "done" : index === current ? "current" : "";
+            return '<div class="flow-step ' + cls + '"><span class="flow-node">' + (index < current ? '✓' : index + 1) + '</span><div class="flow-copy"><strong>' + item[0] + '</strong><span>' + escapeHtml(item[1]) + '</span></div><time>' + item[2] + '</time></div>';
+          }).join("") + '</div>';
+        }
+        function renderDispatcherC(state) {
+          return '<main class="c-dispatch"><header class="c-top"><div class="brand"><span class="brand-mark">DG</span>Dispatch action path</div><div class="c-top-meta">DUBLIN / ' + state.delivery.reference + ' / ' + state.delivery.state + '</div></header><section class="c-console"><aside class="c-panel"><p class="c-queue-title">Action queue</p><button class="c-queue-item active"><strong>' + state.delivery.reference + '</strong><span>' + escapeHtml(state.next.dispatcher) + '</span></button><button class="c-queue-item"><strong>DG-2046</strong><span>Recommendation ready</span></button><button class="c-queue-item"><strong>DG-2038</strong><span>Location delayed</span></button></aside><section class="c-panel center"><article class="c-next-action"><p class="eyebrow">One next decision</p><h1>' + titleCase(state.delivery.state) + '</h1><p>' + escapeHtml(state.next.dispatcher) + '</p><div class="button-row">' + dispatcherPrimaryActions(state) + button("Copy tracking link", "copy_link", "secondary") + '</div></article>' + flow(state) + '</section><aside class="c-panel c-evidence"><p class="eyebrow">Decision evidence</p><h2>Why this is safe</h2><p>Eligibility, consent, and lifecycle truth remain visible beside the action.</p><div class="evidence-block"><h3>Delivery</h3><div class="evidence-row"><span>Reference</span><strong>' + state.delivery.reference + '</strong></div><div class="evidence-row"><span>Lifecycle</span><strong>' + state.delivery.state + '</strong></div><div class="evidence-row"><span>Courier</span><strong>' + escapeHtml(state.delivery.courier || "None") + '</strong></div></div><div class="evidence-block"><h3>Location</h3><div class="evidence-row"><span>Sharing</span><strong>' + state.courier.sharing + '</strong></div><div class="evidence-row"><span>Last report</span><strong>' + escapeHtml(state.courier.lastReport || "None") + '</strong></div><div class="evidence-row"><span>Accuracy</span><strong>' + escapeHtml(state.courier.accuracy || "—") + '</strong></div></div><div class="evidence-block"><h3>Ranking</h3><div class="evidence-row"><span>Calculated</span><strong>' + escapeHtml(state.recommendation.calculatedAt) + '</strong></div><div class="evidence-row"><span>Shortlist</span><strong>' + state.recommendation.candidates.length + ' eligible</strong></div></div>' + roleButton("Open Courier path", "courier") + '</aside></section></main>';
+        }
+
+        function courierStepState(index, current) { return index < current ? "done" : index === current ? "current" : ""; }
+        function courierPhase(state) {
+          if (!state.courier.onDuty) return 0;
+          if (state.courier.sharing === "OFF" && !state.courier.activeDelivery) return 1;
+          if (state.courier.invitation || state.courier.interest || (!state.courier.activeDelivery && state.delivery.state === "AWAITING_COURIER")) return 2;
+          if (state.delivery.state === "ASSIGNED") return 3;
+          if (state.delivery.state === "IN_TRANSIT") return 4;
+          if (["DELIVERED", "UNDELIVERABLE"].indexOf(state.delivery.state) !== -1) return 5;
+          return 2;
+        }
+        function checklistStep(index, current, title, copy, expanded) {
+          return '<section class="check-step ' + courierStepState(index, current) + '"><div class="check-num">' + (index < current ? '✓' : '0' + (index + 1)) + '</div><div class="check-body"><h2>' + title + '</h2><p>' + copy + '</p>' + (index === current ? expanded : '') + '</div></section>';
+        }
+        function renderCourierC(state) {
+          var current = courierPhase(state);
+          var hero = courierHeroContent(state);
+          var expanded = '<div class="check-expanded"><p class="eyebrow">Current step</p><h1>' + escapeHtml(hero.title) + '</h1><p>' + escapeHtml(hero.copy) + '</p>' + ((state.courier.invitation || state.courier.activeDelivery) ? '<div class="c-mobile-context"><div class="context-tile"><span class="mini-label">Reference</span><strong>' + state.delivery.reference + '</strong></div><div class="context-tile"><span class="mini-label">State</span><strong>' + titleCase(state.delivery.state) + '</strong></div></div>' : '') + '<div class="button-row" style="margin-top:14px">' + hero.content + '</div></div>';
+          return '<main class="c-courier-canvas"><section class="c-courier"><header class="c-courier-head"><div class="brand"><span class="brand-mark">DG</span>Courier checklist</div><div>' + onDutyBadge(state) + ' ' + sharingBadge(state) + '</div></header><article class="c-checklist">' +
+            checklistStep(0, current, "Availability", "Go On Duty only when willing to receive Match Invitations.", expanded) +
+            checklistStep(1, current, "Location Sharing", "Start explicitly; foreground reporting is separate from availability.", expanded) +
+            checklistStep(2, current, "Match", "Express Interest; ranking at close—not speed—chooses the Courier.", expanded) +
+            checklistStep(3, current, "Collect", "An Assignment begins responsibility; confirm pickup only when collected.", expanded) +
+            checklistStep(4, current, "Handoff", "Keep reporting honest, then record Delivered or Undeliverable.", expanded) +
+            checklistStep(5, current, "Outcome", "Terminal truth cannot be edited or reopened.", expanded) +
+            '</article><div style="display:flex;justify-content:center;margin-top:18px">' + roleButton("Open Dispatcher path", "dispatcher") + '</div></section></main>';
+        }
+
+        function modalMarkup() {
+          if (!ui.panel) return "";
+          var content = "";
+          if (ui.panel === "create") {
+            content = '<p class="eyebrow">Dispatcher action</p><h2>Create Delivery</h2><p>Core stores only a reference, pickup, and handoff. There is no Recipient profile or item record.</p><div class="field-grid"><div class="field"><label for="new-reference">Delivery Reference</label><input id="new-reference" value="DG-2049" /></div><div class="field"><label for="new-pickup">Pickup Address</label><input id="new-pickup" value="18 Camden Row, Dublin 8" /></div><div class="field"><label for="new-handoff">Handoff Address</label><input id="new-handoff" value="42 Mount Street Upper, Dublin 2" /></div></div><div class="modal-actions">' + button("Close", "close_panel", "secondary") + button("Create Delivery", "create_delivery", "good") + '</div>';
+          } else if (ui.panel === "override") {
+            content = '<p class="eyebrow">Recommendation Override</p><h2>Change the shortlist</h2><p>Only another Eligible Courier may be selected. The ranking policy itself is not bypassed.</p><div class="field-grid"><div class="field"><label for="replacement">Replacement</label><select id="replacement"><option>Leo Byrne replaces Maya Chen</option></select></div><div class="field"><label for="override-reason">Structured reason</label><select id="override-reason"><option>LOCAL_KNOWLEDGE</option><option>WORKLOAD_BALANCING</option><option>COURIER_REQUEST</option><option>OTHER</option></select></div><div class="field"><label for="override-note">Internal note · optional</label><textarea id="override-note">Road closure near the pickup</textarea></div></div><div class="modal-actions">' + button("Back", "close_panel", "secondary") + button("Record override", "apply_override", "good") + '</div>';
+          } else if (ui.panel === "cancel_round") {
+            content = '<p class="eyebrow">Matching Round Cancellation</p><h2>End this round?</h2><p>All Match Interests are released. No invited Courier is treated as having declined.</p><div class="field"><label for="round-reason">Reason</label><select id="round-reason"><option>CANDIDATES_CHANGED</option><option>OPERATIONAL_PAUSE</option><option>OTHER</option></select></div><div class="modal-actions">' + button("Keep round open", "close_panel", "secondary") + button("Cancel round", "confirm_cancel_round", "danger") + '</div>';
+          } else if (ui.panel === "reassign") {
+            content = '<p class="eyebrow">Dispatcher Revocation</p><h2>End Maya’s Assignment?</h2><p>The Delivery returns to Awaiting Courier. A new Matching Round will not start automatically.</p><div class="field"><label for="reassign-reason">Reason</label><select id="reassign-reason"><option>OPERATIONAL_CHANGE</option><option>COURIER_UNRESPONSIVE</option><option>ASSIGNMENT_ERROR</option><option>OTHER</option></select></div><div class="modal-actions">' + button("Keep Assignment", "close_panel", "secondary") + button("Revoke Assignment", "confirm_reassign", "danger") + '</div>';
+          } else if (ui.panel === "courier_withdrawal") {
+            content = '<p class="eyebrow">Courier Withdrawal</p><h2>Leave this Assignment?</h2><p>The Delivery returns to Awaiting Courier. Going Off Duty is a separate choice.</p><div class="field"><label for="withdrawal-reason">Reason</label><select id="withdrawal-reason"><option>CANNOT_REACH_PICKUP</option><option>NO_LONGER_AVAILABLE</option><option>VEHICLE_ISSUE</option><option>OTHER</option></select></div><div class="modal-actions">' + button("Keep Assignment", "close_panel", "secondary") + button("Withdraw", "confirm_courier_withdrawal", "danger") + '</div>';
+          } else if (ui.panel === "stop_sharing") {
+            content = '<p class="eyebrow">Location Sharing</p><h2>Stop sharing during this Delivery?</h2><p>The Delivery remains active, but the Recipient marker and location-derived ETA become unavailable. You can restart sharing from this foreground page.</p><div class="modal-actions">' + button("Keep sharing", "close_panel", "secondary") + button("Stop sharing", "confirm_stop_sharing", "danger") + '</div>';
+          } else if (ui.panel === "undeliverable") {
+            content = '<p class="eyebrow">Terminal outcome</p><h2>Could not complete handoff</h2><p>This ends the Delivery. A later attempt must be created as a new Delivery.</p><div class="field"><label for="outcome-reason">Required reason</label><select id="outcome-reason"><option>RECIPIENT_UNAVAILABLE</option><option>RECIPIENT_REFUSED</option><option>ADDRESS_INACCESSIBLE</option><option>UNSAFE_TO_COMPLETE</option><option>ITEM_DAMAGED</option><option>OTHER</option></select></div><div class="modal-actions">' + button("Back", "close_panel", "secondary") + button("Mark Undeliverable", "confirm_undeliverable", "danger") + '</div>';
+          } else if (ui.panel === "delivered") {
+            content = '<p class="eyebrow">Handoff Confirmation</p><h2>Confirm Delivered?</h2><p>GPS proximity is not confirmation. Use this only after the item was actually handed over.</p><div class="modal-actions">' + button("Back", "close_panel", "secondary") + button("Confirm handoff", "confirm_delivered", "good") + '</div>';
+          } else if (ui.panel === "cancel_delivery") {
+            content = '<p class="eyebrow">Terminal action</p><h2>Cancel this Delivery?</h2><p>Cancellation is available only before pickup and cannot be reversed.</p><div class="field"><label for="cancel-reason">Required reason</label><select id="cancel-reason"><option>DELIVERY_NO_LONGER_REQUIRED</option><option>INVALID_DELIVERY_DETAILS</option><option>ITEM_UNAVAILABLE_AT_PICKUP</option><option>OTHER</option></select></div><div class="modal-actions">' + button("Back", "close_panel", "secondary") + button("Cancel Delivery", "confirm_cancel_delivery", "danger") + '</div>';
+          }
+          return '<div class="modal-layer" role="presentation"><section class="modal-card" role="dialog" aria-modal="true" aria-label="Prototype action">' + content + '</section></div>';
+        }
+
+        function render() {
+          var variantKey = currentVariant();
+          var role = currentRole();
+          var stage = currentStage();
+          var state = buildState(stage);
+          var renderer;
+          if (variantKey === "B") renderer = role === "courier" ? renderCourierB : renderDispatcherB;
+          else if (variantKey === "C") renderer = role === "courier" ? renderCourierC : renderDispatcherC;
+          else renderer = role === "courier" ? renderCourierA : renderDispatcherA;
+          document.getElementById("app").innerHTML = renderer(state) + modalMarkup();
+          var variant = variants.find(function (item) { return item.key === variantKey; });
+          document.getElementById("variant-label").textContent = variant.key + " — " + variant.name;
+          document.getElementById("role-select").value = role;
+          document.getElementById("stage-select").value = stage;
+          document.getElementById("state-output").textContent = JSON.stringify({ variant: variant, role: role, workflow: state, prototypeUI: ui }, null, 2);
+          document.getElementById("state-inspector").hidden = !ui.inspectorOpen;
+          document.getElementById("state-toggle").setAttribute("aria-expanded", String(ui.inspectorOpen));
+          if (ui.toast) renderToast(ui.toast);
+        }
+
+        function renderToast(message) {
+          var previous = document.querySelector(".toast");
+          if (previous) previous.remove();
+          var toast = document.createElement("div");
+          toast.className = "toast";
+          toast.setAttribute("role", "status");
+          toast.textContent = message;
+          document.body.appendChild(toast);
+          clearTimeout(toastTimer);
+          toastTimer = setTimeout(function () { ui.toast = null; if (toast.parentNode) toast.remove(); }, 2200);
+        }
+        function notify(message) { ui.toast = message; render(); }
+        function changeStage(stage, message) { ui.panel = null; setQuery({ stage: stage }); if (message) { ui.toast = message; render(); } }
+        function cycleVariant(direction) {
+          var index = variants.findIndex(function (item) { return item.key === currentVariant(); });
+          setQuery({ variant: variants[(index + direction + variants.length) % variants.length].key });
+        }
+        function handleAction(action, element) {
+          if (action === "noop") return;
+          if (action === "switch_role") return setQuery({ role: element.getAttribute("data-role") || "dispatcher" });
+          if (action === "show_create") ui.panel = "create";
+          else if (action === "show_override") ui.panel = "override";
+          else if (action === "show_cancel_round") ui.panel = "cancel_round";
+          else if (action === "show_reassign") ui.panel = "reassign";
+          else if (action === "show_courier_withdrawal") ui.panel = "courier_withdrawal";
+          else if (action === "show_stop_sharing") ui.panel = "stop_sharing";
+          else if (action === "show_undeliverable") ui.panel = "undeliverable";
+          else if (action === "show_delivered") ui.panel = "delivered";
+          else if (action === "show_cancel_delivery") ui.panel = "cancel_delivery";
+          else if (action === "close_panel") ui.panel = null;
+          else if (action === "copy_link") return notify("Tracking Link copied · actor and time would be audited");
+          else if (action === "apply_override") { ui.panel = null; ui.overrideApplied = true; return notify("Recommendation Override recorded"); }
+          else if (action === "create_delivery") return changeStage("awaiting_recommendation", "Delivery created in Awaiting Courier");
+          else if (action === "go_on_duty") {
+            ui.onDutyOverride = true;
+            if (currentStage() === "courier_off_duty") return changeStage("courier_needs_location", "On Duty · still ineligible until Location Sharing starts");
+            return notify("On Duty · the current Delivery and sharing state are unchanged");
+          }
+          else if (action === "go_off_duty") {
+            var beforeDutyChange = buildState(currentStage());
+            ui.onDutyOverride = false;
+            if (!beforeDutyChange.courier.activeDelivery) ui.sharingOverride = "OFF";
+            if (!beforeDutyChange.courier.activeDelivery && beforeDutyChange.delivery.state === "AWAITING_COURIER" && !beforeDutyChange.round) return changeStage("courier_off_duty", "Off Duty · Location Sharing stopped because no Active Delivery remains");
+            return notify(beforeDutyChange.courier.activeDelivery ? "Off Duty · the Active Delivery and Location Sharing continue" : "Off Duty · Location Sharing stopped because no Active Delivery remains");
+          }
+          else if (action === "start_sharing") { ui.sharingOverride = "REPORTING"; return changeStage("awaiting_recommendation", "Location reporting · first usable fix accepted"); }
+          else if (action === "start_round") return changeStage("matching_round", "Matching Round started for the confirmed top three");
+          else if (action === "match") return changeStage("interest_registered", "Match Interest registered · selection still waits for round close");
+          else if (action === "decline") return changeStage("no_match", "Declined this Delivery · On Duty is unchanged");
+          else if (action === "withdraw_interest") return changeStage("matching_round", "Interest withdrawn without a penalty");
+          else if (action === "close_round") {
+            var closingState = buildState(currentStage());
+            if (!closingState.courier.interest || !closingState.courier.onDuty || closingState.courier.sharing !== "REPORTING") return changeStage("no_match", "Round closed with no eligible interested Courier");
+            return changeStage("assigned", "Maya selected atomically as the highest-ranked eligible interested Courier");
+          }
+          else if (action === "confirm_cancel_round") return changeStage("round_cancelled", "Round cancelled · Interests released without declines");
+          else if (action === "confirm_reassign") { ui.reassignmentKind = "DISPATCHER_REVOCATION"; return changeStage("reassigned", "Assignment revoked · Delivery returned to Awaiting Courier"); }
+          else if (action === "confirm_courier_withdrawal") { ui.reassignmentKind = "COURIER_WITHDRAWAL"; return changeStage("reassigned", "Courier Withdrawal recorded · On Duty is unchanged"); }
+          else if (action === "confirm_pickup") return changeStage("in_transit", "Pickup confirmed · Delivery is now In Transit");
+          else if (action === "confirm_stop_sharing") {
+            var stoppingState = buildState(currentStage());
+            ui.sharingOverride = "OFF";
+            ui.panel = null;
+            if (stoppingState.delivery.state === "ASSIGNED") return notify("Sharing stopped · Delivery remains Assigned and its ETA is unavailable");
+            return changeStage("sharing_stopped_active", "Sharing stopped · Delivery remains In Transit");
+          }
+          else if (action === "start_sharing_active") {
+            var restartingState = buildState(currentStage());
+            ui.sharingOverride = "REPORTING";
+            if (restartingState.delivery.state === "ASSIGNED") return notify("Foreground Location Sharing restarted · Delivery remains Assigned");
+            return changeStage("in_transit", "Foreground Location Sharing restarted");
+          }
+          else if (action === "interrupt_location") return changeStage("location_interrupted", "Reporting interrupted · Last Known Location is Delayed");
+          else if (action === "recover_location") return changeStage("in_transit", "Reporting recovered with the newest fix only");
+          else if (action === "confirm_delivered") return changeStage("delivered", "Handoff confirmed · Delivery is terminal");
+          else if (action === "confirm_undeliverable") return changeStage("undeliverable", "Undeliverable recorded · a later attempt is a new Delivery");
+          else if (action === "confirm_cancel_delivery") return changeStage("cancelled", "Delivery cancelled before pickup");
+          render();
+        }
+
+        var stageSelect = document.getElementById("stage-select");
+        Object.keys(scenarioSpecs).forEach(function (key) {
+          var option = document.createElement("option");
+          option.value = key;
+          option.textContent = scenarioSpecs[key].label;
+          stageSelect.appendChild(option);
+        });
+        document.getElementById("previous-variant").addEventListener("click", function () { cycleVariant(-1); });
+        document.getElementById("next-variant").addEventListener("click", function () { cycleVariant(1); });
+        document.getElementById("role-select").addEventListener("change", function (event) { setQuery({ role: event.target.value }); });
+        stageSelect.addEventListener("change", function (event) { ui.onDutyOverride = null; ui.sharingOverride = null; ui.reassignmentKind = null; setQuery({ stage: event.target.value }); });
+        document.getElementById("state-toggle").addEventListener("click", function () { ui.inspectorOpen = !ui.inspectorOpen; render(); });
+        document.getElementById("state-close").addEventListener("click", function () { ui.inspectorOpen = false; render(); });
+        document.addEventListener("click", function (event) {
+          var actionElement = event.target.closest("[data-action]");
+          if (actionElement) handleAction(actionElement.getAttribute("data-action"), actionElement);
+        });
+        window.addEventListener("keydown", function (event) {
+          var target = event.target;
+          var tag = target && target.tagName ? target.tagName.toLowerCase() : "";
+          if (tag === "input" || tag === "textarea" || tag === "select" || (target && target.isContentEditable)) return;
+          if (event.key === "ArrowLeft") cycleVariant(-1);
+          if (event.key === "ArrowRight") cycleVariant(1);
+          if (event.key === "Escape" && ui.panel) { ui.panel = null; render(); }
+        });
+        window.addEventListener("popstate", render);
+        render();
+      })();
+    </script>
+  </body>
+</html>
