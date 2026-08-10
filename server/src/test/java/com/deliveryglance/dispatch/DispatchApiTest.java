@@ -86,6 +86,24 @@ class DispatchApiTest {
 	}
 
 	@Test
+	void assignmentRevalidatesEligibilityWithoutRequiringTheCourierToRemainInTheNearestThree() throws Exception {
+		TestCourier selected = createCourier("eligible-outside-three");
+		makeEligible(selected, 52.0, -0.1278);
+		for (int index = 0; index < 3; index++) {
+			TestCourier nearer = createCourier("nearer-" + index);
+			makeEligible(nearer, 51.5074 + (index * 0.00001), -0.1278);
+		}
+		String deliveryId = createDelivery();
+
+		MockHttpServletResponse recommendation = this.dispatcher
+			.send(get("/api/deliveries/{id}/courier-recommendations", deliveryId));
+		assertThat(JsonPath.<java.util.List<String>>read(recommendation.getContentAsString(),
+				"$.candidates[*].courierId")).doesNotContain(selected.id().toString());
+
+		assertThat(assign(deliveryId, selected.id(), 0, UUID.randomUUID()).getStatus()).isEqualTo(204);
+	}
+
+	@Test
 	void directlyAssignsOnceAndTreatsARetryAsTheSameCommand() throws Exception {
 		TestCourier courier = createCourier("selected");
 		makeEligible(courier, 51.5080, -0.1278);

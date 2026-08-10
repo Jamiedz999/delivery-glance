@@ -84,7 +84,7 @@ class Deliveries implements DeliveryAssignmentOperations {
 		if (current.version() != request.expectedVersion()) {
 			throw DeliveryConflictException.versionConflict(current.state(), current.version());
 		}
-		if (current.state() != DeliveryState.AWAITING_COURIER && current.state() != DeliveryState.ASSIGNED) {
+		if (!current.state().canTransitionTo(DeliveryState.CANCELLED)) {
 			throw DeliveryConflictException.invalidTransition(current.state(), DeliveryState.CANCELLED);
 		}
 
@@ -141,7 +141,7 @@ class Deliveries implements DeliveryAssignmentOperations {
 		if (!assignment.courierId().equals(actor.accountId())) {
 			throw DeliveryConflictException.notAssignedToCourier();
 		}
-		if (current.state() != requiredState) {
+		if (current.state() != requiredState || !current.state().canTransitionTo(nextState)) {
 			throw DeliveryConflictException.invalidTransition(current.state(), nextState);
 		}
 
@@ -176,12 +176,22 @@ class Deliveries implements DeliveryAssignmentOperations {
 
 	@Override
 	@Transactional
-	public void transitionToAssigned(AssignmentTarget target, CurrentActor actor, UUID commandId, Instant occurredAt) {
-		if (this.repository.markState(target.deliveryId(), target.version(), DeliveryState.ASSIGNED, occurredAt) != 1) {
-			throw DeliveryConflictException.versionConflict(target.state(), target.version());
+	public void transitionToAssigned(UUID deliveryId, int expectedVersion, UUID commandId, Instant occurredAt) {
+		DeliveryRepository.CurrentState current = this.repository.lockCurrentState(deliveryId)
+			.orElseThrow(() -> new DeliveryNotFoundException(deliveryId));
+		if (current.version() != expectedVersion) {
+			throw DeliveryConflictException.versionConflict(current.state(), current.version());
 		}
-		this.repository.insertTransition(target.deliveryId(), target.state(), DeliveryState.ASSIGNED, actor, null, null,
-				commandId, occurredAt);
+		if (!current.state().canTransitionTo(DeliveryState.ASSIGNED)) {
+			throw DeliveryConflictException.invalidTransition(current.state(), DeliveryState.ASSIGNED);
+		}
+
+		CurrentActor actor = this.currentActorProvider.requireCurrentActor();
+		if (this.repository.markState(deliveryId, expectedVersion, DeliveryState.ASSIGNED, occurredAt) != 1) {
+			throw DeliveryConflictException.versionConflict(current.state(), current.version());
+		}
+		this.repository.insertTransition(deliveryId, current.state(), DeliveryState.ASSIGNED, actor, null, null, commandId,
+				occurredAt);
 	}
 
 	private DeliveryViews.Detail requireDetail(UUID id) {
