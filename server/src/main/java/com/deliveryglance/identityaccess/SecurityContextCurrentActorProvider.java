@@ -1,5 +1,7 @@
 package com.deliveryglance.identityaccess;
 
+import java.util.Optional;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -9,11 +11,16 @@ class SecurityContextCurrentActorProvider implements CurrentActorProvider {
 
 	@Override
 	public CurrentActor requireCurrentActor() {
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		return currentActorOf(SecurityContextHolder.getContext().getAuthentication())
+			.orElseThrow(() -> new IllegalStateException("No Internal Account session is bound to the current request"));
+	}
+
+	@Override
+	public Optional<CurrentActor> currentActorOf(Authentication authentication) {
 		if (authentication == null || !(authentication.getPrincipal() instanceof InternalAccountPrincipal principal)) {
-			throw new IllegalStateException("No Internal Account session is bound to the current request");
+			return Optional.empty();
 		}
-		return principal.toCurrentActor();
+		return Optional.of(principal.toCurrentActor());
 	}
 
 }
