@@ -17,13 +17,22 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 final class CsrfCookieFilter extends OncePerRequestFilter {
 
-	@Override
-	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-			throws ServletException, IOException {
+	/**
+	 * Resolving the deferred token is what makes the repository write its cookie. Sign-in and
+	 * sign-out replace the token and end the request before this filter runs, so they call this
+	 * themselves rather than leaving the client without a usable one.
+	 */
+	static void issueCookie(HttpServletRequest request) {
 		CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
 		if (csrfToken != null) {
 			csrfToken.getToken();
 		}
+	}
+
+	@Override
+	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+			throws ServletException, IOException {
+		issueCookie(request);
 		filterChain.doFilter(request, response);
 	}
 

@@ -1,6 +1,5 @@
 package com.deliveryglance.delivery;
 
-import java.net.URI;
 import java.util.List;
 
 import org.springframework.core.Ordered;
@@ -13,6 +12,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import static com.deliveryglance.shared.ApiProblemResponses.problem;
+
 /**
  * The Delivery API's error contract. Each response carries a stable {@code code} the browser can
  * branch on, and a conflict also carries the current facts so the client can re-render instead of
@@ -21,8 +22,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice(assignableTypes = DeliveryController.class)
 class DeliveryExceptionHandler {
-
-	private static final String ERROR_TYPE_PREFIX = "urn:delivery-glance:error:";
 
 	@ExceptionHandler(DeliveryNotFoundException.class)
 	ProblemDetail handleNotFound(DeliveryNotFoundException exception) {
@@ -59,14 +58,6 @@ class DeliveryExceptionHandler {
 
 	private static String message(FieldError error) {
 		return (error.getDefaultMessage() != null) ? error.getDefaultMessage() : "is invalid";
-	}
-
-	private static ProblemDetail problem(HttpStatus status, String code, String title, String detail) {
-		ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
-		problem.setType(URI.create(ERROR_TYPE_PREFIX + code));
-		problem.setTitle(title);
-		problem.setProperty("code", code);
-		return problem;
 	}
 
 	record FieldMessage(String field, String message) {

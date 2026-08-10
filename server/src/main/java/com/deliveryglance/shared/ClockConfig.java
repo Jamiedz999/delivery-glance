@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
  * test can pin it without touching the code under test.
  */
 @Configuration(proxyBeanMethods = false)
-public class ClockConfig {
+class ClockConfig {
 
 	@Bean
 	Clock clock() {
