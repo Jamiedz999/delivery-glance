@@ -11,3 +11,7 @@ Four label strings: `needs-triage`, `needs-info`, `ready` (covers both agent- an
 ### Domain docs
 
 Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Commit and PR conventions
+
+Do not add the "🤖 Generated with [Claude Code]" line to commit messages or PR bodies. A plain `Co-Authored-By: Claude ...` trailer is fine if used elsewhere, but skip the emoji/link footer.
