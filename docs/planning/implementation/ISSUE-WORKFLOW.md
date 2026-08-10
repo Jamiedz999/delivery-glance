@@ -17,18 +17,26 @@ Only the last row is an instruction to write code. Opening the other three as Is
 
 The numeric prefix is a local planning ID. A GitHub Issue does not need the same number; keep the ID in its title, for example `[DG-020] Scaffold the full-stack walking skeleton`.
 
-## Labels
+## Labels and milestones
 
-Create these GitHub labels before handing work to an Agent:
+There is exactly one label: **`ready`**.
 
-- state: `ready`, `blocked`
-- scope: `core`
-- Sprint: `sprint-1`, `sprint-2`, `sprint-3`, `sprint-4`
-- area: `foundation`, `full-stack`, `backend`, `frontend`, `security`, `realtime`, `testing`, `documentation`
+Everything else a label might have carried is already represented somewhere that cannot drift:
 
-Derive an Issue's labels from its spec: `core`, plus `sprint-<Sprint>`, plus one label per entry in `Area`, plus exactly one state label. Do not put both `ready` and `blocked` on one Issue.
+| Question | Where it is answered |
+| --- | --- |
+| Which Sprint is this? | the **milestone** — which also gives a progress view a label cannot |
+| Is it blocked, and by what? | GitHub's **native dependency edge**, from the spec's `Blocked by` line |
+| Which part of the stack? | the spec's `Area:` field |
+| Is it Core work? | it is in `docs/planning/issues/`; nothing else becomes an Issue |
 
-**State exists only on GitHub.** The spec files carry no status field, so there is nothing to keep in sync and nothing that can silently go stale. To learn whether DG-023 is startable, read its labels and its `Blocked by` chain — not a Markdown header. `Status:` on an ADR (`resolved`) or a Future Work file (`future`) is document lifecycle, not execution state, and stays where it is.
+A label that lands on every Issue is not a filter, and a label that lands on exactly one Issue is not a filter either. Both are just a second copy of something already true elsewhere, which is the failure this file exists to prevent. Do not reintroduce `core`, `blocked`, `sprint-*` or per-area labels; if a filter is genuinely needed later, add it then.
+
+`ready` survives because it is the one thing nothing else knows. Zero open blockers does not mean startable — the Sprint gate may not have run, or the deployed increment may be broken. That is a human judgement, and this label is where it is recorded.
+
+Apply `ready` to exactly one Issue at a time, and remove it when the Issue closes. A closed Issue still carrying `ready` is exactly the kind of drift this file exists to prevent.
+
+**State exists only on GitHub.** The spec files carry no status field, so there is nothing to keep in sync and nothing that can silently go stale. To find what is startable, ask GitHub for the open Issue with no open blockers and the `ready` label — do not infer it from a Markdown header. `Status:` on an ADR (`resolved`) or a Future Work file (`future`) is document lifecycle, not execution state, and stays where it is.
 
 ## Definition of Ready
 
@@ -68,9 +76,11 @@ This completes the Sprint 1 vertical slice.
 Full specification, at this revision — this is the merge gate, not the summary above:
 https://github.com/Jamiedz999/delivery-glance/blob/<sha>/docs/planning/issues/21-add-authenticated-delivery-slice.md
 
-Acceptance:
-    ./mvnw -f server verify
-    npm --prefix web test
+Acceptance — the canonical commands from TECHNICAL-BASELINE, plus the
+risk-specific evidence this Issue names:
+    ./server/mvnw verify
+    npm --prefix web ci
+    npm --prefix web run check
 
 Not in this PR: Courier duty and Location Sharing (DG-022), or any Future Work.
 ```
@@ -87,16 +97,28 @@ Change the file in `docs/planning/issues/` as a commit in the same PR, with a me
 
 Issue comments carry process: being blocked, needing a choice made. Decisions belong in the specification, or in `docs/adr/` when they change product or architecture beyond this one Issue.
 
-### The loop, one Issue at a time
+### Creating an Issue and promoting it are two different steps
 
-Repeat this for each Issue in order. Exactly one Issue is `ready` at any moment; that is the whole point, because it stops Agents building on assumptions a dependency has not yet established.
+The queue is visible on GitHub from the start: every implementation Issue exists, sits in its Sprint milestone, and is wired into the real dependency graph. What is rationed is not visibility but *authorisation to start*.
+
+**Exactly one Issue is `ready` at any moment.** That is the constraint that matters, because it stops an Agent building on assumptions a dependency has not yet established. An open-but-blocked Issue cannot cause that; only a `ready` label can.
+
+Splitting the two steps also avoids a trap. A specification pinned into an Issue body today is often not the specification that gets implemented four Sprints later — the "fix the spec in the PR" rule above guarantees the file will change. A SHA permalink written at creation time would then point at a stale revision and fail silently. So the pin is applied at promotion, when it is about to be used.
+
+#### Step 1 — create (all Issues, up front)
+
+1. Title `[DG-0NN] <title>`; body carries the Outcome summary, the non-goals, and a plain `main` link to the spec — **no SHA permalink, no acceptance commands yet**.
+2. Set its milestone from the spec's `Sprint:` field. Apply no labels.
+3. Wire the real dependency edge from its `Blocked by` line — `gh issue create --blocked-by <n>`, or the API in `docs/agents/issue-tracker.md`. This is what makes the Issue blocked; there is no `blocked` label to keep in sync.
+
+#### Step 2 — promote (one at a time, when its blocker merges)
 
 1. Confirm the predecessor is merged and closed, and that the deployed increment still works.
-2. Create the successor's GitHub Issue using the handoff pattern above: `[DG-0NN] <title>`, summary, SHA permalink, acceptance commands, non-goals.
-3. Label it from its spec — `core`, `sprint-<Sprint>`, each `Area`, and `ready`.
+2. Edit the body: replace the `main` link with a permalink pinned to the current `main` SHA, and add the acceptance commands. State plainly that the pinned spec, not the summary, is the merge gate.
+3. Add the `ready` label.
 4. Give the Agent that one Issue on one feature branch.
 5. Merge only after its acceptance commands pass from a clean checkout and CI is green.
-6. Close it, then promote only its immediate successor.
+6. Close the Issue **and remove `ready`**, then promote only its immediate successor.
 
 At the end of each Sprint, run the whole cumulative demo before promoting the next Sprint.
 
