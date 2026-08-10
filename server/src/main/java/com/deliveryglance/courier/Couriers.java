@@ -1,7 +1,9 @@
 package com.deliveryglance.courier;
 
 import java.time.Clock;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import com.deliveryglance.identityaccess.CurrentActor;
 import com.deliveryglance.identityaccess.CurrentActorProvider;
@@ -50,13 +52,13 @@ class Couriers implements CourierAvailability {
 
 	@Override
 	@Transactional(readOnly = true)
-	public java.util.List<CourierAvailability.Courier> allCouriers() {
+	public List<CourierAvailability.Courier> allCouriers() {
 		return this.repository.findAllCourierAvailability();
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public Optional<CourierAvailability.Courier> lockCourier(java.util.UUID courierId) {
+	public Optional<CourierAvailability.Courier> lockCourier(UUID courierId) {
 		return this.repository.lockCourierAvailability(courierId);
 	}
 

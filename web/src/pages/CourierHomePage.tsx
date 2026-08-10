@@ -123,7 +123,16 @@ function CurrentDeliverySection() {
   }
 
   const delivery = current.data
-  const mutation = delivery?.state === 'ASSIGNED' ? pickup : handoff
+  // One reading of the state drives all four decisions, so they cannot drift apart.
+  const step =
+    delivery?.state === 'ASSIGNED'
+      ? {
+          action: 'pickup' as const,
+          mutation: pickup,
+          status: 'Assigned — pickup not yet confirmed',
+          label: 'Confirm pickup',
+        }
+      : { action: 'handoff' as const, mutation: handoff, status: 'In transit', label: 'Confirm handoff' }
 
   return (
     <section aria-labelledby="current-delivery-heading">
@@ -134,8 +143,7 @@ function CurrentDeliverySection() {
       {delivery !== undefined && delivery !== null && (
         <>
           <p>
-            <strong>{delivery.reference}</strong> ·{' '}
-            {delivery.state === 'ASSIGNED' ? 'Assigned — pickup not yet confirmed' : 'In transit'}
+            <strong>{delivery.reference}</strong> · {step.status}
           </p>
           <dl>
             <dt>Pickup</dt>
@@ -145,15 +153,15 @@ function CurrentDeliverySection() {
           </dl>
           <button
             type="button"
-            onClick={() => progress(delivery, delivery.state === 'ASSIGNED' ? 'pickup' : 'handoff')}
-            disabled={mutation.isPending}
-            aria-busy={mutation.isPending}
+            onClick={() => progress(delivery, step.action)}
+            disabled={step.mutation.isPending}
+            aria-busy={step.mutation.isPending}
           >
-            {delivery.state === 'ASSIGNED' ? 'Confirm pickup' : 'Confirm handoff'}
+            {step.label}
           </button>
-          {mutation.isError && (
+          {step.mutation.isError && (
             <p role="alert" className="error">
-              {progressMessageFor(mutation.error)}
+              {progressMessageFor(step.mutation.error)}
             </p>
           )}
         </>

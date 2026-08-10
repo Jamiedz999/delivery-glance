@@ -81,11 +81,10 @@ export function useDelivery(id: string) {
   return useQuery({ queryKey: queryKeys.delivery(id), queryFn: () => fetchDelivery(id), retry: false })
 }
 
-export function useCourierRecommendation(id: string, enabled: boolean) {
+export function useCourierRecommendation(id: string) {
   return useQuery({
     queryKey: queryKeys.recommendation(id),
     queryFn: () => fetchCourierRecommendation(id),
-    enabled,
     retry: false,
   })
 }

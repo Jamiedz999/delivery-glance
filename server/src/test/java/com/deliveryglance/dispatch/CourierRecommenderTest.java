@@ -57,25 +57,26 @@ class CourierRecommenderTest {
 			.containsExactly(lowerId.courierId(), higherId.courierId());
 	}
 
+	/**
+	 * A stale position reaches this class as no position at all: the location module withholds one
+	 * past the usable limit, which {@code LocationSharingDispatchPositionTest} proves on its side.
+	 */
 	@Test
-	void excludesOffDutyBusyStaleAndLocationlessCouriers() {
+	void excludesOffDutyBusyAndLocationlessCouriers() {
 		CourierRecommender.CourierSnapshot eligible = courier("00000000-0000-0000-0000-000000000001", "Eligible",
 				51.5080, -0.1278);
 		CourierRecommender.CourierSnapshot offDuty = new CourierRecommender.CourierSnapshot(
 				UUID.fromString("00000000-0000-0000-0000-000000000002"), "Off duty", false, false,
 				eligible.position());
-		CourierRecommender.CourierSnapshot busy = new CourierRecommender.CourierSnapshot(
-				UUID.fromString("00000000-0000-0000-0000-000000000003"), "Busy", true, true, eligible.position());
-		CourierRecommender.CourierSnapshot stale = new CourierRecommender.CourierSnapshot(
-				UUID.fromString("00000000-0000-0000-0000-000000000004"), "Stale", true, false,
-				new CourierRecommender.Position(51.5080, -0.1278, CALCULATED_AT.minusSeconds(121)));
+		CourierRecommender.CourierSnapshot hasActiveDelivery = new CourierRecommender.CourierSnapshot(
+				UUID.fromString("00000000-0000-0000-0000-000000000003"), "Already assigned", true, true,
+				eligible.position());
 		CourierRecommender.CourierSnapshot locationless = new CourierRecommender.CourierSnapshot(
-				UUID.fromString("00000000-0000-0000-0000-000000000005"), "Locationless", true, false, null);
+				UUID.fromString("00000000-0000-0000-0000-000000000004"), "Locationless", true, false, null);
 
 		assertThat(CourierRecommender
-			.recommend(PICKUP, List.of(offDuty, busy, stale, locationless, eligible), CALCULATED_AT).candidates())
-			.extracting(CourierRecommender.Candidate::displayName)
-			.containsExactly("Eligible");
+			.recommend(PICKUP, List.of(offDuty, hasActiveDelivery, locationless, eligible), CALCULATED_AT)
+			.candidates()).extracting(CourierRecommender.Candidate::displayName).containsExactly("Eligible");
 	}
 
 	@Test
@@ -91,7 +92,7 @@ class CourierRecommenderTest {
 	private static CourierRecommender.CourierSnapshot courier(String id, String displayName, double latitude,
 			double longitude) {
 		return new CourierRecommender.CourierSnapshot(UUID.fromString(id), displayName, true, false,
-				new CourierRecommender.Position(latitude, longitude, CALCULATED_AT));
+				new CourierRecommender.Point(latitude, longitude));
 	}
 
 }

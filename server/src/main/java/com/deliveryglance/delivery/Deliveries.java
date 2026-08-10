@@ -71,13 +71,8 @@ class Deliveries implements DeliveryAssignmentOperations {
 		DeliveryRepository.CurrentState current = this.repository.lockCurrentState(id)
 			.orElseThrow(() -> new DeliveryNotFoundException(id));
 
-		Optional<DeliveryRepository.HandledCommand> alreadyHandled = this.repository.findCommandById(request.commandId());
-		if (alreadyHandled.isPresent()) {
-			if (!alreadyHandled.get().deliveryId().equals(id)
-					|| alreadyHandled.get().nextState() != DeliveryState.CANCELLED) {
-				throw DeliveryConflictException.commandIdReused();
-			}
-			// A retry of a command that already ran: report the result it produced, unchanged.
+		// A retry of a command that already ran: report the result it produced, unchanged.
+		if (alreadyHandled(id, request.commandId(), DeliveryState.CANCELLED)) {
 			return requireDetail(id);
 		}
 
@@ -95,7 +90,7 @@ class Deliveries implements DeliveryAssignmentOperations {
 		}
 		this.repository.insertTransition(id, current.state(), DeliveryState.CANCELLED, actor, request.reason(),
 				request.note(), request.commandId(), now);
-		if (current.state() == DeliveryState.ASSIGNED) {
+		if (current.state().endsAssignmentOnMoveTo(DeliveryState.CANCELLED)) {
 			this.assignments.endForDelivery(id, now);
 		}
 
@@ -111,35 +106,33 @@ class Deliveries implements DeliveryAssignmentOperations {
 
 	@Transactional
 	void confirmPickup(UUID deliveryId, DeliveryRequests.Progress request) {
-		progress(deliveryId, request, DeliveryState.ASSIGNED, DeliveryState.IN_TRANSIT, false);
+		progress(deliveryId, request, DeliveryState.ASSIGNED, DeliveryState.IN_TRANSIT);
 	}
 
 	@Transactional
 	void confirmHandoff(UUID deliveryId, DeliveryRequests.Progress request) {
-		progress(deliveryId, request, DeliveryState.IN_TRANSIT, DeliveryState.DELIVERED, true);
+		progress(deliveryId, request, DeliveryState.IN_TRANSIT, DeliveryState.DELIVERED);
 	}
 
 	private void progress(UUID deliveryId, DeliveryRequests.Progress request, DeliveryState requiredState,
-			DeliveryState nextState, boolean endsAssignment) {
+			DeliveryState nextState) {
 		DeliveryRepository.CurrentState current = this.repository.lockCurrentState(deliveryId)
 			.orElseThrow(() -> new DeliveryNotFoundException(deliveryId));
-		Optional<DeliveryRepository.HandledCommand> alreadyHandled = this.repository.findCommandById(request.commandId());
-		if (alreadyHandled.isPresent()) {
-			if (!alreadyHandled.get().deliveryId().equals(deliveryId)
-					|| alreadyHandled.get().nextState() != nextState) {
-				throw DeliveryConflictException.commandIdReused();
-			}
+		if (alreadyHandled(deliveryId, request.commandId(), nextState)) {
 			return;
 		}
-		if (current.version() != request.expectedVersion()) {
-			throw DeliveryConflictException.versionConflict(current.state(), current.version());
-		}
 
+		// Ownership is settled before the version is looked at, so a Courier who holds no
+		// Assignment on this Delivery is refused without being told its state or version.
 		CurrentActor actor = this.currentActorProvider.requireCurrentActor();
 		ActiveAssignments.ActiveAssignment assignment = this.assignments.activeForDelivery(deliveryId)
 			.orElseThrow(DeliveryConflictException::notAssignedToCourier);
 		if (!assignment.courierId().equals(actor.accountId())) {
 			throw DeliveryConflictException.notAssignedToCourier();
+		}
+
+		if (current.version() != request.expectedVersion()) {
+			throw DeliveryConflictException.versionConflict(current.state(), current.version());
 		}
 		if (current.state() != requiredState || !current.state().canTransitionTo(nextState)) {
 			throw DeliveryConflictException.invalidTransition(current.state(), nextState);
@@ -151,9 +144,25 @@ class Deliveries implements DeliveryAssignmentOperations {
 		}
 		this.repository.insertTransition(deliveryId, current.state(), nextState, actor, null, null, request.commandId(),
 				now);
-		if (endsAssignment) {
+		if (current.state().endsAssignmentOnMoveTo(nextState)) {
 			this.assignments.endForDelivery(deliveryId, now);
 		}
+	}
+
+	/**
+	 * Whether this command already ran and its result should simply be reported again. A command
+	 * identifier that turns up against a different Delivery, or a different transition, is a reused
+	 * identifier rather than a retry.
+	 */
+	private boolean alreadyHandled(UUID deliveryId, UUID commandId, DeliveryState nextState) {
+		Optional<DeliveryRepository.HandledCommand> handled = this.repository.findCommandById(commandId);
+		if (handled.isEmpty()) {
+			return false;
+		}
+		if (!handled.get().deliveryId().equals(deliveryId) || handled.get().nextState() != nextState) {
+			throw DeliveryConflictException.commandIdReused();
+		}
+		return true;
 	}
 
 	@Override
@@ -196,12 +205,10 @@ class Deliveries implements DeliveryAssignmentOperations {
 
 	private DeliveryViews.Detail requireDetail(UUID id) {
 		DeliveryViews.Detail detail = this.repository.findDetail(id).orElseThrow(() -> new DeliveryNotFoundException(id));
-		DeliveryViews.Assignment assignment = this.assignments.activeForDelivery(id)
+		return detail.withAssignment(this.assignments.activeForDelivery(id)
 			.map((active) -> new DeliveryViews.Assignment(active.courierId(), active.courierDisplayName(),
 					active.assignedAt()))
-			.orElse(null);
-		return new DeliveryViews.Detail(detail.id(), detail.reference(), detail.state(), detail.version(), detail.pickup(),
-				detail.handoff(), detail.createdAt(), detail.updatedAt(), detail.transitions(), assignment);
+			.orElse(null));
 	}
 
 }
