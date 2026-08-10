@@ -4,7 +4,7 @@ A recipient-first delivery tracking product. This repository currently contains 
 walking skeleton plus the first vertical slice: a pre-provisioned Dispatcher signs in, creates a
 Delivery, lists Deliveries, reopens a persisted detail and cancels it while it is still awaiting a
 Courier. Courier availability, assignment, location sharing and Tracking Links are not built yet —
-see `.scratch/recipient-delivery-tracking/issues/` for the implementation queue.
+see `docs/planning/issues/` for the implementation queue.
 
 ## Prerequisites
 

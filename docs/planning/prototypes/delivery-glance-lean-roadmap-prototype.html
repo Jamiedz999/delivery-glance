@@ -1,0 +1,930 @@
+<!doctype html>
+<!-- Three radically different views of the lean Delivery Glance roadmap, switchable via ?variant= on this standalone throwaway prototype route. -->
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow,nosnippet" />
+    <title>Delivery Glance — 精简项目路线图</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #17201c;
+        --muted: #66706a;
+        --paper: #fbfbf6;
+        --card: #ffffff;
+        --line: #dfe4dc;
+        --green: #1d6a4c;
+        --green-2: #3d966f;
+        --green-soft: #e2f2e8;
+        --lime: #d8f45e;
+        --lime-soft: #f1facb;
+        --navy: #17253a;
+        --navy-soft: #e9eef6;
+        --orange: #d87535;
+        --orange-soft: #fff0e5;
+        --red: #b1443d;
+        --red-soft: #fbe8e5;
+        --shadow: 0 24px 70px rgba(23, 32, 28, 0.12);
+        --radius: 24px;
+      }
+
+      * { box-sizing: border-box; }
+      html { min-height: 100%; background: #eef0e8; scroll-behavior: smooth; }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: inherit; }
+      button, summary { font: inherit; }
+      button:focus-visible, a:focus-visible, summary:focus-visible {
+        outline: 3px solid #1769ff;
+        outline-offset: 3px;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .prototype-ribbon {
+        position: fixed;
+        z-index: 100;
+        top: 14px;
+        right: 14px;
+        padding: 7px 11px;
+        border: 1px solid rgba(23, 32, 28, 0.18);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.9);
+        color: #46504a;
+        font-size: 10px;
+        font-weight: 850;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        backdrop-filter: blur(12px);
+      }
+      .variant[hidden] { display: none !important; }
+      .variant { min-height: 100vh; padding-bottom: 120px; }
+      .wrap { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+      .eyebrow {
+        margin: 0 0 10px;
+        color: var(--green);
+        font-size: 11px;
+        font-weight: 850;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 28px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: #edf1ec;
+        color: #46534c;
+        font-size: 11px;
+        font-weight: 760;
+      }
+      .pill.green { background: var(--green-soft); color: var(--green); }
+      .pill.lime { background: var(--lime-soft); color: #425813; }
+      .pill.orange { background: var(--orange-soft); color: #8a4519; }
+      .pill.navy { background: var(--navy-soft); color: var(--navy); }
+      .pill.future { background: #f1eef6; color: #655273; }
+      .link-arrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 780;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 4px;
+      }
+      .section-title {
+        margin: 0;
+        font-size: clamp(28px, 4vw, 46px);
+        line-height: 1.02;
+        letter-spacing: -0.045em;
+      }
+      .section-copy {
+        max-width: 680px;
+        margin: 12px 0 0;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.7;
+      }
+      .clean-list { margin: 0; padding: 0; list-style: none; }
+      .check-list { margin: 0; padding: 0; list-style: none; }
+      .check-list li {
+        position: relative;
+        padding: 7px 0 7px 25px;
+        color: #3e4943;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .check-list li::before {
+        position: absolute;
+        left: 0;
+        top: 8px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--green-soft);
+        color: var(--green);
+        content: "✓";
+        font-size: 11px;
+        font-weight: 900;
+        line-height: 16px;
+        text-align: center;
+      }
+      .future-list li::before { content: "→"; background: #f1eef6; color: #655273; }
+
+      /* Variant A — outcome first */
+      .variant-a { background: var(--paper); }
+      .a-hero {
+        padding: 82px 0 38px;
+        border-bottom: 1px solid var(--line);
+        background:
+          radial-gradient(circle at 80% 5%, rgba(216, 244, 94, 0.42), transparent 26%),
+          linear-gradient(180deg, #fafbf4 0%, #f7f8f0 100%);
+      }
+      .a-brand {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 64px;
+      }
+      .brand-lockup { display: inline-flex; align-items: center; gap: 11px; font-size: 14px; font-weight: 850; }
+      .brand-mark {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 11px 11px 11px 4px;
+        background: var(--ink);
+        color: var(--lime);
+        font-size: 14px;
+        font-weight: 900;
+      }
+      .a-hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+        gap: 54px;
+        align-items: end;
+      }
+      .a-hero h1 {
+        max-width: 820px;
+        margin: 0;
+        font-size: clamp(48px, 7.4vw, 94px);
+        line-height: 0.91;
+        letter-spacing: -0.075em;
+      }
+      .a-hero h1 em { color: var(--green); font-style: normal; }
+      .a-hero-copy {
+        margin: 26px 0 0;
+        max-width: 700px;
+        color: #55615a;
+        font-size: clamp(16px, 2vw, 20px);
+        line-height: 1.65;
+      }
+      .a-metrics { display: grid; gap: 10px; }
+      .metric {
+        display: grid;
+        grid-template-columns: 86px 1fr;
+        gap: 16px;
+        align-items: center;
+        padding: 16px 18px;
+        border: 1px solid rgba(23, 32, 28, 0.1);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.72);
+      }
+      .metric strong { font-size: 27px; letter-spacing: -0.045em; }
+      .metric span { color: var(--muted); font-size: 12px; line-height: 1.45; }
+      .a-section { padding: 76px 0; border-bottom: 1px solid var(--line); }
+      .scope-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 30px; }
+      .scope-card { padding: 26px; border: 1px solid var(--line); border-radius: var(--radius); background: white; }
+      .scope-card.heavy { background: #f6f4f0; color: #62645e; }
+      .scope-card.lean { border-color: #bcd9c7; background: linear-gradient(150deg, #f9fff9, #eef8f1); }
+      .scope-card h3 { margin: 13px 0 8px; font-size: 24px; letter-spacing: -0.035em; }
+      .scope-card p { margin: 0 0 14px; font-size: 13px; line-height: 1.6; }
+      .roadmap {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 34px;
+      }
+      .roadmap::before {
+        position: absolute;
+        z-index: 0;
+        top: 27px;
+        left: 6%;
+        right: 6%;
+        height: 2px;
+        background: #ccd8cf;
+        content: "";
+      }
+      .sprint-card { position: relative; z-index: 1; padding-top: 0; }
+      .sprint-number {
+        display: grid;
+        width: 56px;
+        height: 56px;
+        margin-bottom: 18px;
+        place-items: center;
+        border: 7px solid var(--paper);
+        border-radius: 50%;
+        background: var(--ink);
+        color: white;
+        font-size: 15px;
+        font-weight: 850;
+      }
+      .sprint-card.mvp .sprint-number { background: var(--orange); }
+      .sprint-card.core .sprint-number { background: var(--green); box-shadow: 0 0 0 6px var(--lime-soft); }
+      .sprint-box { min-height: 292px; padding: 20px; border: 1px solid var(--line); border-radius: 20px; background: white; }
+      .sprint-card.mvp .sprint-box { border-color: #efc5a6; }
+      .sprint-card.core .sprint-box { border-color: #9ec8ae; background: #f8fff9; }
+      .sprint-box h3 { margin: 9px 0 8px; font-size: 19px; letter-spacing: -0.025em; }
+      .sprint-box > p { min-height: 58px; margin: 0 0 12px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+      .checkpoint-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 28px; }
+      .checkpoint { padding: 28px; border-radius: var(--radius); }
+      .checkpoint.mvp { background: var(--orange-soft); }
+      .checkpoint.core { background: var(--navy); color: white; }
+      .checkpoint h3 { margin: 12px 0 8px; font-size: 30px; letter-spacing: -0.045em; }
+      .checkpoint p { margin: 0; color: inherit; opacity: 0.78; font-size: 14px; line-height: 1.65; }
+      .product-grid { display: grid; grid-template-columns: 1.15fr 0.8fr 0.8fr; gap: 20px; margin-top: 34px; align-items: start; }
+      .screen {
+        overflow: hidden;
+        border: 1px solid #cfd6d0;
+        border-radius: 24px;
+        background: white;
+        box-shadow: 0 18px 50px rgba(23, 32, 28, 0.09);
+      }
+      .screen.mobile { max-width: 330px; justify-self: center; border-radius: 34px; }
+      .screen-top { display: flex; align-items: center; justify-content: space-between; padding: 15px 17px; border-bottom: 1px solid #e7eae5; font-size: 11px; font-weight: 800; }
+      .screen-body { padding: 18px; }
+      .screen h4 { margin: 4px 0 5px; font-size: 20px; letter-spacing: -0.035em; }
+      .screen p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+      .mini-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 0; border-bottom: 1px solid #edf0ec; font-size: 11px; }
+      .mini-row:last-child { border: 0; }
+      .candidate { margin-top: 10px; padding: 12px; border: 1px solid #d7ded8; border-radius: 13px; }
+      .candidate.primary { border-color: #7db494; background: #f2fbf5; }
+      .candidate strong { display: block; font-size: 12px; }
+      .candidate small { color: var(--muted); }
+      .mini-button { display: inline-flex; margin-top: 9px; padding: 8px 11px; border-radius: 9px; background: var(--ink); color: white; font-size: 10px; font-weight: 800; }
+      .toggle-line { display: flex; align-items: center; justify-content: space-between; margin: 12px 0; padding: 12px; border-radius: 13px; background: #f1f4ef; font-size: 11px; font-weight: 750; }
+      .toggle-dot { width: 32px; height: 18px; padding: 3px; border-radius: 999px; background: var(--green); }
+      .toggle-dot::after { display: block; width: 12px; height: 12px; margin-left: 14px; border-radius: 50%; background: white; content: ""; }
+      .mock-map { position: relative; height: 150px; margin: 14px 0; overflow: hidden; border-radius: 16px; background: #e8eee8; }
+      .mock-map::before, .mock-map::after { position: absolute; content: ""; background: rgba(255,255,255,0.78); transform: rotate(-20deg); }
+      .mock-map::before { width: 260px; height: 18px; top: 62px; left: -30px; }
+      .mock-map::after { width: 18px; height: 220px; top: -30px; left: 148px; }
+      .map-pin { position: absolute; z-index: 2; width: 18px; height: 18px; border: 4px solid white; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 3px 8px rgba(0,0,0,.2); }
+      .map-pin.courier { top: 48px; left: 90px; background: var(--green); }
+      .map-pin.home { right: 43px; bottom: 32px; background: var(--orange); }
+      .future-grid { display: grid; grid-template-columns: repeat(7, minmax(145px, 1fr)); gap: 10px; margin-top: 28px; overflow-x: auto; padding-bottom: 8px; }
+      .future-card { min-height: 150px; padding: 16px; border: 1px dashed #cfc8da; border-radius: 16px; background: #faf8fc; text-decoration: none; }
+      .future-card span { color: #7d6d88; font-size: 10px; font-weight: 850; letter-spacing: .09em; }
+      .future-card h3 { margin: 13px 0 7px; font-size: 14px; line-height: 1.25; }
+      .future-card p { margin: 0; color: #706a75; font-size: 11px; line-height: 1.45; }
+      .resume-card { display: grid; grid-template-columns: 0.55fr 1.45fr; gap: 28px; align-items: center; margin-top: 34px; padding: 34px; border-radius: 28px; background: var(--navy); color: white; }
+      .resume-card strong { display: block; font-size: 42px; letter-spacing: -0.055em; }
+      .resume-card blockquote { margin: 0; font-size: clamp(17px, 2.2vw, 24px); line-height: 1.48; letter-spacing: -0.02em; }
+
+      /* Variant B — sprint board */
+      .variant-b { background: #151b22; color: #f4f6f5; }
+      .b-shell { width: min(1460px, calc(100% - 28px)); margin: 0 auto; padding: 64px 0 40px; }
+      .b-head { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end; margin-bottom: 26px; }
+      .b-head h1 { max-width: 850px; margin: 0; font-size: clamp(42px, 6vw, 78px); line-height: .94; letter-spacing: -.065em; }
+      .b-head p { max-width: 520px; margin: 18px 0 0; color: #aeb7b1; line-height: 1.6; }
+      .b-clock { padding: 18px 20px; border: 1px solid #39434d; border-radius: 18px; background: #202833; }
+      .b-clock strong { display: block; color: var(--lime); font-size: 30px; }
+      .b-clock span { color: #aeb7b1; font-size: 11px; }
+      .b-board { display: grid; grid-template-columns: repeat(4, minmax(260px, 1fr)); gap: 12px; overflow-x: auto; padding: 10px 0 24px; }
+      .b-column { min-width: 260px; padding: 16px; border: 1px solid #343d47; border-radius: 20px; background: #1c232c; }
+      .b-column.mvp { border-color: #8f5c39; }
+      .b-column.core { border-color: #4f8a69; }
+      .b-column-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 3px 2px 15px; }
+      .b-column-head strong { font-size: 15px; }
+      .b-column-head span { color: #96a19a; font-size: 10px; }
+      .work-card { margin-top: 9px; padding: 14px; border-radius: 14px; background: #28313b; }
+      .work-card.outcome { background: #eff5ef; color: var(--ink); }
+      .work-card h3 { margin: 0 0 6px; font-size: 13px; line-height: 1.35; }
+      .work-card p { margin: 0; color: #aeb8b1; font-size: 11px; line-height: 1.45; }
+      .work-card.outcome p { color: #647069; }
+      .b-column.mvp .work-card.outcome { background: #fff0e5; }
+      .b-column.core .work-card.outcome { background: #e6f5ea; }
+      .done-bar { display: flex; gap: 6px; margin-top: 14px; }
+      .done-bar i { flex: 1; height: 4px; border-radius: 99px; background: #4a545f; }
+      .done-bar i.on { background: var(--lime); }
+      .b-lanes { display: grid; grid-template-columns: 1.2fr .8fr; gap: 14px; margin-top: 14px; }
+      .b-panel { padding: 22px; border: 1px solid #343d47; border-radius: 20px; background: #1c232c; }
+      .b-panel h2 { margin: 0 0 16px; font-size: 22px; letter-spacing: -.03em; }
+      .journey-row { display: grid; grid-template-columns: 110px 1fr; gap: 16px; padding: 13px 0; border-top: 1px solid #333c45; }
+      .journey-row:first-of-type { border-top: 0; }
+      .journey-row strong { color: var(--lime); font-size: 11px; text-transform: uppercase; letter-spacing: .09em; }
+      .journey-row span { color: #c3cac5; font-size: 12px; line-height: 1.55; }
+      .budget-row { margin: 17px 0; }
+      .budget-label { display: flex; justify-content: space-between; gap: 10px; color: #c5ccc7; font-size: 11px; }
+      .budget-track { height: 9px; margin-top: 8px; overflow: hidden; border-radius: 99px; background: #303943; }
+      .budget-fill { height: 100%; border-radius: inherit; background: var(--lime); }
+      .budget-fill.business { width: 28%; background: #8d778f; }
+      .budget-fill.tech { width: 72%; }
+      .b-future { margin-top: 14px; padding: 22px; border: 1px solid #343d47; border-radius: 20px; background: #1c232c; }
+      .future-table { width: 100%; border-collapse: collapse; }
+      .future-table th, .future-table td { padding: 11px 8px; border-top: 1px solid #333c45; text-align: left; vertical-align: top; font-size: 11px; }
+      .future-table th { width: 58px; color: #8d98a0; }
+      .future-table td:nth-child(2) { width: 220px; color: #eef2ef; font-weight: 750; }
+      .future-table td:last-child { color: #aeb7b1; }
+      .b-resume { display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: center; margin-top: 14px; padding: 24px; border-radius: 20px; background: var(--lime); color: #182016; }
+      .b-resume b { font-size: 34px; letter-spacing: -.05em; }
+      .b-resume p { margin: 0; font-size: 14px; line-height: 1.55; }
+
+      /* Variant C — editorial case study */
+      .variant-c { background: #f4efe7; color: #211d1a; }
+      .c-wrap { width: min(980px, calc(100% - 32px)); margin: 0 auto; padding: 78px 0 50px; }
+      .c-mast { display: grid; grid-template-columns: 180px 1fr; gap: 42px; padding-bottom: 48px; border-bottom: 2px solid #211d1a; }
+      .c-index { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.7; }
+      .c-index strong { display: block; margin-bottom: 8px; font-size: 14px; }
+      .c-mast h1 { margin: 0; font-family: Georgia, "Songti SC", serif; font-size: clamp(50px, 8vw, 92px); font-weight: 500; line-height: .92; letter-spacing: -.055em; }
+      .c-deck { max-width: 650px; margin: 24px 0 0; color: #645a52; font-family: Georgia, "Songti SC", serif; font-size: 19px; line-height: 1.65; }
+      .c-chapter { display: grid; grid-template-columns: 180px 1fr; gap: 42px; padding: 54px 0; border-bottom: 1px solid #cfc6b8; }
+      .chapter-no { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #7e7167; font-size: 12px; }
+      .chapter-no strong { display: block; margin-bottom: 6px; color: #211d1a; font-size: 32px; }
+      .chapter-body h2 { margin: 0; font-family: Georgia, "Songti SC", serif; font-size: clamp(32px, 5vw, 52px); font-weight: 500; line-height: 1.03; letter-spacing: -.045em; }
+      .chapter-body > p { margin: 18px 0 0; color: #645a52; font-size: 15px; line-height: 1.8; }
+      .c-story { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 30px; border: 1px solid #bfb5a7; background: #bfb5a7; }
+      .c-story article { min-height: 240px; padding: 22px; background: #f8f3eb; }
+      .c-story span { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #8d4f2d; font-size: 10px; text-transform: uppercase; }
+      .c-story h3 { margin: 28px 0 9px; font-family: Georgia, "Songti SC", serif; font-size: 24px; font-weight: 500; }
+      .c-story p { margin: 0; color: #6b6159; font-size: 12px; line-height: 1.65; }
+      .c-equation { margin-top: 28px; padding: 24px 0; border-top: 2px solid #211d1a; border-bottom: 2px solid #211d1a; font-family: Georgia, "Songti SC", serif; font-size: clamp(23px, 4vw, 39px); line-height: 1.35; }
+      .c-equation em { color: #a04f28; font-style: normal; }
+      .c-timeline { margin-top: 30px; }
+      .c-week { display: grid; grid-template-columns: 100px 1fr 94px; gap: 18px; align-items: baseline; padding: 17px 0; border-top: 1px solid #cfc6b8; }
+      .c-week:first-child { border-top: 2px solid #211d1a; }
+      .c-week b { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+      .c-week strong { font-family: Georgia, "Songti SC", serif; font-size: 19px; font-weight: 500; }
+      .c-week span { color: #756a61; font-size: 11px; text-align: right; }
+      .c-architecture { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 28px; }
+      .c-node { min-height: 130px; padding: 19px; border: 1px solid #bdb3a6; background: rgba(255,255,255,.35); }
+      .c-node b { display: block; margin-bottom: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+      .c-node p { margin: 0; color: #6b6159; font-size: 12px; line-height: 1.6; }
+      .c-cut-list { margin-top: 28px; border-top: 2px solid #211d1a; }
+      .c-cut { display: grid; grid-template-columns: 42px 1fr 1.35fr; gap: 15px; padding: 16px 0; border-bottom: 1px solid #cfc6b8; }
+      .c-cut code { font-size: 11px; }
+      .c-cut strong { font-size: 13px; }
+      .c-cut span { color: #6b6159; font-size: 12px; line-height: 1.55; }
+      .c-quote { margin: 30px 0 0; padding: 30px; border-left: 8px solid #a04f28; background: #ebe2d5; font-family: Georgia, "Songti SC", serif; font-size: 21px; line-height: 1.6; }
+      .c-foot { display: flex; justify-content: space-between; gap: 20px; padding-top: 24px; color: #71665e; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+
+      .plan-state {
+        width: min(980px, calc(100% - 32px));
+        margin: 28px auto 0;
+        border: 1px solid rgba(100, 110, 104, .28);
+        border-radius: 16px;
+        background: rgba(255,255,255,.72);
+        color: #354038;
+      }
+      .plan-state summary { cursor: pointer; padding: 13px 16px; font-size: 11px; font-weight: 800; }
+      .plan-state pre { overflow: auto; margin: 0; padding: 0 16px 16px; font: 11px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .variant-b .plan-state { background: #202833; color: #dfe6e1; border-color: #3b4650; }
+      .variant-c .plan-state { background: rgba(255,255,255,.28); }
+      .prototype-switcher {
+        position: fixed;
+        z-index: 110;
+        left: 50%;
+        bottom: 18px;
+        display: grid;
+        grid-template-columns: 42px minmax(210px, auto) 42px;
+        align-items: center;
+        padding: 6px;
+        border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px;
+        background: rgba(18, 25, 22, .94);
+        color: white;
+        box-shadow: 0 18px 50px rgba(0,0,0,.28);
+        transform: translateX(-50%);
+        backdrop-filter: blur(16px);
+      }
+      .prototype-switcher button {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        place-items: center;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: white;
+        cursor: pointer;
+        font-size: 20px;
+      }
+      .prototype-switcher button:hover { background: rgba(255,255,255,.12); }
+      .switcher-label { padding: 0 15px; text-align: center; }
+      .switcher-label strong { display: block; font-size: 12px; }
+      .switcher-label span { display: block; margin-top: 2px; color: #aeb9b2; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+
+      @media (max-width: 980px) {
+        .a-hero-grid, .resume-card, .b-lanes { grid-template-columns: 1fr; }
+        .a-metrics { grid-template-columns: repeat(3, 1fr); margin-top: 8px; }
+        .metric { grid-template-columns: 1fr; gap: 3px; }
+        .roadmap { grid-template-columns: repeat(2, 1fr); }
+        .roadmap::before { display: none; }
+        .product-grid { grid-template-columns: 1fr 1fr; }
+        .product-grid .screen:first-child { grid-column: 1 / -1; }
+        .b-board { grid-template-columns: repeat(4, 280px); }
+        .c-mast, .c-chapter { grid-template-columns: 120px 1fr; gap: 24px; }
+      }
+      @media (max-width: 680px) {
+        .wrap, .c-wrap { width: min(100% - 22px, 1180px); }
+        .prototype-ribbon { top: 8px; right: 8px; }
+        .a-hero { padding-top: 62px; }
+        .a-brand { margin-bottom: 42px; }
+        .a-brand .pill { display: none; }
+        .a-hero h1 { font-size: 52px; }
+        .a-metrics, .scope-grid, .roadmap, .checkpoint-grid, .product-grid { grid-template-columns: 1fr; }
+        .metric { grid-template-columns: 78px 1fr; }
+        .product-grid .screen:first-child { grid-column: auto; }
+        .screen.mobile { max-width: none; }
+        .a-section { padding: 54px 0; }
+        .resume-card { padding: 24px; }
+        .b-shell { width: min(100% - 18px, 1460px); padding-top: 58px; }
+        .b-head { grid-template-columns: 1fr; }
+        .b-clock { justify-self: start; }
+        .b-board { grid-template-columns: repeat(4, 268px); }
+        .future-table td:last-child { display: none; }
+        .c-mast, .c-chapter { grid-template-columns: 1fr; gap: 22px; }
+        .c-index { display: none; }
+        .c-story, .c-architecture { grid-template-columns: 1fr; }
+        .c-week { grid-template-columns: 72px 1fr; }
+        .c-week span { grid-column: 2; text-align: left; }
+        .c-cut { grid-template-columns: 36px 1fr; }
+        .c-cut span { grid-column: 2; }
+        .c-foot { flex-direction: column; }
+        .prototype-switcher { bottom: 10px; grid-template-columns: 38px minmax(180px, auto) 38px; }
+      }
+      @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+      @media print {
+        .prototype-ribbon, .prototype-switcher { display: none !important; }
+        .variant { padding-bottom: 0; }
+        .variant[hidden] { display: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="prototype-ribbon">Throwaway plan prototype</div>
+
+    <main>
+      <section class="variant variant-a" data-variant="A" aria-labelledby="a-title">
+        <header class="a-hero">
+          <div class="wrap">
+            <div class="a-brand">
+              <div class="brand-lockup"><span class="brand-mark">DG</span> Delivery Glance</div>
+              <span class="pill lime">推荐视图 · Outcome first</span>
+            </div>
+            <div class="a-hero-grid">
+              <div>
+                <p class="eyebrow">Resume-first product plan · 2026-08-09</p>
+                <h1 id="a-title">先做一条<br /><em>真的能跑通</em>的线。</h1>
+                <p class="a-hero-copy">不再把完整产品规格塞进六周。每周交付一个可部署增量：第三周得到可用 MVP，第四周得到可以诚实写进简历的 Core。</p>
+              </div>
+              <div class="a-metrics" aria-label="Key milestones">
+                <div class="metric"><strong>3</strong><span>Sprints 到端到端 Recipient MVP</span></div>
+                <div class="metric"><strong>4</strong><span>Sprints 到简历版 Portfolio Core</span></div>
+                <div class="metric"><strong>0</strong><span>Core 中的 Redis、Kafka、PostGIS</span></div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <section class="a-section">
+          <div class="wrap">
+            <p class="eyebrow">Scope reset</p>
+            <h2 class="section-title">规格没有消失，只是不再同时开工。</h2>
+            <p class="section-copy">原 11 个 Ticket 保留为完整产品设计证据；新的 Ticket 12 决定当前实施边界。被精简的内容拆成 Future Work Issues，进入条件和验收都写清楚。</p>
+            <div class="scope-grid">
+              <article class="scope-card heavy">
+                <span class="pill">原六周整包</span>
+                <h3>一次承担所有分支</h3>
+                <p>多人 Matching、拒绝与冷却、重派与异常、ETA、Link 恢复、Service Zone、规模基准、可观测性扩展。</p>
+                <ul class="check-list future-list">
+                  <li>规格完整，但很晚才出现端到端价值</li>
+                  <li>业务规则和基础设施风险同时发生</li>
+                  <li>很难在每个 Sprint 展示完成增量</li>
+                </ul>
+              </article>
+              <article class="scope-card lean">
+                <span class="pill green">当前 Core</span>
+                <h3>先证明一条高价值主线</h3>
+                <p>直接原子派单、前台最新位置、安全 Link、Recipient 地图与 SSE；每个复杂分支都有自己的 Future Issue。</p>
+                <ul class="check-list">
+                  <li>数据库约束证明不会双重 Assignment</li>
+                  <li>GPS 只保留最新值，不制造 Route History</li>
+                  <li>第三周可用，第四周有证据可展示</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="a-section">
+          <div class="wrap">
+            <p class="eyebrow">Four deployable increments</p>
+            <h2 class="section-title">四周不是一个大 Sprint，是四次可验收交付。</h2>
+            <div class="roadmap">
+              <article class="sprint-card">
+                <div class="sprint-number">01</div>
+                <div class="sprint-box">
+                  <span class="pill">8–10h</span>
+                  <h3>Walking skeleton</h3>
+                  <p>第一次证明仓库、数据库、登录、Delivery 与 HTTPS 部署真的连通。</p>
+                  <ul class="check-list">
+                    <li>Dispatcher 登录</li>
+                    <li>创建 / 列表 / 详情</li>
+                    <li>Flyway + CI + 健康检查</li>
+                    <li>线上 Sprint demo</li>
+                  </ul>
+                </div>
+              </article>
+              <article class="sprint-card">
+                <div class="sprint-number">02</div>
+                <div class="sprint-box">
+                  <span class="pill">累计 18–22h</span>
+                  <h3>Dispatchable Delivery</h3>
+                  <p>内部团队可以从最近 Courier 推荐走到 Delivered，并证明并发安全。</p>
+                  <ul class="check-list">
+                    <li>On Duty + foreground GPS</li>
+                    <li>Haversine nearest three</li>
+                    <li>原子 Direct Assignment</li>
+                    <li>pickup → Delivered</li>
+                  </ul>
+                </div>
+              </article>
+              <article class="sprint-card mvp">
+                <div class="sprint-number">03</div>
+                <div class="sprint-box">
+                  <span class="pill orange">MVP · 累计 28–34h</span>
+                  <h3>Recipient live MVP</h3>
+                  <p>Recipient 第一次得到完整价值：不用账号，通过 Link 在手机上看状态与当前位置。</p>
+                  <ul class="check-list">
+                    <li>HMAC Link + Expiry</li>
+                    <li>Status Story 页面</li>
+                    <li>MapLibre + freshness</li>
+                    <li>Recipient SSE + reconnect</li>
+                  </ul>
+                </div>
+              </article>
+              <article class="sprint-card core">
+                <div class="sprint-number">04</div>
+                <div class="sprint-box">
+                  <span class="pill green">Core · 累计 38–46h</span>
+                  <h3>Resume-ready evidence</h3>
+                  <p>把“能演示”变成“别人可复现、我能解释、简历可以负责”的完成项目。</p>
+                  <ul class="check-list">
+                    <li>race / privacy / reconnect tests</li>
+                    <li>2 条跨角色 E2E</li>
+                    <li>Demo reset + accessibility</li>
+                    <li>README / diagrams / video</li>
+                  </ul>
+                </div>
+              </article>
+            </div>
+            <div class="checkpoint-grid">
+              <article class="checkpoint mvp">
+                <span class="pill orange">Sprint 3</span>
+                <h3>功能 MVP</h3>
+                <p>已经部署、端到端可用，可以在面试中展示为 active MVP；但还不声称是完成的 portfolio project。</p>
+              </article>
+              <article class="checkpoint core">
+                <span class="pill lime">Sprint 4</span>
+                <h3>简历版 Core</h3>
+                <p>公开 Demo、自动化证据、清楚文档和可复现故事全部存在，这时可以诚实写成 completed project。</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="a-section">
+          <div class="wrap">
+            <p class="eyebrow">What the finished Core looks like</p>
+            <h2 class="section-title">最终不是后台大全，而是三个聚焦工作面。</h2>
+            <div class="product-grid">
+              <article class="screen">
+                <div class="screen-top"><span>Delivery Glance · Dispatcher</span><span class="pill green">AWAITING COURIER</span></div>
+                <div class="screen-body">
+                  <p>DG-2048 · 18 River Walk → 42 Dock Street</p>
+                  <h4>选择最近的 Eligible Courier</h4>
+                  <div class="candidate primary"><strong>1 · Maya Chen</strong><small>1.4 km · Live 8s ago</small><br /><span class="mini-button">Assign courier</span></div>
+                  <div class="candidate"><strong>2 · Leon Byrne</strong><small>2.1 km · Live 17s ago</small></div>
+                  <div class="candidate"><strong>3 · Ana Costa</strong><small>3.0 km · Delayed 44s ago</small></div>
+                  <div class="mini-row"><span>Database guard</span><strong>One active Assignment</strong></div>
+                  <div class="mini-row"><span>Recipient access</span><strong>Copy Tracking Link</strong></div>
+                </div>
+              </article>
+              <article class="screen mobile">
+                <div class="screen-top"><span>Courier</span><span>09:41</span></div>
+                <div class="screen-body">
+                  <span class="pill green">On Duty</span>
+                  <h4>Good morning, Maya</h4>
+                  <div class="toggle-line"><span>Location Sharing</span><span class="toggle-dot"></span></div>
+                  <p>Foreground only · latest location only</p>
+                  <div class="candidate primary"><strong>DG-2048 · Assigned</strong><small>Pickup · 18 River Walk</small><br /><span class="mini-button">Confirm pickup</span></div>
+                  <div class="mini-row"><span>Last report</span><strong>8 seconds ago</strong></div>
+                </div>
+              </article>
+              <article class="screen mobile">
+                <div class="screen-top"><span>Delivery Glance</span><span class="pill green">Live updates</span></div>
+                <div class="screen-body">
+                  <p>DG-2048</p>
+                  <h4>Your delivery is on the way</h4>
+                  <p>Maya is heading to 42 Dock Street.</p>
+                  <div class="mock-map"><span class="map-pin courier"></span><span class="map-pin home"></span></div>
+                  <div class="mini-row"><span>Location</span><strong>Live · 8s ago</strong></div>
+                  <div class="mini-row"><span>Accuracy</span><strong>±18 m</strong></div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="a-section">
+          <div class="wrap">
+            <p class="eyebrow">Preserved, not erased</p>
+            <h2 class="section-title">7 个 Future Issues 解释项目接下来为什么、何时才变复杂。</h2>
+            <div class="future-grid">
+              <a class="future-card" href="../future-work/13-add-travel-time-eta.md"><span>FUTURE #13</span><h3>Travel-time ETA</h3><p>Provider、窗口、stale 与 late。</p></a>
+              <a class="future-card" href="../future-work/14-add-tracking-link-recovery.md"><span>FUTURE #14</span><h3>Link recovery</h3><p>Rotate、Revoke、Reissue 与 audit。</p></a>
+              <a class="future-card" href="../future-work/15-add-delivery-exceptions-and-reassignment.md"><span>FUTURE #15</span><h3>Exceptions</h3><p>重派、撤回与 Undeliverable。</p></a>
+              <a class="future-card" href="../future-work/16-add-service-zones-and-explainable-overrides.md"><span>FUTURE #16</span><h3>Service Zones</h3><p>Polygon eligibility 与 override。</p></a>
+              <a class="future-card" href="../future-work/17-add-ranked-multi-courier-matching-round.md"><span>FUTURE #17</span><h3>Matching Round</h3><p>Top 3、60 秒、按排名选人。</p></a>
+              <a class="future-card" href="../future-work/18-run-measured-scale-and-resilience-experiment.md"><span>FUTURE #18</span><h3>Scale experiment</h3><p>先 profile，再考虑 Redis/PostGIS。</p></a>
+              <a class="future-card" href="../future-work/19-evaluate-durable-domain-event-backbone.md"><span>FUTURE #19</span><h3>Event backbone</h3><p>有独立 consumer 才评估 Kafka。</p></a>
+            </div>
+            <div class="resume-card">
+              <div><span class="pill lime">Resume checkpoint</span><strong>38–46h</strong></div>
+              <blockquote>“Built and deployed a recipient-first delivery tracker with database-enforced atomic assignment, privacy-minimised foreground geolocation and SSE live updates through secure no-account Tracking Links.”</blockquote>
+            </div>
+          </div>
+        </section>
+
+        <details class="plan-state">
+          <summary>查看这个视图使用的完整计划状态</summary>
+          <pre>{
+  "deliveryModel": "Direct Assignment",
+  "mvp": { "sprint": 3, "effortHours": "28–34", "status": "deployed end-to-end" },
+  "core": { "sprint": 4, "effortHours": "38–46", "status": "resume-ready evidence" },
+  "coreInfrastructure": ["Spring Boot", "React", "PostgreSQL", "SSE", "in-memory latest location"],
+  "excludedInfrastructure": ["Redis", "Kafka", "PostGIS", "WebFlux", "microservices"],
+  "futureIssues": [13, 14, 15, 16, 17, 18, 19]
+}</pre>
+        </details>
+      </section>
+
+      <section class="variant variant-b" data-variant="B" aria-labelledby="b-title" hidden>
+        <div class="b-shell">
+          <header class="b-head">
+            <div>
+              <p class="eyebrow" style="color: var(--lime)">Sprint board · delivery view</p>
+              <h1 id="b-title">Four deploys.<br />One credible story.</h1>
+              <p>把计划当成交付列车而不是功能清单。每列都有 outcome、验收证据和可以停止的位置。</p>
+            </div>
+            <div class="b-clock"><strong>10–12h</strong><span>每 Sprint 的时间盒</span></div>
+          </header>
+
+          <div class="b-board" aria-label="Four sprint board">
+            <section class="b-column">
+              <div class="b-column-head"><strong>SPRINT 01</strong><span>8–10h</span></div>
+              <article class="work-card outcome"><h3>Outcome · 线上创建 Delivery</h3><p>登录、持久化与 HTTPS deployment 第一次连通。</p></article>
+              <article class="work-card"><h3>Foundation</h3><p>Boot / React / PostgreSQL / Flyway / Docker</p></article>
+              <article class="work-card"><h3>Dispatcher slice</h3><p>Create、list、detail、pre-pickup Cancel</p></article>
+              <article class="work-card"><h3>Evidence</h3><p>CI build、health、1-minute demo</p></article>
+              <div class="done-bar"><i class="on"></i><i></i><i></i><i></i></div>
+            </section>
+            <section class="b-column">
+              <div class="b-column-head"><strong>SPRINT 02</strong><span>累计 18–22h</span></div>
+              <article class="work-card outcome"><h3>Outcome · 内部配送闭环</h3><p>一个 Delivery 可以被可靠派给一个 Courier 并完成。</p></article>
+              <article class="work-card"><h3>Courier surface</h3><p>On Duty、Start/Stop、pickup、Delivered</p></article>
+              <article class="work-card"><h3>High-value logic</h3><p>Haversine top 3 + atomic Direct Assignment</p></article>
+              <article class="work-card"><h3>Evidence</h3><p>Testcontainers concurrency race</p></article>
+              <div class="done-bar"><i class="on"></i><i class="on"></i><i></i><i></i></div>
+            </section>
+            <section class="b-column mvp">
+              <div class="b-column-head"><strong>SPRINT 03 · MVP</strong><span>累计 28–34h</span></div>
+              <article class="work-card outcome"><h3>Outcome · Recipient 可真实追踪</h3><p>手机打开无账号 Link，看状态、地图与新鲜度。</p></article>
+              <article class="work-card"><h3>Secure access</h3><p>HMAC、fragment exchange、Copy、Expiry</p></article>
+              <article class="work-card"><h3>Recipient surface</h3><p>Status Story、MapLibre、Live/Delayed/Unavailable</p></article>
+              <article class="work-card"><h3>Realtime</h3><p>一个 Recipient SSE + reconnect snapshot</p></article>
+              <div class="done-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+            </section>
+            <section class="b-column core">
+              <div class="b-column-head"><strong>SPRINT 04 · CORE</strong><span>累计 38–46h</span></div>
+              <article class="work-card outcome"><h3>Outcome · 可放简历的完成项目</h3><p>他人可以访问、复现、理解，也能看到测试证据。</p></article>
+              <article class="work-card"><h3>Hardening</h3><p>Link、stale/Stop、SSE reconnect、race tests</p></article>
+              <article class="work-card"><h3>Portfolio</h3><p>2 E2E、Demo reset、README、diagrams、video</p></article>
+              <article class="work-card"><h3>Truthful claim</h3><p>只写已经跑出的测量数字</p></article>
+              <div class="done-bar"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+            </section>
+          </div>
+
+          <div class="b-lanes">
+            <section class="b-panel">
+              <h2>最终三角色路径</h2>
+              <div class="journey-row"><strong>Dispatcher</strong><span>Create Delivery → 看 nearest three → Direct Assign → Copy Tracking Link → 看当前状态。</span></div>
+              <div class="journey-row"><strong>Courier</strong><span>On Duty → Start sharing → 收到 Assignment → Confirm pickup → Delivered。</span></div>
+              <div class="journey-row"><strong>Recipient</strong><span>Open Link → 看状态与 next step → In Transit 看 live map/freshness → Delivered。</span></div>
+            </section>
+            <section class="b-panel">
+              <h2>复杂度预算</h2>
+              <div class="budget-row"><div class="budget-label"><span>技术证明主线</span><b>72%</b></div><div class="budget-track"><div class="budget-fill tech"></div></div></div>
+              <div class="budget-row"><div class="budget-label"><span>必要业务规则</span><b>28%</b></div><div class="budget-track"><div class="budget-fill business"></div></div></div>
+              <ul class="check-list" style="margin-top: 20px">
+                <li style="color:#cbd2cd">保留数据库并发、GPS privacy、SSE</li>
+                <li style="color:#cbd2cd">不把规模组件当简历装饰</li>
+                <li style="color:#cbd2cd">不承诺第五、第六 Sprint</li>
+              </ul>
+            </section>
+          </div>
+
+          <section class="b-future">
+            <h2>Future Work queue · 保留原因与进入条件</h2>
+            <table class="future-table">
+              <tbody>
+                <tr><th>#13</th><td>Travel-time ETA</td><td>Core 后接 provider；必须先解决许可、失败与成本。</td></tr>
+                <tr><th>#14</th><td>Tracking Link recovery</td><td>有泄漏恢复价值时加入 Rotate / Revoke / Reissue。</td></tr>
+                <tr><th>#15</th><td>Delivery exceptions</td><td>Happy path 稳定后再扩 Reassignment / Undeliverable。</td></tr>
+                <tr><th>#16</th><td>Service Zones</td><td>需要真实区域边界时再加 polygon 与 override。</td></tr>
+                <tr><th>#17</th><td>Matching Round</td><td>直接派单证明稳定后，再引入 consent + timer + race。</td></tr>
+                <tr><th>#18</th><td>Scale experiment</td><td>先跑 2,000 sessions / 200 reports/s，再选 Redis/PostGIS/WebFlux。</td></tr>
+                <tr><th>#19</th><td>Event backbone</td><td>没有独立 durable consumer 就不引入 Kafka；GPS 永远不进。</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <div class="b-resume"><b>S4</b><p><strong>Resume gate:</strong> public demo + reproducible README + concurrency/privacy/E2E evidence。Sprint 3 是 active MVP，Sprint 4 才称 completed project。</p></div>
+        </div>
+
+        <details class="plan-state">
+          <summary>查看这个视图使用的完整计划状态</summary>
+          <pre>{ "cadence": "one deploy per sprint", "mvpSprint": 3, "resumeSprint": 4, "futureIssueCount": 7, "precommittedSprint5": false }</pre>
+        </details>
+      </section>
+
+      <section class="variant variant-c" data-variant="C" aria-labelledby="c-title" hidden>
+        <div class="c-wrap">
+          <header class="c-mast">
+            <aside class="c-index"><strong>DELIVERY GLANCE</strong>Scope note 01<br />Resume-first edition<br />09 Aug 2026</aside>
+            <div>
+              <p class="eyebrow" style="color:#a04f28">A portfolio case study in four increments</p>
+              <h1 id="c-title">不是把产品<br />做小。是先把<br />证明做完整。</h1>
+              <p class="c-deck">完整产品规格仍然存在；第一版只承担一个清楚命题：一次配送如何被可靠派出、只暴露当前必要位置，并让 Recipient 无账号看懂正在发生什么。</p>
+            </div>
+          </header>
+
+          <section class="c-chapter">
+            <aside class="chapter-no"><strong>01</strong>THE PRODUCT</aside>
+            <div class="chapter-body">
+              <h2>最终成品是一段三个人都能完成的故事。</h2>
+              <div class="c-story">
+                <article><span>Dispatcher · desktop</span><h3>派一个人，不运营一个市场。</h3><p>创建 Delivery，看三个最近的 Eligible Couriers，直接 Assignment，并复制 Recipient Link。</p></article>
+                <article><span>Courier · mobile</span><h3>明确同意分享此刻，不留下路线。</h3><p>On Duty 与 Location Sharing 分开；前台上报最新点，pickup 后确认 Delivered。</p></article>
+                <article><span>Recipient · mobile</span><h3>不用登录，一眼知道进度。</h3><p>安全 Link 打开状态故事；In Transit 才出现地图，并明确 Live、Delayed 或 Unavailable。</p></article>
+              </div>
+              <div class="c-equation"><em>PostgreSQL</em> 决定发生了什么。<br /><em>Memory</em> 只保存此刻在哪里。<br /><em>SSE</em> 只提醒页面重新看事实。</div>
+            </div>
+          </section>
+
+          <section class="c-chapter">
+            <aside class="chapter-no"><strong>02</strong>THE CADENCE</aside>
+            <div class="chapter-body">
+              <h2>价值不是在第六周突然出现。</h2>
+              <p>每一个一周 Sprint 都能上线和录 Demo；任何一周停止，仓库仍保持可运行，而不是留下半套基础设施。</p>
+              <div class="c-timeline">
+                <div class="c-week"><b>WEEK 01</b><strong>Walking skeleton 上线</strong><span>8–10h</span></div>
+                <div class="c-week"><b>WEEK 02</b><strong>内部派单与交付闭环</strong><span>18–22h 累计</span></div>
+                <div class="c-week"><b>WEEK 03</b><strong>Recipient MVP 可用</strong><span>28–34h 累计</span></div>
+                <div class="c-week"><b>WEEK 04</b><strong>Portfolio Core 有证据</strong><span>38–46h 累计</span></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="c-chapter">
+            <aside class="chapter-no"><strong>03</strong>THE SYSTEM</aside>
+            <div class="chapter-body">
+              <h2>技术栈服务于一个面试时讲得清的取舍。</h2>
+              <div class="c-architecture">
+                <article class="c-node"><b>ONE WEB APP</b><p>React 三角色界面；Recipient 使用 MapLibre 与一个 SSE channel。</p></article>
+                <article class="c-node"><b>ONE BOOT APP</b><p>HTTP commands、role security、Haversine ranking、HMAC Link 与 latest-location memory。</p></article>
+                <article class="c-node"><b>ONE POSTGRES</b><p>Delivery lifecycle、Assignment uniqueness、accounts 与必要 audit；没有 GPS history。</p></article>
+              </div>
+              <p>Core 不使用 Redis、Kafka、PostGIS、WebFlux、microservices 或 Kubernetes。不是因为它们不好，而是当前没有一个被测量过的问题需要它们。</p>
+            </div>
+          </section>
+
+          <section class="c-chapter">
+            <aside class="chapter-no"><strong>04</strong>THE BACKLOG</aside>
+            <div class="chapter-body">
+              <h2>删减不是遗忘；它变成可以解释的 Future Issue。</h2>
+              <div class="c-cut-list">
+                <div class="c-cut"><code>#13</code><strong>ETA</strong><span>需要 provider contract、失败语义与成本证据。</span></div>
+                <div class="c-cut"><code>#14</code><strong>Link recovery</strong><span>恢复暴露链接的能力值得独立验收。</span></div>
+                <div class="c-cut"><code>#15</code><strong>Exceptions</strong><span>重派与 Undeliverable 会扩展整个状态矩阵。</span></div>
+                <div class="c-cut"><code>#16</code><strong>Service Zones</strong><span>真实区域边界出现后才值得加入 polygon。</span></div>
+                <div class="c-cut"><code>#17</code><strong>Matching Round</strong><span>Top-three consent flow 是一整个产品增量，不是小按钮。</span></div>
+                <div class="c-cut"><code>#18</code><strong>Scale experiment</strong><span>先找到瓶颈，再单独验证 Redis、PostGIS 或 WebFlux。</span></div>
+                <div class="c-cut"><code>#19</code><strong>Kafka evaluation</strong><span>必须先有独立 durable consumer；raw location 永远禁止。</span></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="c-chapter">
+            <aside class="chapter-no"><strong>05</strong>THE CLAIM</aside>
+            <div class="chapter-body">
+              <h2>什么时候可以写进简历？</h2>
+              <p><strong>Sprint 3：</strong>可以展示并说明“active MVP”。<br /><strong>Sprint 4：</strong>公开 Demo、自动化证据、README、图和演示视频齐全，才描述为 completed project。</p>
+              <blockquote class="c-quote">Built and deployed a recipient-first last-mile tracker with database-enforced atomic Courier assignment, privacy-minimised foreground geolocation and SSE live updates through secure no-account Tracking Links.</blockquote>
+            </div>
+          </section>
+
+          <footer class="c-foot">
+            <span>DECISION SOURCE · ISSUE 12</span>
+            <span>FULL DESIGN PRESERVED · ISSUES 03–11</span>
+            <span>FUTURE WORK · ISSUES 13–19</span>
+          </footer>
+        </div>
+
+        <details class="plan-state">
+          <summary>查看这个视图使用的完整计划状态</summary>
+          <pre>{ "productClaim": "one reliable recipient-first delivery story", "mvp": "week 3", "resumeReady": "week 4", "fullDesignErased": false }</pre>
+        </details>
+      </section>
+    </main>
+
+    <nav class="prototype-switcher" aria-label="Prototype variants">
+      <button type="button" data-direction="-1" aria-label="Previous variant">←</button>
+      <div class="switcher-label" aria-live="polite">
+        <strong id="variant-label">A — Outcome-first roadmap</strong>
+        <span>Use ← → to compare</span>
+      </div>
+      <button type="button" data-direction="1" aria-label="Next variant">→</button>
+    </nav>
+
+    <script>
+      (() => {
+        const variants = [
+          { key: "A", name: "Outcome-first roadmap" },
+          { key: "B", name: "Sprint delivery board" },
+          { key: "C", name: "Portfolio case study" },
+        ];
+        const panels = [...document.querySelectorAll("[data-variant]")];
+        const label = document.querySelector("#variant-label");
+
+        const requested = new URLSearchParams(window.location.search).get("variant")?.toUpperCase();
+        let index = Math.max(0, variants.findIndex((item) => item.key === requested));
+
+        function show(nextIndex, updateUrl = true) {
+          index = (nextIndex + variants.length) % variants.length;
+          const current = variants[index];
+          panels.forEach((panel) => {
+            panel.hidden = panel.dataset.variant !== current.key;
+          });
+          label.textContent = `${current.key} — ${current.name}`;
+          document.title = `Delivery Glance — ${current.name}`;
+          if (updateUrl) {
+            const url = new URL(window.location.href);
+            url.searchParams.set("variant", current.key);
+            window.history.replaceState({ variant: current.key }, "", url);
+          }
+          window.scrollTo({ top: 0, behavior: "instant" });
+        }
+
+        document.querySelectorAll("[data-direction]").forEach((button) => {
+          button.addEventListener("click", () => show(index + Number(button.dataset.direction)));
+        });
+
+        window.addEventListener("keydown", (event) => {
+          const target = event.target;
+          if (target instanceof HTMLElement && (target.matches("input, textarea, select") || target.isContentEditable)) return;
+          if (event.key === "ArrowLeft") show(index - 1);
+          if (event.key === "ArrowRight") show(index + 1);
+        });
+
+        window.addEventListener("popstate", () => {
+          const key = new URLSearchParams(window.location.search).get("variant")?.toUpperCase();
+          const next = variants.findIndex((item) => item.key === key);
+          show(next < 0 ? 0 : next, false);
+        });
+
+        show(index, requested !== variants[index].key);
+      })();
+    </script>
+  </body>
+</html>
