@@ -22,10 +22,20 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
+    # Passed through literally, so a bcrypt hash's '$' characters survive; see .env.example.
+    env_file:
+      - path: .env
+        required: false
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-delivery_glance}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-delivery_glance}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-delivery_glance}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      # Only used the first time Flyway runs against an empty database; see .env.example.
+      DEMO_DISPATCHER_EMAIL: ${DEMO_DISPATCHER_EMAIL:-dispatcher@delivery-glance.example}
+      DEMO_DISPATCHER_DISPLAY_NAME: ${DEMO_DISPATCHER_DISPLAY_NAME:-Dana the Dispatcher}
+      DEMO_COURIER_EMAIL: ${DEMO_COURIER_EMAIL:-courier@delivery-glance.example}
+      DEMO_COURIER_DISPLAY_NAME: ${DEMO_COURIER_DISPLAY_NAME:-Cory the Courier}
 
 volumes:
   postgres-data:

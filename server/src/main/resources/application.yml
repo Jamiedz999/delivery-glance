@@ -7,6 +7,35 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:delivery_glance}
   flyway:
     locations: classpath:db/migration
+    validate-on-migrate: true
+    # Fictional pre-provisioned demo accounts. Changing these only affects a database that has not
+    # run V1 yet; an existing volume keeps the accounts it was created with.
+    placeholders:
+      demoDispatcherEmail: ${DEMO_DISPATCHER_EMAIL:dispatcher@delivery-glance.example}
+      demoDispatcherDisplayName: ${DEMO_DISPATCHER_DISPLAY_NAME:Dana the Dispatcher}
+      demoDispatcherPasswordHash: "${DEMO_DISPATCHER_PASSWORD_HASH:{bcrypt}$2a$12$48gmvbvPhSdBdq4T2Q90U.B8zYiNnEfN2sHG5LDmdCYkCbXboDQqK}"
+      demoCourierEmail: ${DEMO_COURIER_EMAIL:courier@delivery-glance.example}
+      demoCourierDisplayName: ${DEMO_COURIER_DISPLAY_NAME:Cory the Courier}
+      demoCourierPasswordHash: "${DEMO_COURIER_PASSWORD_HASH:{bcrypt}$2a$12$bYalN1xoO/VQTnYbn6NEPuz3YTktkC.bMYNyKNVlEk9.ga5FfGhg.}"
+  # Flyway owns every table, including Spring Session's, so no runtime DDL is allowed.
+  sql:
+    init:
+      mode: never
+  session:
+    jdbc:
+      initialize-schema: never
+  mvc:
+    problemdetails:
+      enabled: true
+
+server:
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: strict
+        # The Compose demo serves plain HTTP on localhost; set this to true behind TLS.
+        secure: ${SESSION_COOKIE_SECURE:false}
 
 management:
   endpoints:
