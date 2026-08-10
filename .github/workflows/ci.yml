@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+# The three jobs below are the Core build contract from
+# docs/planning/implementation/TECHNICAL-BASELINE.md, run from a clean checkout.
+
 jobs:
   backend:
     name: Backend (Maven)
@@ -15,6 +18,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
+          cache: maven
+          cache-dependency-path: server/pom.xml
       - name: Verify
         working-directory: server
         run: ./mvnw --batch-mode --no-transfer-progress verify
@@ -32,6 +37,32 @@ jobs:
       - name: Install
         working-directory: web
         run: npm ci
+      # The baseline defines `check` as type checking, unit tests and a production build, so
+      # linting stays a separate step rather than being folded into it.
+      - name: Lint
+        working-directory: web
+        run: npm run lint
       - name: Check
         working-directory: web
         run: npm run check
+
+  packaging:
+    name: Packaging (Compose)
+    runs-on: ubuntu-latest
+    # The image build plus a first-run Flyway migration against real PostgreSQL; well under this
+    # in practice, but a hung healthcheck should fail the job rather than the workflow timeout.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start the application image and PostgreSQL
+        run: docker compose up --build --wait
+      - name: Check the application answers
+        run: |
+          curl --fail --silent http://localhost:8080/actuator/health
+          curl --fail --silent http://localhost:8080/api/system
+      - name: Show the application log on failure
+        if: failure()
+        run: docker compose logs app
+      - name: Stop
+        if: always()
+        run: docker compose down
