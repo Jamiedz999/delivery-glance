@@ -1,13 +1,14 @@
 package com.deliveryglance.delivery;
 
 /**
- * The Delivery states this Issue can produce. The lifecycle also defines Assigned, In Transit,
- * Delivered and Undeliverable; the Issues that introduce those transitions widen this enum and the
- * matching CHECK constraints together.
+ * The Delivery states Portfolio Core currently produces. Undeliverable remains deferred.
  */
-enum DeliveryState {
+public enum DeliveryState {
 
 	AWAITING_COURIER,
+	ASSIGNED,
+	IN_TRANSIT,
+	DELIVERED,
 	CANCELLED
 
 }

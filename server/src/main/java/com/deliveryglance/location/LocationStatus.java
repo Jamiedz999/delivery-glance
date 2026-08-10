@@ -4,9 +4,8 @@ import java.time.Instant;
 
 /**
  * A Courier's stored position with the coordinates left out: how fresh it is, when the device
- * measured it, and how tight the reading was. This is the whole of what leaves the module, and it
- * is one type rather than one per audience so that no caller can start describing a position in
- * terms the others do not share.
+ * measured it, and how tight the reading was. This is what role-facing status DTOs receive; the
+ * separate dispatch-only read is constrained to distance ranking and never reaches an HTTP DTO.
  *
  * @param recordedAt null exactly when the freshness is {@link LocationFreshness#UNAVAILABLE}
  */

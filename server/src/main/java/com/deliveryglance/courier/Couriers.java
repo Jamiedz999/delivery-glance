@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
  * class only reads its coordinate-free facts to present them together.
  */
 @Service
-class Couriers {
+class Couriers implements CourierAvailability {
 
 	private final CourierRepository repository;
 
@@ -46,6 +46,18 @@ class Couriers {
 		CourierRepository.Duty duty = this.repository.saveDuty(actor.accountId(), request.onDuty(),
 				this.clock.instant());
 		return view(actor, Optional.of(duty));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public java.util.List<CourierAvailability.Courier> allCouriers() {
+		return this.repository.findAllCourierAvailability();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<CourierAvailability.Courier> lockCourier(java.util.UUID courierId) {
+		return this.repository.lockCourierAvailability(courierId);
 	}
 
 	private CourierViews.Courier view(CurrentActor actor, Optional<CourierRepository.Duty> duty) {

@@ -26,8 +26,9 @@ class SchemaOwnershipTest {
 			.query(String.class)
 			.list();
 
-		assertThat(tables).containsExactly("courier", "courier_location_sharing", "delivery", "delivery_transition",
-				"flyway_schema_history", "internal_account", "spring_session", "spring_session_attributes");
+		assertThat(tables).containsExactly("assignment", "courier", "courier_location_sharing", "delivery",
+				"delivery_transition", "flyway_schema_history", "internal_account", "spring_session",
+				"spring_session_attributes");
 	}
 
 	@Test
@@ -37,7 +38,20 @@ class SchemaOwnershipTest {
 			.query(String.class)
 			.list();
 
-		assertThat(versions).containsExactly("1", "2", "3", "4", "5");
+		assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6");
+	}
+
+	@Test
+	void databaseArbitratesOneActiveAssignmentPerCourierAndDelivery() {
+		List<String> partialUniqueIndexes = this.jdbcClient.sql("""
+				SELECT indexname FROM pg_indexes
+				WHERE schemaname = 'public' AND tablename = 'assignment'
+				  AND indexdef LIKE 'CREATE UNIQUE INDEX%WHERE (ended_at IS NULL)'
+				ORDER BY indexname
+				""").query(String.class).list();
+
+		assertThat(partialUniqueIndexes).containsExactly("assignment_one_active_courier_idx",
+				"assignment_one_active_delivery_idx");
 	}
 
 	@Test
