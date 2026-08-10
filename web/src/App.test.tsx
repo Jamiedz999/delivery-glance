@@ -12,6 +12,16 @@ import {
 
 const dispatcherSession = { displayName: 'Dana the Dispatcher', role: 'DISPATCHER' }
 
+const courierSession = { displayName: 'Cory the Courier', role: 'COURIER' }
+
+const offDutyCourier = {
+  displayName: 'Cory the Courier',
+  onDuty: false,
+  onDutyChangedAt: null,
+  sharing: null,
+  location: { freshness: 'UNAVAILABLE', recordedAt: null, accuracyMetres: null },
+}
+
 describe('AppRoutes', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
@@ -54,7 +64,9 @@ describe('AppRoutes', () => {
   })
 
   it('sends a signed-in courier to the courier workspace', async () => {
-    respondWith(() => jsonResponse({ displayName: 'Cory the Courier', role: 'COURIER' }))
+    respondWith((url) =>
+      jsonResponse(url === '/api/session' ? courierSession : offDutyCourier),
+    )
 
     renderWithProviders(<AppRoutes />, { route: '/' })
 

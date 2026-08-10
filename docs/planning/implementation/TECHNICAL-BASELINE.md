@@ -78,7 +78,7 @@ Implementation details, SQL repositories, web DTOs and provider DTOs stay packag
 
 Create a new seam only when it hides real complexity or has a real second side. For Core:
 
-- `LatestLocationStore` is justified because production memory and deterministic fake-clock tests are two real implementations.
+- `LatestLocationStore` was expected to be a seam justified by two real implementations, production memory and a deterministic fake-clock one. Issue 22 found that a test only has to move the injected `Clock` by hand, so the second implementation never had a job to do. It is one in-memory class with no interface in front of it.
 - Map rendering is isolated behind one React component because tests use a local no-network substitute and production uses MapLibre.
 - Redis, Kafka, PostGIS, WebFlux, microservices and a generic event bus are not seams or dependencies yet.
 - ETA/geocoding provider ports are not created until Future Work 13 is actually pulled.

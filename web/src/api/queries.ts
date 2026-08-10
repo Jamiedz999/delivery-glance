@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { Courier } from './courier'
+import { fetchCourier, setDuty } from './courier'
 import type { CancelDeliveryInput, CreateDeliveryInput, DeliveryDetail } from './deliveries'
 import { cancelDelivery, createDelivery, fetchDeliveries, fetchDelivery } from './deliveries'
 import type { Credentials } from './session'
@@ -9,6 +11,7 @@ export const queryKeys = {
   session: ['session'] as const,
   deliveries: ['deliveries'] as const,
   delivery: (id: string) => ['deliveries', id] as const,
+  courier: ['courier'] as const,
 }
 
 export function useSession() {
@@ -33,7 +36,22 @@ export function useSignOut() {
       // previous page on screen.
       queryClient.setQueryData(queryKeys.session, null)
       queryClient.removeQueries({ queryKey: queryKeys.deliveries })
+      // Signing out ended Location Sharing on the server, so the cached duty and freshness are
+      // already wrong; the next Courier to sign in must read them again.
+      queryClient.removeQueries({ queryKey: queryKeys.courier })
     },
+  })
+}
+
+export function useCourier() {
+  return useQuery({ queryKey: queryKeys.courier, queryFn: fetchCourier, retry: false })
+}
+
+export function useSetDuty() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (onDuty: boolean) => setDuty(onDuty),
+    onSuccess: (courier: Courier) => queryClient.setQueryData(queryKeys.courier, courier),
   })
 }
 
