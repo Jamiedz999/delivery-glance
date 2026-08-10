@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-delivery_glance}
+      POSTGRES_USER: ${POSTGRES_USER:-delivery_glance}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-delivery_glance}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-delivery_glance} -d ${POSTGRES_DB:-delivery_glance}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-delivery_glance}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-delivery_glance}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-delivery_glance}
+
+volumes:
+  postgres-data:

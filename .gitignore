@@ -1,0 +1,22 @@
+# Environment
+.env
+*.local
+
+# Backend (server/)
+server/target/
+server/.mvn/wrapper/maven-wrapper.jar
+
+# Frontend (web/)
+web/node_modules/
+web/dist/
+web/dist-ssr/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
