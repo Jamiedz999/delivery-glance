@@ -1,8 +1,15 @@
 # Issue tracker: GitHub
 
-Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
+Execution state for this repo lives in GitHub issues. Use the `gh` CLI for all operations.
 
-**Status: the GitHub repo doesn't exist yet.** This workspace is currently a local, un-versioned directory. Per `.scratch/recipient-delivery-tracking/implementation/ISSUE-WORKFLOW.md`, the plan is: commit `CONTEXT.md` and `.scratch/recipient-delivery-tracking/` as the first commit, push to a new `delivery-glance` GitHub repo, then create GitHub Issues that link back to the committed planning files under `.scratch/` rather than duplicating their bodies. Until that first push happens, treat `.scratch/recipient-delivery-tracking/issues/*.md` as the source of truth.
+**Specs do not live in issue bodies.** A GitHub Issue carries a one-paragraph summary, a permalink to the committed spec and the execution state (labels, open/closed). The spec itself is a file in this repo. The split is:
+
+- **`docs/planning/issues/`** — the implementation specs, `DG-020` through `DG-028`. These are the only planning files that become GitHub Issues.
+- **`docs/adr/`** — resolved product and architecture decisions. Read these; never open them as issues.
+- **`docs/planning/future-work/`** — designed-but-deferred increments. Not commitments, not issues.
+- **`docs/planning/map.md`** — the scope and readiness index over all of the above.
+
+See `docs/planning/implementation/ISSUE-WORKFLOW.md` for the handoff pattern and the Definition of Ready.
 
 ## Conventions
 
