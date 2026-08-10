@@ -1,6 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { describeFreshness, formatCountdown } from '../api/courier'
-import { useCourier, useSetDuty } from '../api/queries'
+import type { CourierDelivery } from '../api/deliveries'
+import { ApiError } from '../api/http'
+import {
+  useCourier,
+  useCurrentCourierDelivery,
+  useProgressCourierDelivery,
+  useSetDuty,
+} from '../api/queries'
 import { SHARING_STATUS_LABELS, useLocationSharing } from './useLocationSharing'
 
 export function CourierHomePage() {
@@ -23,6 +30,8 @@ export function CourierHomePage() {
       <div className="page-heading">
         <h1>Courier workspace</h1>
       </div>
+
+      <CurrentDeliverySection />
 
       <section aria-labelledby="duty-heading">
         <h2 id="duty-heading">Duty</h2>
@@ -91,6 +100,76 @@ export function CourierHomePage() {
       </section>
     </section>
   )
+}
+
+function CurrentDeliverySection() {
+  const current = useCurrentCourierDelivery()
+  const pickup = useProgressCourierDelivery('pickup')
+  const handoff = useProgressCourierDelivery('handoff')
+  const commandIds = useRef(new Map<string, string>())
+
+  function progress(delivery: CourierDelivery, action: 'pickup' | 'handoff') {
+    const key = `${delivery.id}:${action}`
+    let commandId = commandIds.current.get(key)
+    if (commandId === undefined) {
+      commandId = crypto.randomUUID()
+      commandIds.current.set(key, commandId)
+    }
+    const mutation = action === 'pickup' ? pickup : handoff
+    mutation.mutate({
+      deliveryId: delivery.id,
+      input: { commandId, expectedVersion: delivery.version },
+    })
+  }
+
+  const delivery = current.data
+  const mutation = delivery?.state === 'ASSIGNED' ? pickup : handoff
+
+  return (
+    <section aria-labelledby="current-delivery-heading">
+      <h2 id="current-delivery-heading">Current Delivery</h2>
+      {current.isPending && <p role="status">Loading your current Delivery…</p>}
+      {current.isError && <p role="alert">Could not load your current Delivery. Reload the page.</p>}
+      {current.isSuccess && delivery === null && <p>No Delivery is currently assigned to you.</p>}
+      {delivery !== undefined && delivery !== null && (
+        <>
+          <p>
+            <strong>{delivery.reference}</strong> ·{' '}
+            {delivery.state === 'ASSIGNED' ? 'Assigned — pickup not yet confirmed' : 'In transit'}
+          </p>
+          <dl>
+            <dt>Pickup</dt>
+            <dd>{delivery.pickupAddressLabel}</dd>
+            <dt>Handoff</dt>
+            <dd>{delivery.handoffAddressLabel}</dd>
+          </dl>
+          <button
+            type="button"
+            onClick={() => progress(delivery, delivery.state === 'ASSIGNED' ? 'pickup' : 'handoff')}
+            disabled={mutation.isPending}
+            aria-busy={mutation.isPending}
+          >
+            {delivery.state === 'ASSIGNED' ? 'Confirm pickup' : 'Confirm handoff'}
+          </button>
+          {mutation.isError && (
+            <p role="alert" className="error">
+              {progressMessageFor(mutation.error)}
+            </p>
+          )}
+        </>
+      )}
+    </section>
+  )
+}
+
+function progressMessageFor(error: unknown): string {
+  if (error instanceof ApiError && error.code === 'delivery-version-conflict') {
+    return 'This Delivery changed. The page is refreshing its current state.'
+  }
+  if (error instanceof ApiError && error.code === 'delivery-invalid-transition') {
+    return 'That confirmation is no longer valid for this Delivery.'
+  }
+  return 'Could not save the confirmation. Try again.'
 }
 
 /**

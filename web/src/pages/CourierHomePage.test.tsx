@@ -32,6 +32,15 @@ const accepted = {
   location: { freshness: 'LIVE', recordedAt: '2026-08-10T09:00:05Z', accuracyMetres: 12 },
 }
 
+const assignedDelivery = {
+  id: '5f2d0b1e-3f6e-4a1f-9f1a-9a2b3c4d5e6f',
+  reference: 'DG-1001',
+  state: 'ASSIGNED',
+  version: 1,
+  pickupAddressLabel: 'Warehouse 4',
+  handoffAddressLabel: 'Flat 2, 14 Elm Row',
+}
+
 let watchPosition = vi.fn()
 let clearWatch = vi.fn()
 let deliverPosition: PositionCallback | null = null
@@ -55,6 +64,9 @@ function stubGeolocation() {
 
 function respondForCourier(courier: unknown = offDuty) {
   respondWith((url, method) => {
+    if (url.endsWith('/deliveries/current')) {
+      return noContentResponse()
+    }
     if (url.endsWith('/location-sharing')) {
       return method === 'POST' ? jsonResponse(startedSession, 201) : noContentResponse()
     }
@@ -233,6 +245,9 @@ describe('CourierHomePage', () => {
       if (url.endsWith('/location-sharing')) {
         return method === 'POST' ? jsonResponse(startedSession, 201) : noContentResponse()
       }
+      if (url.endsWith('/deliveries/current')) {
+        return noContentResponse()
+      }
       return jsonResponse(offDuty)
     })
     renderWithProviders(<CourierHomePage />)
@@ -254,6 +269,39 @@ describe('CourierHomePage', () => {
     expect(await screen.findByText('On duty')).toBeInTheDocument()
     expect(watchPosition).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Start sharing' })).toBeInTheDocument()
+  })
+
+  it('shows the current Delivery and requires explicit pickup and handoff confirmations', async () => {
+    let current: typeof assignedDelivery | undefined = assignedDelivery
+    respondWith((url, method) => {
+      if (url.endsWith('/deliveries/current')) {
+        return current === undefined ? noContentResponse() : jsonResponse(current)
+      }
+      if (url.endsWith('/pickup') && method === 'POST') {
+        current = { ...assignedDelivery, state: 'IN_TRANSIT', version: 2 }
+        return noContentResponse()
+      }
+      if (url.endsWith('/handoff') && method === 'POST') {
+        current = undefined
+        return noContentResponse()
+      }
+      return jsonResponse(offDuty)
+    })
+    renderWithProviders(<CourierHomePage />)
+
+    expect(await screen.findByRole('heading', { name: 'Current Delivery' })).toBeInTheDocument()
+    expect(await screen.findByText('DG-1001')).toBeInTheDocument()
+    expect(screen.getByText('Warehouse 4')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm pickup' }))
+
+    const pickup = callsTo('/pickup')[0]
+    expect(requestBodyOf(pickup)).toMatchObject({ expectedVersion: 1 })
+    expect(await screen.findByRole('button', { name: 'Confirm handoff' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm handoff' }))
+
+    const handoff = callsTo('/handoff')[0]
+    expect(requestBodyOf(handoff)).toMatchObject({ expectedVersion: 2 })
+    expect(await screen.findByText('No Delivery is currently assigned to you.')).toBeInTheDocument()
   })
 
   it('counts down to the moment the server drops the position', async () => {

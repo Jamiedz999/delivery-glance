@@ -40,6 +40,11 @@ class DeliveryConflictException extends RuntimeException {
 				"This command identifier was already used for a different Delivery.", Map.of());
 	}
 
+	static DeliveryConflictException notAssignedToCourier() {
+		return new DeliveryConflictException("delivery-not-assigned-to-courier",
+				"Only the Courier with this active Assignment can progress the Delivery.", Map.of());
+	}
+
 	String code() {
 		return this.code;
 	}

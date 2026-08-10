@@ -1,5 +1,7 @@
 package com.deliveryglance.delivery;
 
+import java.util.UUID;
+
 import com.deliveryglance.BrowserLikeClient;
 import com.deliveryglance.DemoAccounts;
 import com.deliveryglance.IntegrationTest;
@@ -54,6 +56,20 @@ class DeliveryRouteAuthorizationTest {
 		MockHttpServletResponse response = client.send(createRequest("DG-COURIER-1"));
 
 		assertThat(response.getStatus()).isEqualTo(403);
+	}
+
+	@Test
+	void refusesCourierRecommendationAndAssignmentToASignedInCourier() throws Exception {
+		BrowserLikeClient client = signedInCourier();
+		UUID deliveryId = UUID.randomUUID();
+
+		assertThat(client.send(get("/api/deliveries/{id}/courier-recommendations", deliveryId)).getStatus())
+			.isEqualTo(403);
+		assertThat(client.send(post("/api/deliveries/{id}/assignment", deliveryId)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("""
+					{"courierId":"%s","expectedVersion":0,"commandId":"%s"}
+					""".formatted(UUID.randomUUID(), UUID.randomUUID()))).getStatus()).isEqualTo(403);
 	}
 
 	@Test

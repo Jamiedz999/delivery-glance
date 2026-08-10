@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,6 +28,31 @@ class CourierRepository {
 		return this.jdbcClient.sql("SELECT on_duty, on_duty_changed_at FROM courier WHERE account_id = :accountId")
 			.param("accountId", accountId)
 			.query(CourierRepository::duty)
+			.optional();
+	}
+
+	List<CourierAvailability.Courier> findAllCourierAvailability() {
+		return this.jdbcClient.sql("""
+				SELECT account.id, account.display_name, coalesce(courier.on_duty, false) AS on_duty
+				FROM internal_account account
+				LEFT JOIN courier ON courier.account_id = account.id
+				WHERE account.role = 'COURIER' AND account.enabled
+				ORDER BY account.id
+				""")
+			.query((rs, rowNumber) -> availability(rs))
+			.list();
+	}
+
+	Optional<CourierAvailability.Courier> lockCourierAvailability(UUID accountId) {
+		return this.jdbcClient.sql("""
+				SELECT account.id, account.display_name, courier.on_duty
+				FROM internal_account account
+				JOIN courier ON courier.account_id = account.id
+				WHERE account.id = :accountId AND account.role = 'COURIER' AND account.enabled
+				FOR UPDATE OF account, courier
+				""")
+			.param("accountId", accountId)
+			.query((rs, rowNumber) -> availability(rs))
 			.optional();
 	}
 
@@ -55,6 +81,11 @@ class CourierRepository {
 
 	private static Duty duty(ResultSet rs, int rowNumber) throws SQLException {
 		return new Duty(rs.getBoolean("on_duty"), rs.getObject("on_duty_changed_at", OffsetDateTime.class).toInstant());
+	}
+
+	private static CourierAvailability.Courier availability(ResultSet rs) throws SQLException {
+		return new CourierAvailability.Courier(rs.getObject("id", UUID.class), rs.getString("display_name"),
+				rs.getBoolean("on_duty"));
 	}
 
 	record Duty(boolean onDuty, Instant changedAt) {

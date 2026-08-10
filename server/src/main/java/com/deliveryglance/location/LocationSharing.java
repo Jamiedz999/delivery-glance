@@ -72,6 +72,12 @@ class LocationSharing implements LocationFacts {
 			.orElse(null), status(courierAccountId));
 	}
 
+	@Override
+	public Optional<DispatchPosition> positionForDispatch(UUID courierAccountId) {
+		return this.store.current(courierAccountId)
+			.map((snapshot) -> new DispatchPosition(snapshot.latitude(), snapshot.longitude(), snapshot.recordedAt()));
+	}
+
 	private LocationStatus status(UUID courierAccountId) {
 		Optional<LatestLocation> current = this.store.current(courierAccountId);
 		if (current.isEmpty()) {

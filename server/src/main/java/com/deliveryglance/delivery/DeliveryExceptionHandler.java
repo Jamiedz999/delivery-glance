@@ -16,7 +16,7 @@ import static com.deliveryglance.shared.ApiProblemResponses.problem;
  * same thing for every module.
  */
 @Order(Ordered.HIGHEST_PRECEDENCE)
-@RestControllerAdvice(assignableTypes = DeliveryController.class)
+@RestControllerAdvice(assignableTypes = { DeliveryController.class, CourierDeliveryController.class })
 class DeliveryExceptionHandler {
 
 	@ExceptionHandler(DeliveryNotFoundException.class)

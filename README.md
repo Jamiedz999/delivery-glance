@@ -1,11 +1,10 @@
 # Delivery Glance
 
-A recipient-first delivery tracking product. This repository currently contains the Core
-walking skeleton, the first Dispatcher vertical slice — sign in, create a Delivery, list them,
-reopen a persisted detail and cancel it while it is still awaiting a Courier — and the Courier's own
-workspace: going On Duty, and explicitly starting and stopping foreground Location Sharing.
-Assignment, recommendation and Tracking Links are not built yet — see `docs/planning/issues/` for
-the implementation queue.
+A recipient-first delivery tracking product. The current Sprint 2 increment lets a Dispatcher
+create a Delivery, see the nearest three Eligible Couriers and make one atomic Direct Assignment.
+The assigned Courier explicitly confirms pickup and handoff while foreground Location Sharing keeps
+only the newest usable position. Tracking Links are the next increment — see
+`docs/planning/issues/` for the implementation queue.
 
 ## Prerequisites
 
@@ -79,20 +78,24 @@ Stop and remove the containers:
 docker compose down
 ```
 
-## Demo path
+## Cumulative Sprint 2 demo path
 
-Deliveries live in PostgreSQL, and sessions are stored there too, so both survive an application
-restart:
+This walkthrough carries one fictional Delivery through the whole internal flow:
 
 1. `docker compose up --build --wait`
-2. Open `http://localhost:8080` and sign in as the Dispatcher.
-3. Create a delivery — a reference such as `DG-1001`, plus a readable address and a WGS84
-   coordinate for pickup and handoff.
-4. Open the delivery from the list and note its URL.
-5. Restart only the application: `docker compose restart app`.
-6. Reload the same URL. The delivery, its history and your session are still there.
-7. Cancel it with a reason while it is still awaiting a courier; the history records who cancelled
-   it and why, and the delivery can no longer be changed.
+2. Sign in as the Courier, press **Go on duty**, then **Start sharing** and allow browser location.
+   Leave this foreground page open so the latest position stays usable.
+3. In another browser profile, sign in as the Dispatcher and create Delivery `DG-1001`. Use a
+   pickup coordinate close to the Courier's current test location and any fictional handoff address.
+4. Open the Delivery. The fresh recommendation shows the Courier's derived distance but never their
+   coordinates. Press **Direct assign**. The Delivery moves from Awaiting Courier to Assigned once.
+5. Return to the Courier workspace. The current Delivery shows both readable addresses. Press
+   **Confirm pickup** to move it to In Transit, then **Confirm handoff** to move it to Delivered.
+6. Reopen the Dispatcher detail. Its history contains all four states and actors, and there is no
+   active Assignment left for either the Delivery or Courier.
+
+Before pickup, the Dispatcher may instead cancel an Awaiting or Assigned Delivery with a reason;
+that ends any active Assignment atomically. Cancellation is refused after pickup.
 
 `docker compose down -v` also removes the database volume, which resets the demo.
 

@@ -22,11 +22,18 @@ final class DeliveryViews {
 	}
 
 	record Detail(UUID id, String reference, DeliveryState state, int version, Address pickup, Address handoff,
-			Instant createdAt, Instant updatedAt, List<Transition> transitions) {
+			Instant createdAt, Instant updatedAt, List<Transition> transitions, Assignment assignment) {
+	}
+
+	record Assignment(UUID courierId, String courierDisplayName, Instant assignedAt) {
 	}
 
 	record Transition(DeliveryState previousState, DeliveryState nextState, String actorDisplayName,
 			CancellationReason reasonCode, String reasonNote, Instant occurredAt) {
+	}
+
+	record CourierDelivery(UUID id, String reference, DeliveryState state, int version, String pickupAddressLabel,
+			String handoffAddressLabel) {
 	}
 
 }

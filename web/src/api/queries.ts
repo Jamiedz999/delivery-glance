@@ -1,8 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Courier } from './courier'
 import { fetchCourier, setDuty } from './courier'
-import type { CancelDeliveryInput, CreateDeliveryInput, DeliveryDetail } from './deliveries'
-import { cancelDelivery, createDelivery, fetchDeliveries, fetchDelivery } from './deliveries'
+import type {
+  AssignCourierInput,
+  CancelDeliveryInput,
+  CreateDeliveryInput,
+  DeliveryDetail,
+  ProgressDeliveryInput,
+} from './deliveries'
+import {
+  assignCourier,
+  cancelDelivery,
+  createDelivery,
+  fetchCourierRecommendation,
+  fetchCurrentCourierDelivery,
+  fetchDeliveries,
+  fetchDelivery,
+  progressCourierDelivery,
+} from './deliveries'
 import type { Credentials } from './session'
 import { fetchSession, signIn, signOut } from './session'
 
@@ -11,7 +26,9 @@ export const queryKeys = {
   session: ['session'] as const,
   deliveries: ['deliveries'] as const,
   delivery: (id: string) => ['deliveries', id] as const,
+  recommendation: (id: string) => ['deliveries', id, 'courier-recommendation'] as const,
   courier: ['courier'] as const,
+  currentCourierDelivery: ['current-courier-delivery'] as const,
 }
 
 export function useSession() {
@@ -39,6 +56,7 @@ export function useSignOut() {
       // Signing out ended Location Sharing on the server, so the cached duty and freshness are
       // already wrong; the next Courier to sign in must read them again.
       queryClient.removeQueries({ queryKey: queryKeys.courier })
+      queryClient.removeQueries({ queryKey: queryKeys.currentCourierDelivery })
     },
   })
 }
@@ -61,6 +79,46 @@ export function useDeliveries() {
 
 export function useDelivery(id: string) {
   return useQuery({ queryKey: queryKeys.delivery(id), queryFn: () => fetchDelivery(id), retry: false })
+}
+
+export function useCourierRecommendation(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.recommendation(id),
+    queryFn: () => fetchCourierRecommendation(id),
+    enabled,
+    retry: false,
+  })
+}
+
+export function useAssignCourier(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: AssignCourierInput) => assignCourier(id, input),
+    onSettled: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.delivery(id), exact: true }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.deliveries, exact: true }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.recommendation(id), exact: true }),
+      ])
+    },
+  })
+}
+
+export function useCurrentCourierDelivery() {
+  return useQuery({
+    queryKey: queryKeys.currentCourierDelivery,
+    queryFn: fetchCurrentCourierDelivery,
+    retry: false,
+  })
+}
+
+export function useProgressCourierDelivery(action: 'pickup' | 'handoff') {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ deliveryId, input }: { deliveryId: string; input: ProgressDeliveryInput }) =>
+      progressCourierDelivery(deliveryId, action, input),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.currentCourierDelivery, exact: true }),
+  })
 }
 
 export function useCreateDelivery() {

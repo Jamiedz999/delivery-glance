@@ -66,4 +66,9 @@ final class DeliveryRequests {
 
 	}
 
+	record Progress(
+			@NotNull(message = REQUIRED) UUID commandId,
+			@NotNull(message = REQUIRED) @PositiveOrZero(message = "must not be negative") Integer expectedVersion) {
+	}
+
 }
