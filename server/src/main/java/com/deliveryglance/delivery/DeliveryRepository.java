@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.deliveryglance.identityaccess.CurrentActor;
+
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -47,19 +49,20 @@ class DeliveryRepository {
 			.update();
 	}
 
-	void insertTransition(UUID deliveryId, DeliveryState previousState, DeliveryState nextState, UUID actorAccountId,
+	void insertTransition(UUID deliveryId, DeliveryState previousState, DeliveryState nextState, CurrentActor actor,
 			CancellationReason reasonCode, String reasonNote, UUID commandId, Instant occurredAt) {
 		this.jdbcClient.sql("""
 				INSERT INTO delivery_transition (id, delivery_id, previous_state, next_state, actor_account_id,
-				                                 reason_code, reason_note, command_id, occurred_at)
+				                                 actor_display_name, reason_code, reason_note, command_id, occurred_at)
 				VALUES (:id, :deliveryId, :previousState, :nextState, :actorAccountId,
-				        :reasonCode, :reasonNote, :commandId, :occurredAt)
+				        :actorDisplayName, :reasonCode, :reasonNote, :commandId, :occurredAt)
 				""")
 			.param("id", UUID.randomUUID())
 			.param("deliveryId", deliveryId)
 			.param("previousState", (previousState == null) ? null : previousState.name())
 			.param("nextState", nextState.name())
-			.param("actorAccountId", actorAccountId)
+			.param("actorAccountId", actor.accountId())
+			.param("actorDisplayName", actor.displayName())
 			.param("reasonCode", (reasonCode == null) ? null : reasonCode.name())
 			.param("reasonNote", (reasonNote == null || reasonNote.isBlank()) ? null : reasonNote.strip())
 			.param("commandId", commandId)
@@ -71,10 +74,10 @@ class DeliveryRepository {
 	 * Locks the row so two concurrent commands for the same Delivery are decided one after the
 	 * other rather than both reading the same version.
 	 */
-	Optional<Head> lockHead(UUID id) {
+	Optional<CurrentState> lockCurrentState(UUID id) {
 		return this.jdbcClient.sql("SELECT id, state, version FROM delivery WHERE id = :id FOR UPDATE")
 			.param("id", id)
-			.query((rs, rowNumber) -> new Head(rs.getObject("id", UUID.class),
+			.query((rs, rowNumber) -> new CurrentState(rs.getObject("id", UUID.class),
 					DeliveryState.valueOf(rs.getString("state")), rs.getInt("version")))
 			.optional();
 	}
@@ -86,7 +89,7 @@ class DeliveryRepository {
 				WHERE id = :id AND version = :expectedVersion
 				""")
 			.param("state", DeliveryState.CANCELLED.name())
-			.param("updatedAt", OffsetDateTime.ofInstant(updatedAt, java.time.ZoneOffset.UTC))
+			.param("updatedAt", OffsetDateTime.ofInstant(updatedAt, ZoneOffset.UTC))
 			.param("id", id)
 			.param("expectedVersion", expectedVersion)
 			.update();
@@ -136,17 +139,16 @@ class DeliveryRepository {
 
 	private List<DeliveryViews.Transition> findTransitions(UUID deliveryId) {
 		return this.jdbcClient.sql("""
-				SELECT t.previous_state, t.next_state, a.display_name, t.reason_code, t.reason_note, t.occurred_at
-				FROM delivery_transition t
-				JOIN internal_account a ON a.id = t.actor_account_id
-				WHERE t.delivery_id = :deliveryId
+				SELECT previous_state, next_state, actor_display_name, reason_code, reason_note, occurred_at
+				FROM delivery_transition
+				WHERE delivery_id = :deliveryId
 				-- The creation transition is the only one without a previous state, so it stays first
 				-- even if a later transition somehow shares its timestamp.
-				ORDER BY t.occurred_at, t.previous_state NULLS FIRST
+				ORDER BY occurred_at, previous_state NULLS FIRST
 				""")
 			.param("deliveryId", deliveryId)
 			.query((rs, rowNumber) -> new DeliveryViews.Transition(state(rs.getString("previous_state")),
-					DeliveryState.valueOf(rs.getString("next_state")), rs.getString("display_name"),
+					DeliveryState.valueOf(rs.getString("next_state")), rs.getString("actor_display_name"),
 					reason(rs.getString("reason_code")), rs.getString("reason_note"), instant(rs, "occurred_at")))
 			.list();
 	}
@@ -163,7 +165,8 @@ class DeliveryRepository {
 		return rs.getObject(column, OffsetDateTime.class).toInstant();
 	}
 
-	record Head(UUID id, DeliveryState state, int version) {
+	/** Just enough of a Delivery to decide whether a command may be applied to it. */
+	record CurrentState(UUID id, DeliveryState state, int version) {
 	}
 
 }

@@ -33,6 +33,9 @@ CREATE TABLE delivery_transition (
     previous_state VARCHAR(32),
     next_state VARCHAR(32) NOT NULL,
     actor_account_id UUID NOT NULL REFERENCES internal_account (id),
+    -- Recorded as it was at the time: history should keep saying who acted even if the Internal
+    -- Account's display name changes later, and reading it needs no join into identityaccess.
+    actor_display_name VARCHAR(100) NOT NULL,
     reason_code VARCHAR(32),
     reason_note VARCHAR(500),
     -- The caller-supplied command identifier makes a retried command a no-op rather than a second

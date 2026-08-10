@@ -12,6 +12,7 @@ import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,6 +28,9 @@ class SessionApiTest {
 
 	@Autowired
 	private JdbcClient jdbcClient;
+
+	@Autowired
+	private PasswordEncoder passwordEncoder;
 
 	private BrowserLikeClient client;
 
@@ -82,6 +86,27 @@ class SessionApiTest {
 				 "detail":"The email and password do not match an enabled Internal Account.",
 				 "code":"invalid-credentials"}
 				""");
+	}
+
+	@Test
+	void refusesADisabledInternalAccountWithTheSameFailure() throws Exception {
+		String email = "retired-dispatcher@delivery-glance.example";
+		this.jdbcClient.sql("""
+				INSERT INTO internal_account (email, password_hash, display_name, role, enabled)
+				VALUES (:email, :passwordHash, 'Robin the Retired', 'DISPATCHER', FALSE)
+				ON CONFLICT (email) DO NOTHING
+				""")
+			.param("email", email)
+			.param("passwordHash", this.passwordEncoder.encode(DemoAccounts.DISPATCHER_PASSWORD))
+			.update();
+
+		MockHttpServletResponse disabled = this.client.signIn(email, DemoAccounts.DISPATCHER_PASSWORD);
+		MockHttpServletResponse wrongPassword = new BrowserLikeClient(this.mockMvc)
+			.signIn(DemoAccounts.DISPATCHER_EMAIL, "not-the-password");
+
+		assertThat(disabled.getStatus()).isEqualTo(401);
+		assertThat(disabled.getContentAsString()).isEqualTo(wrongPassword.getContentAsString());
+		assertThat(this.client.send(get("/api/session")).getStatus()).isEqualTo(401);
 	}
 
 	@Test

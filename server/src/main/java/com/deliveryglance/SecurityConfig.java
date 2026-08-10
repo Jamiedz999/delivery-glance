@@ -1,7 +1,7 @@
 package com.deliveryglance;
 
 import com.deliveryglance.identityaccess.InternalAccountRole;
-import jakarta.servlet.http.HttpServletRequest;
+import com.deliveryglance.shared.ApiProblemResponses;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -14,7 +14,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfException;
-import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
@@ -58,7 +57,7 @@ public class SecurityConfig {
 				.usernameParameter("email")
 				.passwordParameter("password")
 				.successHandler((request, response, authentication) -> {
-					issueRefreshedCsrfCookie(request);
+					CsrfCookieFilter.issueCookie(request);
 					response.setStatus(HttpStatus.NO_CONTENT.value());
 				})
 				.failureHandler((request, response, exception) -> ApiProblemResponses.write(response,
@@ -68,7 +67,7 @@ public class SecurityConfig {
 		http.logout(logout -> logout
 				.logoutRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.DELETE, "/api/session"))
 				.logoutSuccessHandler((request, response, authentication) -> {
-					issueRefreshedCsrfCookie(request);
+					CsrfCookieFilter.issueCookie(request);
 					response.setStatus(HttpStatus.NO_CONTENT.value());
 				}));
 
@@ -87,18 +86,6 @@ public class SecurityConfig {
 				}));
 
 		return http.build();
-	}
-
-	/**
-	 * Signing in and out replaces the CSRF token, and both filters end the request before
-	 * {@link CsrfCookieFilter} would run. Resolving the new token here means the client always
-	 * leaves those two calls holding a usable cookie.
-	 */
-	private static void issueRefreshedCsrfCookie(HttpServletRequest request) {
-		CsrfToken csrfToken = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
-		if (csrfToken != null) {
-			csrfToken.getToken();
-		}
 	}
 
 	private CsrfTokenRepository csrfTokenRepository() {

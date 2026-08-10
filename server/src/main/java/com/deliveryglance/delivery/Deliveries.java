@@ -44,8 +44,7 @@ class Deliveries {
 		catch (DuplicateKeyException ex) {
 			throw DeliveryConflictException.referenceTaken(request.reference());
 		}
-		this.repository.insertTransition(id, null, DeliveryState.AWAITING_COURIER, actor.accountId(), null, null, null,
-				now);
+		this.repository.insertTransition(id, null, DeliveryState.AWAITING_COURIER, actor, null, null, null, now);
 
 		return requireDetail(id);
 	}
@@ -62,6 +61,12 @@ class Deliveries {
 
 	@Transactional
 	DeliveryViews.Detail cancel(UUID id, DeliveryRequests.Cancel request) {
+		// The row lock is taken before anything is decided, so a retry that arrives while the first
+		// attempt is still running waits for it and then sees the transition it wrote, rather than
+		// racing past the idempotency check and failing on the version it has just bumped.
+		DeliveryRepository.CurrentState current = this.repository.lockCurrentState(id)
+			.orElseThrow(() -> new DeliveryNotFoundException(id));
+
 		Optional<UUID> alreadyHandled = this.repository.findDeliveryIdByCommandId(request.commandId());
 		if (alreadyHandled.isPresent()) {
 			if (!alreadyHandled.get().equals(id)) {
@@ -71,20 +76,19 @@ class Deliveries {
 			return requireDetail(id);
 		}
 
-		CurrentActor actor = this.currentActorProvider.requireCurrentActor();
-		DeliveryRepository.Head head = this.repository.lockHead(id).orElseThrow(() -> new DeliveryNotFoundException(id));
-		if (head.version() != request.expectedVersion()) {
-			throw DeliveryConflictException.versionConflict(head.state(), head.version());
+		if (current.version() != request.expectedVersion()) {
+			throw DeliveryConflictException.versionConflict(current.state(), current.version());
 		}
-		if (head.state() != DeliveryState.AWAITING_COURIER) {
-			throw DeliveryConflictException.invalidTransition(head.state(), DeliveryState.CANCELLED);
+		if (current.state() != DeliveryState.AWAITING_COURIER) {
+			throw DeliveryConflictException.invalidTransition(current.state(), DeliveryState.CANCELLED);
 		}
 
+		CurrentActor actor = this.currentActorProvider.requireCurrentActor();
 		Instant now = this.clock.instant();
 		if (this.repository.markCancelled(id, request.expectedVersion(), now) != 1) {
-			throw DeliveryConflictException.versionConflict(head.state(), head.version());
+			throw DeliveryConflictException.versionConflict(current.state(), current.version());
 		}
-		this.repository.insertTransition(id, head.state(), DeliveryState.CANCELLED, actor.accountId(), request.reason(),
+		this.repository.insertTransition(id, current.state(), DeliveryState.CANCELLED, actor, request.reason(),
 				request.note(), request.commandId(), now);
 
 		return requireDetail(id);
