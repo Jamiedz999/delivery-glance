@@ -221,8 +221,6 @@ function assignmentMessageFor(error: unknown): string {
   switch (error.code) {
     case 'courier-not-eligible':
       return 'That Courier is no longer eligible. Refresh the recommendation.'
-    case 'courier-not-recommended':
-      return 'That Courier is no longer in the nearest three. Refresh the recommendation.'
     case 'assignment-delivery-changed':
     case 'assignment-conflict':
       return 'Another assignment changed this Delivery. Reload it to see the winner.'

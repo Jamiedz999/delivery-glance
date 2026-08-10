@@ -79,13 +79,16 @@ class AssignmentRepository implements ActiveAssignments {
 
 	@Override
 	public void endForDelivery(UUID deliveryId, Instant endedAt) {
-		this.jdbcClient.sql("""
+		int ended = this.jdbcClient.sql("""
 				UPDATE assignment SET ended_at = :endedAt
 				WHERE delivery_id = :deliveryId AND ended_at IS NULL
 				""")
 			.param("endedAt", timestamp(endedAt))
 			.param("deliveryId", deliveryId)
 			.update();
+		if (ended != 1) {
+			throw new IllegalStateException("An Assigned Delivery must have exactly one active Assignment.");
+		}
 	}
 
 	private static ActiveAssignment activeAssignment(ResultSet rs) throws SQLException {

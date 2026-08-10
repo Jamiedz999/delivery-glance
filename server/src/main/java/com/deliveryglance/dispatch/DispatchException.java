@@ -28,11 +28,6 @@ class DispatchException extends RuntimeException {
 				"The selected Courier is no longer eligible; refresh the recommendation.");
 	}
 
-	static DispatchException courierNotRecommended() {
-		return new DispatchException(HttpStatus.CONFLICT, "courier-not-recommended",
-				"The selected Courier is no longer in the current nearest-three recommendation.");
-	}
-
 	static DispatchException assignmentConflict() {
 		return new DispatchException(HttpStatus.CONFLICT, "assignment-conflict",
 				"Another active Assignment won this race; refresh the Delivery.");

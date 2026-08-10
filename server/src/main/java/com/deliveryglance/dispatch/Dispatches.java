@@ -10,8 +10,6 @@ import java.util.UUID;
 import com.deliveryglance.courier.CourierAvailability;
 import com.deliveryglance.delivery.DeliveryAssignmentOperations;
 import com.deliveryglance.delivery.DeliveryState;
-import com.deliveryglance.identityaccess.CurrentActor;
-import com.deliveryglance.identityaccess.CurrentActorProvider;
 import com.deliveryglance.location.LocationFacts;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -29,17 +27,14 @@ class Dispatches {
 
 	private final AssignmentRepository assignments;
 
-	private final CurrentActorProvider currentActorProvider;
-
 	private final Clock clock;
 
 	Dispatches(DeliveryAssignmentOperations deliveries, CourierAvailability couriers, LocationFacts locations,
-			AssignmentRepository assignments, CurrentActorProvider currentActorProvider, Clock clock) {
+			AssignmentRepository assignments, Clock clock) {
 		this.deliveries = deliveries;
 		this.couriers = couriers;
 		this.locations = locations;
 		this.assignments = assignments;
-		this.currentActorProvider = currentActorProvider;
 		this.clock = clock;
 	}
 
@@ -90,22 +85,9 @@ class Dispatches {
 		if (!CourierRecommender.eligible(snapshot, assignedAt)) {
 			throw DispatchException.courierNotEligible();
 		}
-		Set<UUID> busyCourierIds = this.assignments.activeCourierIds();
-		CourierRecommender.Recommendation currentRecommendation = CourierRecommender.recommend(
-				new CourierRecommender.Point(target.pickupLatitude(), target.pickupLongitude()),
-				this.couriers.allCouriers().stream()
-					.map((candidate) -> snapshot(candidate, busyCourierIds.contains(candidate.courierId())))
-					.toList(),
-				assignedAt);
-		if (currentRecommendation.candidates().stream()
-			.noneMatch((candidate) -> candidate.courierId().equals(courier.courierId()))) {
-			throw DispatchException.courierNotRecommended();
-		}
-
-		CurrentActor actor = this.currentActorProvider.requireCurrentActor();
 		try {
 			this.assignments.insert(deliveryId, courier.courierId(), request.commandId(), assignedAt);
-			this.deliveries.transitionToAssigned(target, actor, request.commandId(), assignedAt);
+			this.deliveries.transitionToAssigned(deliveryId, request.expectedVersion(), request.commandId(), assignedAt);
 		}
 		catch (DataIntegrityViolationException exception) {
 			throw DispatchException.assignmentConflict();

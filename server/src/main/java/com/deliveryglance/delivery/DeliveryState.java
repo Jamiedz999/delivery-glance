@@ -9,6 +9,15 @@ public enum DeliveryState {
 	ASSIGNED,
 	IN_TRANSIT,
 	DELIVERED,
-	CANCELLED
+	CANCELLED;
+
+	boolean canTransitionTo(DeliveryState nextState) {
+		return switch (this) {
+			case AWAITING_COURIER -> nextState == ASSIGNED || nextState == CANCELLED;
+			case ASSIGNED -> nextState == IN_TRANSIT || nextState == CANCELLED;
+			case IN_TRANSIT -> nextState == DELIVERED;
+			case DELIVERED, CANCELLED -> false;
+		};
+	}
 
 }
