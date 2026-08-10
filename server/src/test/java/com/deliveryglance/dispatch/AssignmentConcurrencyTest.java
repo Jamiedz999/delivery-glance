@@ -40,35 +40,35 @@ class AssignmentConcurrencyTest {
 
 	@Test
 	void simultaneousAssignmentsGiveOneCourierOnlyOneActiveDelivery() throws Exception {
-		TestCourier courier = createEligibleCourier(10.0);
+		UUID courier = createEligibleCourier(10.0);
 		String firstDelivery = createDelivery(signedInDispatcher(), 10.0);
 		String secondDelivery = createDelivery(signedInDispatcher(), 10.0);
 		BrowserLikeClient firstDispatcher = signedInDispatcher();
 		BrowserLikeClient secondDispatcher = signedInDispatcher();
 
 		List<MockHttpServletResponse> responses = race(
-				() -> assign(firstDispatcher, firstDelivery, courier.id()),
-				() -> assign(secondDispatcher, secondDelivery, courier.id()));
+				() -> assign(firstDispatcher, firstDelivery, courier),
+				() -> assign(secondDispatcher, secondDelivery, courier));
 
 		assertOneWinner(responses);
 		assertThat(this.jdbcClient.sql("""
 				SELECT count(*) FROM assignment
 				WHERE courier_account_id = :courierId AND ended_at IS NULL
-				""").param("courierId", courier.id()).query(Integer.class).single()).isEqualTo(1);
+				""").param("courierId", courier).query(Integer.class).single()).isEqualTo(1);
 		assertCoherentDeliveryPair(firstDelivery, secondDelivery);
 	}
 
 	@Test
 	void simultaneousAssignmentsGiveOneDeliveryOnlyOneActiveCourier() throws Exception {
-		TestCourier firstCourier = createEligibleCourier(20.0);
-		TestCourier secondCourier = createEligibleCourier(20.00001);
+		UUID firstCourier = createEligibleCourier(20.0);
+		UUID secondCourier = createEligibleCourier(20.00001);
 		String delivery = createDelivery(signedInDispatcher(), 20.0);
 		BrowserLikeClient firstDispatcher = signedInDispatcher();
 		BrowserLikeClient secondDispatcher = signedInDispatcher();
 
 		List<MockHttpServletResponse> responses = race(
-				() -> assign(firstDispatcher, delivery, firstCourier.id()),
-				() -> assign(secondDispatcher, delivery, secondCourier.id()));
+				() -> assign(firstDispatcher, delivery, firstCourier),
+				() -> assign(secondDispatcher, delivery, secondCourier));
 
 		assertOneWinner(responses);
 		assertThat(this.jdbcClient.sql("""
@@ -80,7 +80,7 @@ class AssignmentConcurrencyTest {
 			.param("deliveryId", UUID.fromString(delivery)).query(Integer.class).single()).isEqualTo(2);
 	}
 
-	private TestCourier createEligibleCourier(double latitude) throws Exception {
+	private UUID createEligibleCourier(double latitude) throws Exception {
 		int sequence = SEQUENCE.incrementAndGet();
 		UUID id = UUID.randomUUID();
 		String email = "race-courier-%d@delivery-glance.example".formatted(sequence);
@@ -109,7 +109,7 @@ class AssignmentConcurrencyTest {
 					 "accuracyMetres":12.0,"recordedAt":"%s"}
 					""".formatted(generation, secret, latitude, TestClockConfiguration.START)));
 		assertThat(reported.getStatus()).isEqualTo(200);
-		return new TestCourier(id);
+		return id;
 	}
 
 	private BrowserLikeClient signedInDispatcher() throws Exception {
@@ -186,9 +186,6 @@ class AssignmentConcurrencyTest {
 
 		MockHttpServletResponse send() throws Exception;
 
-	}
-
-	private record TestCourier(UUID id) {
 	}
 
 }

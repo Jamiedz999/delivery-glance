@@ -14,6 +14,13 @@ import com.deliveryglance.delivery.ActiveAssignments;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
+/**
+ * Unlike the other cross-module seams, this port is implemented by the repository rather than by
+ * {@code Dispatches}: dispatch already depends on {@code DeliveryAssignmentOperations}, so a
+ * service-level implementation would close a constructor-injection cycle between the two modules.
+ * Nothing is lost by it — {@link ActiveAssignments} asks only for reads and one end-stamp, with no
+ * policy to place above them, and every caller is itself a transactional service method.
+ */
 @Repository
 class AssignmentRepository implements ActiveAssignments {
 

@@ -208,6 +208,29 @@ class DispatchApiTest {
 			.isEqualTo("delivery-not-assigned-to-courier");
 	}
 
+	/**
+	 * A Courier with no Assignment on the Delivery learns nothing about it, not even by guessing the
+	 * version wrong: ownership is refused before the version is looked at, so the answer never
+	 * carries the current state or version back.
+	 */
+	@Test
+	void tellsAnotherCourierNothingAboutTheDeliveryWhenTheVersionIsAlsoWrong() throws Exception {
+		TestCourier assignedCourier = createCourier("owner");
+		TestCourier otherCourier = createCourier("other");
+		makeEligible(assignedCourier, 51.5080, -0.1278);
+		String deliveryId = createDelivery();
+		assign(deliveryId, assignedCourier.id(), 0, UUID.randomUUID());
+		BrowserLikeClient otherClient = new BrowserLikeClient(this.mockMvc);
+		otherClient.signIn(otherCourier.email(), DemoAccounts.COURIER_PASSWORD);
+
+		MockHttpServletResponse response = progress(otherClient, deliveryId, "pickup", 999);
+
+		assertThat(response.getStatus()).isEqualTo(409);
+		String body = response.getContentAsString();
+		assertThat((String) JsonPath.read(body, "$.code")).isEqualTo("delivery-not-assigned-to-courier");
+		assertThat(body).doesNotContain("currentState").doesNotContain("currentVersion");
+	}
+
 	private TestCourier createCourier(String name) {
 		int sequence = SEQUENCE.incrementAndGet();
 		UUID id = UUID.randomUUID();

@@ -85,7 +85,7 @@ export function DeliveryDetailPage() {
 }
 
 function RecommendationPanel({ delivery }: { delivery: DeliveryDetail }) {
-  const recommendation = useCourierRecommendation(delivery.id, true)
+  const recommendation = useCourierRecommendation(delivery.id)
   const assign = useAssignCourier(delivery.id)
   const commandIds = useRef(new Map<string, string>())
 

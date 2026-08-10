@@ -23,6 +23,13 @@ final class DeliveryViews {
 
 	record Detail(UUID id, String reference, DeliveryState state, int version, Address pickup, Address handoff,
 			Instant createdAt, Instant updatedAt, List<Transition> transitions, Assignment assignment) {
+
+		/** The repository reads the Delivery; the active Assignment is attached by the service. */
+		Detail withAssignment(Assignment attached) {
+			return new Detail(this.id, this.reference, this.state, this.version, this.pickup, this.handoff,
+					this.createdAt, this.updatedAt, this.transitions, attached);
+		}
+
 	}
 
 	record Assignment(UUID courierId, String courierDisplayName, Instant assignedAt) {

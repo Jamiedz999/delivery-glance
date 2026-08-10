@@ -1,6 +1,7 @@
 package com.deliveryglance.location;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -13,9 +14,11 @@ public interface LocationFacts {
 
 	/**
 	 * The one internal coordinate read Core needs: dispatch ranks a Courier against a pickup. It is
-	 * never returned by an HTTP DTO, logged or stored durably.
+	 * never returned by an HTTP DTO, logged or stored durably. The read is freshness-filtered here
+	 * rather than by the caller: a position past the point where its coordinates are kept is simply
+	 * absent, so Location Freshness stays one rule owned by one module.
 	 */
-	java.util.Optional<DispatchPosition> positionForDispatch(UUID courierAccountId);
+	Optional<DispatchPosition> positionForDispatch(UUID courierAccountId);
 
 	/**
 	 * @param sharingStartedAt when the Courier's current session started, or {@code null} if none
@@ -24,7 +27,7 @@ public interface LocationFacts {
 	record CourierLocationFacts(Instant sharingStartedAt, LocationStatus location) {
 	}
 
-	record DispatchPosition(double latitude, double longitude, Instant recordedAt) {
+	record DispatchPosition(double latitude, double longitude) {
 	}
 
 }

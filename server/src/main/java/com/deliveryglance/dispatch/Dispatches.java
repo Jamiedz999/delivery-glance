@@ -82,7 +82,7 @@ class Dispatches {
 		Instant assignedAt = this.clock.instant();
 		CourierRecommender.CourierSnapshot snapshot = snapshot(courier,
 				this.assignments.activeForCourier(courier.courierId()).isPresent());
-		if (!CourierRecommender.eligible(snapshot, assignedAt)) {
+		if (!CourierRecommender.eligible(snapshot)) {
 			throw DispatchException.courierNotEligible();
 		}
 		try {
@@ -94,13 +94,13 @@ class Dispatches {
 		}
 	}
 
-	private CourierRecommender.CourierSnapshot snapshot(CourierAvailability.Courier courier, boolean busy) {
-		CourierRecommender.Position position = this.locations.positionForDispatch(courier.courierId())
-			.map((location) -> new CourierRecommender.Position(location.latitude(), location.longitude(),
-					location.recordedAt()))
+	private CourierRecommender.CourierSnapshot snapshot(CourierAvailability.Courier courier,
+			boolean hasActiveDelivery) {
+		CourierRecommender.Point position = this.locations.positionForDispatch(courier.courierId())
+			.map((location) -> new CourierRecommender.Point(location.latitude(), location.longitude()))
 			.orElse(null);
-		return new CourierRecommender.CourierSnapshot(courier.courierId(), courier.displayName(), courier.onDuty(), busy,
-				position);
+		return new CourierRecommender.CourierSnapshot(courier.courierId(), courier.displayName(), courier.onDuty(),
+				hasActiveDelivery, position);
 	}
 
 }
