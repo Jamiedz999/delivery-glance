@@ -102,5 +102,10 @@ These are the checks CI runs on every push; run them locally before opening a PR
 ```bash
 ./server/mvnw verify
 npm --prefix web ci
+npm --prefix web run lint
 npm --prefix web run check
+docker compose up --build --wait
+curl --fail --silent http://localhost:8080/actuator/health
+curl --fail --silent http://localhost:8080/api/system
+docker compose down
 ```
