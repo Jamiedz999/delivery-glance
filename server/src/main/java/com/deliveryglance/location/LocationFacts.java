@@ -16,11 +16,8 @@ public interface LocationFacts {
 	/**
 	 * @param sharingStartedAt when the Courier's current session started, or {@code null} if none
 	 * is running
-	 * @param recordedAt when the usable position was measured, or {@code null} when the freshness is
-	 * {@link LocationFreshness#UNAVAILABLE}
 	 */
-	record CourierLocationFacts(Instant sharingStartedAt, LocationFreshness freshness, Instant recordedAt,
-			Double accuracyMetres) {
+	record CourierLocationFacts(Instant sharingStartedAt, LocationStatus location) {
 	}
 
 }

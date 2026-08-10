@@ -2,7 +2,7 @@ package com.deliveryglance.courier;
 
 import java.time.Instant;
 
-import com.deliveryglance.location.LocationFreshness;
+import com.deliveryglance.location.LocationStatus;
 
 /**
  * What the Courier's own workspace is allowed to see about them. It deliberately carries no
@@ -18,14 +18,11 @@ final class CourierViews {
 	 * @param onDutyChangedAt null until the Courier has ever declared a duty state
 	 * @param sharing null when no Location Sharing Session is running
 	 */
-	record Courier(String displayName, boolean onDuty, Instant onDutyChangedAt, Sharing sharing, Location location) {
+	record Courier(String displayName, boolean onDuty, Instant onDutyChangedAt, Sharing sharing,
+			LocationStatus location) {
 	}
 
 	record Sharing(Instant startedAt) {
-	}
-
-	/** {@code recordedAt} is null exactly when the freshness is {@code UNAVAILABLE}. */
-	record Location(LocationFreshness freshness, Instant recordedAt, Double accuracyMetres) {
 	}
 
 }

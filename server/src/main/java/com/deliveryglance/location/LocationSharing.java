@@ -61,25 +61,24 @@ class LocationSharing implements LocationFacts {
 		ReportOutcome outcome = this.store.record(new LocationReport(courierAccountId, session.generation(),
 				request.longitude(), request.latitude(), request.accuracyMetres(), request.recordedAt()));
 
-		return new LocationViews.Report(outcome, location(courierAccountId));
+		return new LocationViews.Report(outcome, status(courierAccountId));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public CourierLocationFacts factsFor(UUID courierAccountId) {
-		LocationViews.Location location = location(courierAccountId);
 		return new CourierLocationFacts(this.repository.find(courierAccountId)
 			.map(LocationSharingRepository.CurrentSession::startedAt)
-			.orElse(null), location.freshness(), location.recordedAt(), location.accuracyMetres());
+			.orElse(null), status(courierAccountId));
 	}
 
-	private LocationViews.Location location(UUID courierAccountId) {
+	private LocationStatus status(UUID courierAccountId) {
 		Optional<LatestLocation> current = this.store.current(courierAccountId);
 		if (current.isEmpty()) {
-			return new LocationViews.Location(LocationFreshness.UNAVAILABLE, null, null);
+			return LocationStatus.unavailable();
 		}
 		LatestLocation snapshot = current.get();
-		return new LocationViews.Location(LocationFreshness.of(snapshot.recordedAt(), this.clock.instant()),
+		return new LocationStatus(LocationFreshness.of(snapshot.recordedAt(), this.clock.instant()),
 				snapshot.recordedAt(), snapshot.accuracyMetres());
 	}
 

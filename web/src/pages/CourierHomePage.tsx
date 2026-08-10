@@ -54,29 +54,27 @@ export function CourierHomePage() {
           signing out or pressing Stop ends it, and the server forgets where you are.
         </p>
 
-        {sharing.status === 'OFF' ? (
+        {leftoverSession && (
+          <p>
+            An earlier page started sharing at{' '}
+            <time dateTime={courier.sharing?.startedAt}>
+              {new Date(courier.sharing?.startedAt ?? '').toLocaleTimeString()}
+            </time>
+            . This page holds no reporting secret for it, so it can only replace that session or end
+            it.
+          </p>
+        )}
+
+        {sharing.status === 'OFF' && (
           <button type="button" onClick={() => void sharing.start()} disabled={sharing.busy} aria-busy={sharing.busy}>
             Start sharing
           </button>
-        ) : (
+        )}
+        {/* Offered for a session this page did not start too, so a reload cannot strand one. */}
+        {(sharing.status !== 'OFF' || leftoverSession) && (
           <button type="button" onClick={() => void sharing.stop()} disabled={sharing.busy} aria-busy={sharing.busy}>
             Stop sharing
           </button>
-        )}
-
-        {leftoverSession && (
-          <>
-            <p>
-              An earlier page started sharing at{' '}
-              <time dateTime={courier.sharing?.startedAt}>
-                {new Date(courier.sharing?.startedAt ?? '').toLocaleTimeString()}
-              </time>
-              . This page cannot report for it — start again to replace it, or end it now.
-            </p>
-            <button type="button" onClick={() => void sharing.stop()} disabled={sharing.busy}>
-              Stop the earlier session
-            </button>
-          </>
         )}
 
         <h3>Position held by the server</h3>
