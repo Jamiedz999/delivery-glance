@@ -3,6 +3,7 @@ package com.deliveryglance;
 import com.deliveryglance.identityaccess.InternalAccountRole;
 import com.deliveryglance.shared.ApiProblemResponses;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfException;
@@ -35,8 +37,14 @@ public class SecurityConfig {
 		this.secureCookies = secureCookies;
 	}
 
+	/**
+	 * @param logoutHandlers module-supplied cleanup that must happen when a session ends, such as
+	 * forgetting a Courier's shared location. Spring Security's own handlers are not beans, so this
+	 * holds only the application's — and none at all in a slice test that loads one controller.
+	 */
 	@Bean
-	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectProvider<LogoutHandler> logoutHandlers)
+			throws Exception {
 		http.authorizeHttpRequests(authorize -> authorize
 				.requestMatchers(HttpMethod.GET, "/api/system").permitAll()
 				.requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
@@ -44,6 +52,7 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.GET, "/api/session").authenticated()
 				.requestMatchers("/api/deliveries", "/api/deliveries/**")
 					.hasRole(InternalAccountRole.DISPATCHER.name())
+				.requestMatchers("/api/couriers/**").hasRole(InternalAccountRole.COURIER.name())
 				.requestMatchers("/api/**").denyAll()
 				.requestMatchers("/actuator/**").denyAll()
 				.requestMatchers(HttpMethod.GET, "/**").permitAll()
@@ -64,12 +73,14 @@ public class SecurityConfig {
 						HttpStatus.UNAUTHORIZED, "invalid-credentials", "Sign-in failed",
 						"The email and password do not match an enabled Internal Account.")));
 
-		http.logout(logout -> logout
-				.logoutRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.DELETE, "/api/session"))
+		http.logout(logout -> {
+			logoutHandlers.orderedStream().forEach(logout::addLogoutHandler);
+			logout.logoutRequestMatcher(PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.DELETE, "/api/session"))
 				.logoutSuccessHandler((request, response, authentication) -> {
 					CsrfCookieFilter.issueCookie(request);
 					response.setStatus(HttpStatus.NO_CONTENT.value());
-				}));
+				});
+		});
 
 		http.exceptionHandling(exceptions -> exceptions
 				.authenticationEntryPoint((request, response, exception) -> ApiProblemResponses.write(response,
