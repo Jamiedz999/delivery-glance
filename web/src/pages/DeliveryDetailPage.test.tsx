@@ -5,6 +5,7 @@ import { Route, Routes } from 'react-router'
 import { DeliveryDetailPage } from './DeliveryDetailPage'
 import {
   jsonResponse,
+  noContentResponse,
   problemResponse,
   renderWithProviders,
   requestBodyOf,
@@ -32,9 +33,34 @@ const awaitingCourier = {
       occurredAt: '2026-08-10T09:00:00Z',
     },
   ],
+  assignment: null,
 }
 
 const cancelled = { ...awaitingCourier, state: 'CANCELLED', version: 1 }
+
+const assigned = {
+  ...awaitingCourier,
+  state: 'ASSIGNED',
+  version: 1,
+  assignment: {
+    courierId: '50f3cc79-c56d-47b7-aacf-4c9ea0eaa002',
+    courierDisplayName: 'Cory the Courier',
+    assignedAt: '2026-08-10T09:05:00Z',
+  },
+}
+
+const recommendation = {
+  calculatedAt: '2026-08-10T09:04:00Z',
+  candidates: [
+    {
+      courierId: '50f3cc79-c56d-47b7-aacf-4c9ea0eaa002',
+      displayName: 'Cory the Courier',
+      distanceMetres: 432.4,
+    },
+  ],
+}
+
+const emptyRecommendation = { calculatedAt: '2026-08-10T09:04:00Z', candidates: [] }
 
 function renderDetail() {
   renderWithProviders(
@@ -60,7 +86,9 @@ describe('DeliveryDetailPage', () => {
   })
 
   it('shows the delivery, its route and its history', async () => {
-    respondWith(() => jsonResponse(awaitingCourier))
+    respondWith((url) =>
+      jsonResponse(url.endsWith('/courier-recommendations') ? emptyRecommendation : awaitingCourier),
+    )
 
     renderDetail()
 
@@ -69,9 +97,39 @@ describe('DeliveryDetailPage', () => {
     expect(screen.getByRole('listitem')).toHaveTextContent('Awaiting courier by Dana the Dispatcher')
   })
 
+  it('shows a fresh nearest recommendation and directly assigns the selected Courier', async () => {
+    let current: typeof awaitingCourier | typeof assigned = awaitingCourier
+    respondWith((url, method) => {
+      if (url.endsWith('/courier-recommendations')) {
+        return jsonResponse(recommendation)
+      }
+      if (url.endsWith('/assignment') && method === 'POST') {
+        current = assigned
+        return noContentResponse()
+      }
+      return jsonResponse(current)
+    })
+    renderDetail()
+
+    expect(await screen.findByText('Cory the Courier')).toBeInTheDocument()
+    expect(screen.getByText(/m from pickup/)).toHaveTextContent('432 m from pickup')
+    await userEvent.click(screen.getByRole('button', { name: 'Direct assign Cory the Courier' }))
+
+    const call = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith('/assignment'))
+    expect(call?.[0]).toBe(`/api/deliveries/${DELIVERY_ID}/assignment`)
+    expect(requestBodyOf(call as [RequestInfo | URL, RequestInit])).toMatchObject({
+      courierId: recommendation.candidates[0].courierId,
+      expectedVersion: 0,
+    })
+    expect(await screen.findByText(/Assigned to/)).toHaveTextContent('Assigned to Cory the Courier')
+  })
+
   it('cancels with the loaded version and a reason', async () => {
     let current: typeof awaitingCourier = awaitingCourier
     respondWith((url) => {
+      if (url.endsWith('/courier-recommendations')) {
+        return jsonResponse(emptyRecommendation)
+      }
       if (url.endsWith('/cancel')) {
         current = cancelled
       }
@@ -95,9 +153,11 @@ describe('DeliveryDetailPage', () => {
 
   it('reuses the same command identifier when a cancellation is retried', async () => {
     respondWith((url) =>
-      url.endsWith('/cancel')
-        ? problemResponse('unknown-error', 503)
-        : jsonResponse(awaitingCourier),
+      url.endsWith('/courier-recommendations')
+        ? jsonResponse(emptyRecommendation)
+        : url.endsWith('/cancel')
+          ? problemResponse('unknown-error', 503)
+          : jsonResponse(awaitingCourier),
     )
     renderDetail()
     await screen.findByRole('button', { name: 'Cancel delivery' })
@@ -115,12 +175,14 @@ describe('DeliveryDetailPage', () => {
 
   it('explains a version conflict instead of overwriting the delivery', async () => {
     respondWith((url) =>
-      url.endsWith('/cancel')
-        ? problemResponse('delivery-version-conflict', 409, {
-            currentState: 'CANCELLED',
-            currentVersion: 1,
-          })
-        : jsonResponse(awaitingCourier),
+      url.endsWith('/courier-recommendations')
+        ? jsonResponse(emptyRecommendation)
+        : url.endsWith('/cancel')
+          ? problemResponse('delivery-version-conflict', 409, {
+              currentState: 'CANCELLED',
+              currentVersion: 1,
+            })
+          : jsonResponse(awaitingCourier),
     )
     renderDetail()
     await screen.findByRole('button', { name: 'Cancel delivery' })

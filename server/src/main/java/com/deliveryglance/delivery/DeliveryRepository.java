@@ -82,23 +82,56 @@ class DeliveryRepository {
 			.optional();
 	}
 
-	int markCancelled(UUID id, int expectedVersion, Instant updatedAt) {
+	Optional<DeliveryAssignmentOperations.AssignmentTarget> findAssignmentTarget(UUID id) {
+		return this.jdbcClient.sql("""
+				SELECT id, state, version, pickup_latitude, pickup_longitude
+				FROM delivery WHERE id = :id
+				""")
+			.param("id", id)
+			.query((rs, rowNumber) -> assignmentTarget(rs))
+			.optional();
+	}
+
+	Optional<DeliveryAssignmentOperations.AssignmentTarget> lockAssignmentTarget(UUID id) {
+		return this.jdbcClient.sql("""
+				SELECT id, state, version, pickup_latitude, pickup_longitude
+				FROM delivery WHERE id = :id FOR UPDATE
+				""")
+			.param("id", id)
+			.query((rs, rowNumber) -> assignmentTarget(rs))
+			.optional();
+	}
+
+	int markState(UUID id, int expectedVersion, DeliveryState state, Instant updatedAt) {
 		return this.jdbcClient.sql("""
 				UPDATE delivery
 				SET state = :state, version = version + 1, updated_at = :updatedAt
 				WHERE id = :id AND version = :expectedVersion
 				""")
-			.param("state", DeliveryState.CANCELLED.name())
+			.param("state", state.name())
 			.param("updatedAt", OffsetDateTime.ofInstant(updatedAt, ZoneOffset.UTC))
 			.param("id", id)
 			.param("expectedVersion", expectedVersion)
 			.update();
 	}
 
+	private static DeliveryAssignmentOperations.AssignmentTarget assignmentTarget(ResultSet rs) throws SQLException {
+		return new DeliveryAssignmentOperations.AssignmentTarget(rs.getObject("id", UUID.class),
+				DeliveryState.valueOf(rs.getString("state")), rs.getInt("version"), rs.getDouble("pickup_latitude"),
+				rs.getDouble("pickup_longitude"));
+	}
+
 	Optional<UUID> findDeliveryIdByCommandId(UUID commandId) {
-		return this.jdbcClient.sql("SELECT delivery_id FROM delivery_transition WHERE command_id = :commandId")
+		return findCommandById(commandId).map(HandledCommand::deliveryId);
+	}
+
+	Optional<HandledCommand> findCommandById(UUID commandId) {
+		return this.jdbcClient.sql("""
+				SELECT delivery_id, next_state FROM delivery_transition WHERE command_id = :commandId
+				""")
 			.param("commandId", commandId)
-			.query((rs, rowNumber) -> rs.getObject("delivery_id", UUID.class))
+			.query((rs, rowNumber) -> new HandledCommand(rs.getObject("delivery_id", UUID.class),
+					DeliveryState.valueOf(rs.getString("next_state"))))
 			.optional();
 	}
 
@@ -133,7 +166,19 @@ class DeliveryRepository {
 							rs.getDouble("pickup_longitude")),
 					new DeliveryViews.Address(rs.getString("handoff_address_label"), rs.getDouble("handoff_latitude"),
 							rs.getDouble("handoff_longitude")),
-					instant(rs, "created_at"), instant(rs, "updated_at"), transitions))
+					instant(rs, "created_at"), instant(rs, "updated_at"), transitions, null))
+			.optional();
+	}
+
+	Optional<DeliveryViews.CourierDelivery> findCourierDelivery(UUID id) {
+		return this.jdbcClient.sql("""
+				SELECT id, reference, state, version, pickup_address_label, handoff_address_label
+				FROM delivery WHERE id = :id
+				""")
+			.param("id", id)
+			.query((rs, rowNumber) -> new DeliveryViews.CourierDelivery(rs.getObject("id", UUID.class),
+					rs.getString("reference"), DeliveryState.valueOf(rs.getString("state")), rs.getInt("version"),
+					rs.getString("pickup_address_label"), rs.getString("handoff_address_label")))
 			.optional();
 	}
 
@@ -167,6 +212,9 @@ class DeliveryRepository {
 
 	/** Just enough of a Delivery to decide whether a command may be applied to it. */
 	record CurrentState(UUID id, DeliveryState state, int version) {
+	}
+
+	record HandledCommand(UUID deliveryId, DeliveryState nextState) {
 	}
 
 }

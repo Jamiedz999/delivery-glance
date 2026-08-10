@@ -1,7 +1,9 @@
 package com.deliveryglance.courier;
 
 import java.time.Clock;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import com.deliveryglance.identityaccess.CurrentActor;
 import com.deliveryglance.identityaccess.CurrentActorProvider;
@@ -16,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
  * class only reads its coordinate-free facts to present them together.
  */
 @Service
-class Couriers {
+class Couriers implements CourierAvailability {
 
 	private final CourierRepository repository;
 
@@ -46,6 +48,18 @@ class Couriers {
 		CourierRepository.Duty duty = this.repository.saveDuty(actor.accountId(), request.onDuty(),
 				this.clock.instant());
 		return view(actor, Optional.of(duty));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<CourierAvailability.Courier> allCouriers() {
+		return this.repository.findAllCourierAvailability();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<CourierAvailability.Courier> lockCourier(UUID courierId) {
+		return this.repository.lockCourierAvailability(courierId);
 	}
 
 	private CourierViews.Courier view(CurrentActor actor, Optional<CourierRepository.Duty> duty) {

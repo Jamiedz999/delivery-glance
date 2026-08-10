@@ -1,5 +1,7 @@
 package com.deliveryglance.courier;
 
+import java.util.UUID;
+
 import com.deliveryglance.BrowserLikeClient;
 import com.deliveryglance.DemoAccounts;
 import com.deliveryglance.IntegrationTest;
@@ -8,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,6 +58,21 @@ class CourierRouteAuthorizationTest {
 
 		assertThat(response.getStatus()).isEqualTo(403);
 		assertThat((String) JsonPath.read(response.getContentAsString(), "$.code")).isEqualTo("csrf-token-invalid");
+	}
+
+	@Test
+	void refusesCourierDeliveryActionsToASignedInDispatcher() throws Exception {
+		BrowserLikeClient client = new BrowserLikeClient(this.mockMvc);
+		client.signIn(DemoAccounts.DISPATCHER_EMAIL, DemoAccounts.DISPATCHER_PASSWORD);
+
+		MockHttpServletResponse response = client.send(post("/api/couriers/me/deliveries/{id}/pickup", UUID.randomUUID())
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("""
+					{"commandId":"%s","expectedVersion":1}
+					""".formatted(UUID.randomUUID())));
+
+		assertThat(response.getStatus()).isEqualTo(403);
+		assertThat((String) JsonPath.read(response.getContentAsString(), "$.code")).isEqualTo("access-denied");
 	}
 
 }

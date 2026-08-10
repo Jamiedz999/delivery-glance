@@ -72,6 +72,14 @@ class LocationSharing implements LocationFacts {
 			.orElse(null), status(courierAccountId));
 	}
 
+	@Override
+	public Optional<DispatchPosition> positionForDispatch(UUID courierAccountId) {
+		// No freshness test here or in dispatch: current() holds the usable limit for every reader
+		// by deleting an expired snapshot rather than returning one, so the rule stays in one place.
+		return this.store.current(courierAccountId)
+			.map((snapshot) -> new DispatchPosition(snapshot.latitude(), snapshot.longitude()));
+	}
+
 	private LocationStatus status(UUID courierAccountId) {
 		Optional<LatestLocation> current = this.store.current(courierAccountId);
 		if (current.isEmpty()) {

@@ -16,6 +16,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
@@ -30,6 +31,9 @@ class DeliveryApiTest {
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	@Autowired
+	private Deliveries deliveries;
 
 	private BrowserLikeClient client;
 
@@ -202,6 +206,16 @@ class DeliveryApiTest {
 				"NO_LONGER_REQUIRED", null);
 
 		assertThat(response.getStatus()).isEqualTo(404);
+	}
+
+	@Test
+	void deliveryModuleRefusesAssignmentFromAnyStateExceptAwaitingCourier() throws Exception {
+		UUID deliveryId = UUID.fromString(idOf(create(nextReference())));
+		cancel(deliveryId.toString(), UUID.randomUUID(), 0, "NO_LONGER_REQUIRED", null);
+		assertThatThrownBy(() -> this.deliveries.transitionToAssigned(deliveryId, 1, UUID.randomUUID(),
+				java.time.Instant.now()))
+			.isInstanceOf(DeliveryConflictException.class)
+			.hasMessageContaining("cannot move");
 	}
 
 	private MockHttpServletResponse create(String reference) throws Exception {
