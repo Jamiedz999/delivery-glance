@@ -6,7 +6,6 @@ import java.util.Optional;
 import com.deliveryglance.identityaccess.CurrentActor;
 import com.deliveryglance.identityaccess.CurrentActorProvider;
 import com.deliveryglance.location.LocationFacts;
-import com.deliveryglance.location.LocationFreshness;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,14 +53,7 @@ class Couriers {
 		return new CourierViews.Courier(actor.displayName(), duty.map(CourierRepository.Duty::onDuty).orElse(false),
 				duty.map(CourierRepository.Duty::changedAt).orElse(null),
 				(facts.sharingStartedAt() != null) ? new CourierViews.Sharing(facts.sharingStartedAt()) : null,
-				location(facts));
-	}
-
-	private static CourierViews.Location location(LocationFacts.CourierLocationFacts facts) {
-		if (facts.freshness() == LocationFreshness.UNAVAILABLE) {
-			return new CourierViews.Location(LocationFreshness.UNAVAILABLE, null, null);
-		}
-		return new CourierViews.Location(facts.freshness(), facts.recordedAt(), facts.accuracyMetres());
+				facts.location());
 	}
 
 }

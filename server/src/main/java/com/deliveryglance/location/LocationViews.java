@@ -20,11 +20,7 @@ final class LocationViews {
 	}
 
 	/** What the report did, plus the resulting position facts so the page can re-render from one call. */
-	record Report(ReportOutcome outcome, Location location) {
-	}
-
-	/** Coordinate-free position facts. {@code recordedAt} is null exactly when nothing is usable. */
-	record Location(LocationFreshness freshness, Instant recordedAt, Double accuracyMetres) {
+	record Report(ReportOutcome outcome, LocationStatus location) {
 	}
 
 }

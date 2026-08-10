@@ -145,15 +145,18 @@ describe('CourierHomePage', () => {
     })
   })
 
-  it('sends nothing while the page is in the background', async () => {
+  it('stops collecting and sends nothing while the page is in the background', async () => {
     respondForCourier()
     renderWithProviders(<CourierHomePage />)
     await startSharing()
 
     setPageHidden(true)
     await announceVisibilityChange()
-    await fix(51.5074)
 
+    // The watch is cleared, so the browser is not asked for positions the product may not have.
+    expect(clearWatch).toHaveBeenCalledWith(7)
+    // And a browser that keeps calling back anyway still gets nothing reported for it.
+    await fix(51.5074)
     expect(callsTo('/location-reports')).toHaveLength(0)
     expect(await screen.findByText('Sharing interrupted')).toBeInTheDocument()
   })
@@ -171,8 +174,9 @@ describe('CourierHomePage', () => {
     setPageHidden(false)
     await announceVisibilityChange()
 
-    // The readings collected while hidden are not a backlog to upload; only the newest is a
-    // position, and the ones before it are the route the product refuses to keep.
+    // Whatever readings a hidden page ended up holding are not a backlog to upload: only the
+    // newest is a position, and the ones before it are the route the product refuses to keep.
+    expect(watchPosition).toHaveBeenCalledTimes(2)
     expect(callsTo('/location-reports')).toHaveLength(1)
     expect(requestBodyOf(callsTo('/location-reports')[0])).toMatchObject({
       latitude: 51.6,
@@ -191,7 +195,8 @@ describe('CourierHomePage', () => {
     expect(await screen.findByText('Sharing off')).toBeInTheDocument()
     expect(watchPosition).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Start sharing' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Stop the earlier session' })).toBeInTheDocument()
+    // The earlier session is still the Courier's to end, even from a page that cannot report.
+    expect(screen.getByRole('button', { name: 'Stop sharing' })).toBeInTheDocument()
   })
 
   it('stops sharing and asks the server to forget the position', async () => {

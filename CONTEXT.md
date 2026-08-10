@@ -70,6 +70,14 @@ _Avoid_: On Duty, automatic tracking, background tracking guarantee
 The period of sharing intent created by one explicit Start action in the open Courier workspace. A temporary interruption may preserve that intent in the same page, but sign-out, close, or reload requires a new Start action.
 _Avoid_: Browser permission, permanent consent
 
+**Location Sharing Generation**:
+The identifier of one Location Sharing Session, issued when the Courier presses Start and named by every report that session sends. Pressing Start again issues a new one, which is what makes the previous session's reports refusable rather than merely unwelcome.
+_Avoid_: Session cookie, device identifier
+
+**Reporting Secret**:
+The high-entropy value issued once alongside a Location Sharing Generation and held only by the page that started it. Only its verifier is stored and it is never returned a second time, so a reloaded page cannot report for a session it did not start.
+_Avoid_: API key, permanent token
+
 **Location Sharing Interruption**:
 A temporary inability to produce position reports while a Location Sharing Session's intent remains, such as loss of foreground execution, connectivity, or a usable fix. It is shown separately from On Duty, Delivery state, and Location Freshness and may recover without another Start action while the same page remains open.
 _Avoid_: Stop sharing, Courier Withdrawal, Tracking Connection

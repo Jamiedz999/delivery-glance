@@ -131,6 +131,22 @@ class CourierApiTest {
 		assertThat(JsonPath.<Object>read(unavailable, "$.sharing")).isNotNull();
 	}
 
+	/**
+	 * The state a restart leaves behind, reached the only other way it can be: the durable session
+	 * row exists and the process memory behind it holds nothing. Nothing in PostgreSQL can refill
+	 * it, so the honest answer is Unavailable rather than a position from before the restart.
+	 */
+	@Test
+	void reportsUnavailableWhileASessionHasProducedNoStoredPosition() throws Exception {
+		startSharing();
+
+		String me = me();
+
+		assertThat(JsonPath.<Object>read(me, "$.sharing")).isNotNull();
+		assertThat((String) JsonPath.read(me, "$.location.freshness")).isEqualTo("UNAVAILABLE");
+		assertThat(JsonPath.<Object>read(me, "$.location.recordedAt")).isNull();
+	}
+
 	@Test
 	void keepsCurrentLocationWhenAPoorReadingArrives() throws Exception {
 		Session session = startSharing();

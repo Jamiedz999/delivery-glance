@@ -28,7 +28,7 @@ Introduce `courier` and `location` with a narrow interface between them.
 - `PUT /api/couriers/me/duty` changes only On Duty.
 - `GET /api/couriers/me` returns the Courier's duty/sharing/freshness presentation without returning a reusable reporting secret.
 
-`LatestLocationStore` has one production in-memory implementation and one deterministic fake-clock test implementation. A value is an immutable complete snapshot. Reject invalid coordinates, accuracy worse than 100 metres, readings older than two minutes on receipt, readings over thirty seconds in the future, wrong generations/secrets, duplicates and out-of-order readings. Equal measurement time replaces only when accuracy improves.
+`LatestLocationStore` is one in-memory type holding an immutable complete snapshot per Courier. It was written expecting a second, fake-clock implementation to justify an interface in front of it; a test only has to move the injected `Clock` by hand, so that implementation never appeared and the interface would have been a pass-through. Reject invalid coordinates, accuracy worse than 100 metres, readings older than two minutes on receipt, readings over thirty seconds in the future, wrong generations/secrets, duplicates and out-of-order readings. Equal measurement time replaces only when accuracy improves.
 
 The Courier page calls `watchPosition()` only after Start, while visible, sends at roughly ten-second cadence, keeps only the newest reading and sends no recovery backlog. Reload has no reporting secret and returns the UI to Sharing Off. Stop or sign-out removes coordinates immediately. A cleanup task is helpful but every read must independently enforce the two-minute boundary.
 

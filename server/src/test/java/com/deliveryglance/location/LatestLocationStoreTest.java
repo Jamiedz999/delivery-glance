@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * rule here decides whether a coordinate exists at all, so each one is exercised on both sides of
  * its boundary rather than only in the middle.
  */
-class InMemoryLatestLocationStoreTest {
+class LatestLocationStoreTest {
 
 	private static final UUID COURIER = UUID.fromString("11111111-1111-4111-8111-111111111111");
 
@@ -25,7 +25,7 @@ class InMemoryLatestLocationStoreTest {
 
 	private final MutableClock clock = new MutableClock(NOW);
 
-	private final InMemoryLatestLocationStore store = new InMemoryLatestLocationStore(this.clock);
+	private final LatestLocationStore store = new LatestLocationStore(this.clock);
 
 	@Test
 	void keepsTheFirstUsableReading() {
@@ -133,17 +133,20 @@ class InMemoryLatestLocationStoreTest {
 	}
 
 	@Test
-	void supersedesTheSnapshotOfAnEarlierGeneration() {
+	void ordersByMeasurementTimeEvenAcrossLocationSharingSessions() {
 		record(NOW, 12.0);
-
 		UUID restarted = UUID.fromString("44444444-4444-4444-8444-444444444444");
-		ReportOutcome outcome = this.store
-			.record(new LocationReport(COURIER, restarted, -0.1278, 51.5074, 12.0, NOW.minusSeconds(30)));
 
-		// Measurement order only orders readings within one Location Sharing Session; a newly
-		// started one always describes a Courier the previous session can no longer speak for.
-		assertThat(outcome).isEqualTo(ReportOutcome.ACCEPTED);
-		assertThat(recordedAt()).isEqualTo(NOW.minusSeconds(30));
+		ReportOutcome older = this.store
+			.record(new LocationReport(COURIER, restarted, -0.1278, 51.5074, 12.0, NOW.minusSeconds(30)));
+		ReportOutcome newer = this.store
+			.record(new LocationReport(COURIER, restarted, -0.1278, 51.5074, 12.0, NOW.plusSeconds(10)));
+
+		// Starting a session clears the snapshot, so the two only ever meet in a race. Current
+		// Location stays the newest measurement rather than the newest session.
+		assertThat(older).isEqualTo(ReportOutcome.REJECTED_NOT_NEWER);
+		assertThat(newer).isEqualTo(ReportOutcome.ACCEPTED);
+		assertThat(recordedAt()).isEqualTo(NOW.plusSeconds(10));
 	}
 
 	@Test
@@ -159,7 +162,9 @@ class InMemoryLatestLocationStoreTest {
 	void startsEmptySoARestartLeavesNoCoordinateBehind() {
 		record(NOW, 12.0);
 
-		assertThat(new InMemoryLatestLocationStore(this.clock).current(COURIER)).isEmpty();
+		// A restarted application is a new store and nothing durable can refill it, which is what
+		// makes location Unavailable after a restart rather than merely unreliable.
+		assertThat(new LatestLocationStore(this.clock).current(COURIER)).isEmpty();
 	}
 
 	private ReportOutcome record(Instant recordedAt, double accuracyMetres) {

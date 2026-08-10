@@ -36,10 +36,12 @@ export interface LocationSharing {
 /**
  * Foreground Location Sharing for the open Courier page.
  *
- * <p>The reporting secret lives in this hook and nowhere else — not in storage, not in a URL — so
- * closing or reloading the page really does end the session, exactly as the product promises. At
- * most one position is ever pending: a page that came back from the background sends the newest
- * reading it has, never the trail it collected while it was away.
+ * The reporting secret lives in this hook and nowhere else — not in storage, not in a URL — so
+ * closing or reloading the page really does end the session, exactly as the product promises.
+ *
+ * A hidden page stops collecting rather than collecting quietly: the watch is cleared, so the
+ * browser is not asked for positions the product has no right to. At most one reading is ever
+ * pending, so a page coming back sends the newest position it holds and never a trail.
  */
 export function useLocationSharing(): LocationSharing {
   const queryClient = useQueryClient()
@@ -52,21 +54,25 @@ export function useLocationSharing(): LocationSharing {
   const watch = useRef<number | null>(null)
   const cadence = useRef<ReturnType<typeof setInterval> | null>(null)
   const sending = useRef(false)
-  const reported = useRef(false)
+  const attempted = useRef(false)
 
-  const teardown = useCallback(() => {
+  const stopWatching = useCallback(() => {
     if (watch.current !== null) {
       navigator.geolocation.clearWatch(watch.current)
       watch.current = null
     }
+  }, [])
+
+  const teardown = useCallback(() => {
+    stopWatching()
     if (cadence.current !== null) {
       clearInterval(cadence.current)
       cadence.current = null
     }
     session.current = null
     pending.current = null
-    reported.current = false
-  }, [])
+    attempted.current = false
+  }, [stopWatching])
 
   const flush = useCallback(async () => {
     const current = session.current
@@ -76,6 +82,9 @@ export function useLocationSharing(): LocationSharing {
       return
     }
     sending.current = true
+    // Counted as attempted rather than as sent, so a failed first report falls back to the ten
+    // second cadence instead of retrying on every position the device produces.
+    attempted.current = true
     pending.current = null
     try {
       const result = await reportLocation({
@@ -83,7 +92,6 @@ export function useLocationSharing(): LocationSharing {
         reportingSecret: current.reportingSecret,
         ...fix,
       })
-      reported.current = true
       queryClient.setQueryData<Courier>(queryKeys.courier, (previous) =>
         previous === undefined ? previous : { ...previous, location: result.location },
       )
@@ -123,6 +131,43 @@ export function useLocationSharing(): LocationSharing {
     [queryClient, teardown],
   )
 
+  /**
+   * Asking the browser for positions is what the Courier consented to, so it happens only after
+   * Start and only while the page is in front of them. A hidden page stops asking rather than
+   * collecting readings it has no right to and quietly discarding them.
+   */
+  const startWatching = useCallback(() => {
+    if (watch.current !== null) {
+      return
+    }
+    watch.current = navigator.geolocation.watchPosition(
+      (position) => {
+        pending.current = {
+          longitude: position.coords.longitude,
+          latitude: position.coords.latitude,
+          accuracyMetres: position.coords.accuracy,
+          recordedAt: new Date(position.timestamp).toISOString(),
+        }
+        if (!attempted.current) {
+          void flush()
+        }
+      },
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          void stop('Location permission was refused, so sharing stopped and the server forgot your position.')
+          return
+        }
+        setStatus('INTERRUPTED')
+        setNotice(
+          error.code === error.TIMEOUT
+            ? 'No position yet. Reporting resumes as soon as the device produces one.'
+            : 'The device cannot produce a position right now.',
+        )
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
+    )
+  }, [flush, stop])
+
   const start = useCallback(async () => {
     if (navigator.geolocation === undefined) {
       setStatus('OFF')
@@ -141,40 +186,13 @@ export function useLocationSharing(): LocationSharing {
       setBusy(false)
       return
     }
-    reported.current = false
 
-    // The permission prompt happens here and nowhere else: pressing Start is the only thing that
-    // may make the browser ask a Courier where they are.
-    watch.current = navigator.geolocation.watchPosition(
-      (position) => {
-        pending.current = {
-          longitude: position.coords.longitude,
-          latitude: position.coords.latitude,
-          accuracyMetres: position.coords.accuracy,
-          recordedAt: new Date(position.timestamp).toISOString(),
-        }
-        if (!reported.current) {
-          void flush()
-        }
-      },
-      (error) => {
-        if (error.code === error.PERMISSION_DENIED) {
-          void stop('Location permission was refused, so sharing stopped and the server forgot your position.')
-          return
-        }
-        setStatus('INTERRUPTED')
-        setNotice(
-          error.code === error.TIMEOUT
-            ? 'No position yet. Reporting resumes as soon as the device produces one.'
-            : 'The device cannot produce a position right now.',
-        )
-      },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
-    )
+    attempted.current = false
+    startWatching()
     cadence.current = setInterval(() => void flush(), REPORT_INTERVAL_MS)
     setBusy(false)
     await queryClient.invalidateQueries({ queryKey: queryKeys.courier })
-  }, [flush, queryClient, stop])
+  }, [flush, queryClient, startWatching])
 
   useEffect(() => {
     const onVisibilityChange = () => {
@@ -182,18 +200,20 @@ export function useLocationSharing(): LocationSharing {
         return
       }
       if (document.hidden) {
+        stopWatching()
         setStatus('INTERRUPTED')
-        setNotice('This page is in the background, so nothing is being reported.')
+        setNotice('This page is in the background, so nothing is being collected or reported.')
         return
       }
-      setStatus(reported.current ? 'REPORTING' : 'STARTING')
+      startWatching()
+      setStatus(attempted.current ? 'REPORTING' : 'STARTING')
       setNotice(null)
       void flush()
     }
 
     document.addEventListener('visibilitychange', onVisibilityChange)
     return () => document.removeEventListener('visibilitychange', onVisibilityChange)
-  }, [flush])
+  }, [flush, startWatching, stopWatching])
 
   // Leaving the page ends foreground reporting. The server is not told, because a close signal is
   // not something a browser can be trusted to deliver; the position ages out instead.
