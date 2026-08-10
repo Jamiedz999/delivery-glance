@@ -1,6 +1,6 @@
 import { apiRequest } from './http'
 
-export type DeliveryState = 'AWAITING_COURIER' | 'CANCELLED'
+export type DeliveryState = 'AWAITING_COURIER' | 'ASSIGNED' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED'
 
 export const CANCELLATION_REASONS = [
   { value: 'NO_LONGER_REQUIRED', label: 'Delivery no longer required' },
@@ -47,6 +47,40 @@ export interface DeliveryDetail {
   createdAt: string
   updatedAt: string
   transitions: DeliveryTransition[]
+  assignment: {
+    courierId: string
+    courierDisplayName: string
+    assignedAt: string
+  } | null
+}
+
+export interface CourierRecommendation {
+  calculatedAt: string
+  candidates: {
+    courierId: string
+    displayName: string
+    distanceMetres: number
+  }[]
+}
+
+export interface AssignCourierInput {
+  courierId: string
+  expectedVersion: number
+  commandId: string
+}
+
+export interface CourierDelivery {
+  id: string
+  reference: string
+  state: 'ASSIGNED' | 'IN_TRANSIT'
+  version: number
+  pickupAddressLabel: string
+  handoffAddressLabel: string
+}
+
+export interface ProgressDeliveryInput {
+  commandId: string
+  expectedVersion: number
 }
 
 /**
@@ -75,6 +109,9 @@ export interface CancelDeliveryInput {
 
 export const DELIVERY_STATE_LABELS: Record<DeliveryState, string> = {
   AWAITING_COURIER: 'Awaiting courier',
+  ASSIGNED: 'Assigned',
+  IN_TRANSIT: 'In transit',
+  DELIVERED: 'Delivered',
   CANCELLED: 'Cancelled',
 }
 
@@ -96,6 +133,34 @@ export function createDelivery(input: CreateDeliveryInput): Promise<DeliveryDeta
 
 export function cancelDelivery(id: string, input: CancelDeliveryInput): Promise<DeliveryDetail> {
   return apiRequest<DeliveryDetail>(`/api/deliveries/${id}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+}
+
+export function fetchCourierRecommendation(id: string): Promise<CourierRecommendation> {
+  return apiRequest<CourierRecommendation>(`/api/deliveries/${id}/courier-recommendations`)
+}
+
+export function assignCourier(id: string, input: AssignCourierInput): Promise<void> {
+  return apiRequest<void>(`/api/deliveries/${id}/assignment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+}
+
+export async function fetchCurrentCourierDelivery(): Promise<CourierDelivery | null> {
+  return (await apiRequest<CourierDelivery | undefined>('/api/couriers/me/deliveries/current')) ?? null
+}
+
+export function progressCourierDelivery(
+  deliveryId: string,
+  action: 'pickup' | 'handoff',
+  input: ProgressDeliveryInput,
+): Promise<void> {
+  return apiRequest<void>(`/api/couriers/me/deliveries/${deliveryId}/${action}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
