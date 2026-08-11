@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import com.deliveryglance.identityaccess.CurrentActor;
 import com.deliveryglance.identityaccess.CurrentActorProvider;
+import com.deliveryglance.recipientview.RecipientDeliveryFacts;
 
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -16,9 +17,13 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * The Delivery use cases a Dispatcher can reach. Each one writes the Delivery and its history in a
  * single transaction, so a Delivery never exists without the transition that explains it.
+ *
+ * <p>It also answers the two read ports peer modules hold — dispatch's assignment operations and
+ * the Recipient view's facts — because both need the Delivery and its active Assignment read
+ * together, and that composition is a service's job rather than a repository's.
  */
 @Service
-class Deliveries implements DeliveryAssignmentOperations {
+class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts {
 
 	private final DeliveryRepository repository;
 
@@ -207,6 +212,20 @@ class Deliveries implements DeliveryAssignmentOperations {
 		}
 		this.repository.insertTransition(deliveryId, current.state(), DeliveryState.ASSIGNED, actor, null, null, commandId,
 				occurredAt);
+	}
+
+	/**
+	 * The Recipient view's read. The Courier is attached from the active Assignment, so a Delivery
+	 * that has left Assigned or In Transit has no Courier to attach and the projection downstream
+	 * has none to withhold.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<RecipientDelivery> recipientFactsFor(UUID deliveryId) {
+		return this.repository.findRecipientDelivery(deliveryId)
+			.map((delivery) -> this.assignments.activeForDelivery(deliveryId)
+				.map((active) -> delivery.withCourier(active.courierId(), active.courierDisplayName()))
+				.orElse(delivery));
 	}
 
 	private DeliveryViews.Detail requireDetail(UUID id) {

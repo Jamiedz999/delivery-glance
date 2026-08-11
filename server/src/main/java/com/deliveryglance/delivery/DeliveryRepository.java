@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.deliveryglance.identityaccess.CurrentActor;
+import com.deliveryglance.recipientview.RecipientDeliveryFacts;
 import com.deliveryglance.trackinglink.TrackedDeliveries;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -178,21 +179,45 @@ class DeliveryRepository implements TrackedDeliveries {
 	}
 
 	/**
-	 * The Delivery Reference, and when the Delivery ended if it has. The terminal time comes from
-	 * the transition history rather than {@code updated_at}, which any later write would move.
+	 * When the Delivery ended, correlated against {@code d}. It comes from the transition history
+	 * rather than {@code updated_at}, which any later write would move, and it is written once
+	 * because the link's grace period and the Recipient's completion time have to be the same
+	 * instant — two copies of this subquery would be two chances for them not to be.
 	 */
+	private static final String TERMINAL_AT = """
+			(SELECT min(t.occurred_at) FROM delivery_transition t
+			 WHERE t.delivery_id = d.id AND t.next_state IN ('DELIVERED', 'CANCELLED')) AS terminal_at""";
+
+	/** The Delivery Reference, and when the Delivery ended if it has. */
 	@Override
 	public Optional<TrackedDeliveries.TrackedDelivery> find(UUID id) {
 		return this.jdbcClient.sql("""
-				SELECT d.id, d.reference,
-				       (SELECT min(t.occurred_at) FROM delivery_transition t
-				        WHERE t.delivery_id = d.id AND t.next_state IN ('DELIVERED', 'CANCELLED')) AS terminal_at
+				SELECT d.id, d.reference, %s
 				FROM delivery d
 				WHERE d.id = :id
-				""")
+				""".formatted(TERMINAL_AT))
 			.param("id", id)
 			.query((rs, rowNumber) -> new TrackedDeliveries.TrackedDelivery(rs.getObject("id", UUID.class),
 					rs.getString("reference"), nullableInstant(rs, "terminal_at")))
+			.optional();
+	}
+
+	/**
+	 * The Recipient-facing half of a Delivery: no pickup address, no version, no history and no
+	 * identifier. The Courier is left null here and attached by the service, which is where the
+	 * Assignment is already being read.
+	 */
+	Optional<RecipientDeliveryFacts.RecipientDelivery> findRecipientDelivery(UUID id) {
+		return this.jdbcClient.sql("""
+				SELECT d.reference, d.state, d.handoff_address_label, d.handoff_latitude, d.handoff_longitude, %s
+				FROM delivery d
+				WHERE d.id = :id
+				""".formatted(TERMINAL_AT))
+			.param("id", id)
+			.query((rs, rowNumber) -> new RecipientDeliveryFacts.RecipientDelivery(rs.getString("reference"),
+					DeliveryState.valueOf(rs.getString("state")), rs.getString("handoff_address_label"),
+					rs.getDouble("handoff_latitude"), rs.getDouble("handoff_longitude"), null, null,
+					nullableInstant(rs, "terminal_at")))
 			.optional();
 	}
 
