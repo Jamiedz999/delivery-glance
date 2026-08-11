@@ -78,7 +78,7 @@ https://github.com/Jamiedz999/delivery-glance/blob/<sha>/docs/planning/issues/21
 
 Acceptance — the canonical commands from TECHNICAL-BASELINE, plus the
 risk-specific evidence this Issue names:
-    ./server/mvnw verify
+    (cd server && ./mvnw verify)
     npm --prefix web ci
     npm --prefix web run check
 

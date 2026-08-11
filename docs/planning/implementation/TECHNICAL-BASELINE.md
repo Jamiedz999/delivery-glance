@@ -74,7 +74,7 @@ The backend is one executable with business modules, not a collection of technic
 | `trackinglink` | 24 | link derivation/verifier, Copy, Expiry and derived grants | Dispatcher link commands and link-holder authorization |
 | `recipientview` | 25 | privacy-reduced Recipient projection | one authorized snapshot query and subscription scope |
 
-Implementation details, SQL repositories, web DTOs and provider DTOs stay package-private where Java allows it. Controllers call module interfaces; they do not reach into another module's repository. Test behaviour through the module/API interface. A `shared` package may hold `Clock`, identifiers and error primitives, but never generic business services or speculative repository abstractions.
+Implementation details, SQL repositories, web DTOs and provider DTOs stay package-private where Java allows it. Controllers call module interfaces; they do not reach into another module's repository. Test behaviour through the module/API interface. A `shared` package may hold `Clock`, identifiers, error primitives and credential primitives — issuing a random secret, digesting it, comparing in constant time — but never generic business services or speculative repository abstractions. The test for a credential primitive is that it knows nothing about what the secret means: `Secrets` arrived only when a second module needed the same three operations, and the policy about what each secret authorizes and how long it lives stays in the module that owns it.
 
 Create a new seam only when it hides real complexity or has a real second side. For Core:
 
@@ -97,7 +97,7 @@ Create a new seam only when it hides real complexity or has a real second side. 
 Issue 20 must establish these commands; later Issues keep them green:
 
 ```bash
-./server/mvnw verify
+(cd server && ./mvnw verify)
 npm --prefix web ci
 npm --prefix web run check
 docker compose up --build --wait

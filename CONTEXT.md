@@ -106,6 +106,10 @@ _Avoid_: Customer login, public tracking page, identity verification
 Any person or client presenting a valid Tracking Link, including but not necessarily the intended Recipient.
 _Avoid_: Authenticated Recipient, account holder
 
+**Tracking Grant**:
+The narrowly scoped, server-held access a Link Holder receives by presenting a Tracking Link once. It authorizes reading exactly one Delivery through one Tracking Link generation and is bounded by that link's expiry; it is not an Internal Account session and carries no role. This is the "access established through" a link that Rotation and Revocation invalidate.
+_Avoid_: Recipient login, tracking session cookie, Internal Account session
+
 **Tracking Link Expiry**:
 The automatic end of Tracking Link access at the earlier of twenty-four hours after a terminal Delivery outcome or seven days after link creation. Opening or reusing the link never extends this time.
 _Avoid_: Session timeout, first-open activation
