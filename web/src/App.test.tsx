@@ -48,9 +48,7 @@ describe('AppRoutes', () => {
         return noContentResponse()
       }
       if (url === '/api/session') {
-        return signedIn
-          ? jsonResponse(dispatcherSession)
-          : problemResponse('authentication-required', 401)
+        return signedIn ? jsonResponse(dispatcherSession) : problemResponse('authentication-required', 401)
       }
       return signedIn ? jsonResponse([]) : problemResponse('authentication-required', 401)
     })
@@ -64,9 +62,7 @@ describe('AppRoutes', () => {
   })
 
   it('sends a signed-in courier to the courier workspace', async () => {
-    respondWith((url) =>
-      jsonResponse(url === '/api/session' ? courierSession : offDutyCourier),
-    )
+    respondWith((url) => jsonResponse(url === '/api/session' ? courierSession : offDutyCourier))
 
     renderWithProviders(<AppRoutes />, { route: '/' })
 

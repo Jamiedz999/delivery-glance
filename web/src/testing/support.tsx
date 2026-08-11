@@ -24,11 +24,7 @@ export function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
-export function problemResponse(
-  code: string,
-  status: number,
-  extra: Record<string, unknown> = {},
-): Response {
+export function problemResponse(code: string, status: number, extra: Record<string, unknown> = {}): Response {
   return new Response(JSON.stringify({ code, status, ...extra }), {
     status,
     headers: { 'Content-Type': 'application/problem+json' },

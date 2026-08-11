@@ -190,9 +190,7 @@ describe('DeliveryDetailPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Cancel delivery' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'This delivery changed in another window.',
-    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('This delivery changed in another window.')
   })
 
   it('offers no cancellation once the delivery is final', async () => {
@@ -200,10 +198,7 @@ describe('DeliveryDetailPage', () => {
 
     renderDetail()
 
-    expect(await screen.findByText(/final state and cannot be changed/)).toHaveAttribute(
-      'role',
-      'status',
-    )
+    expect(await screen.findByText(/final state and cannot be changed/)).toHaveAttribute('role', 'status')
     expect(screen.queryByRole('button', { name: 'Cancel delivery' })).not.toBeInTheDocument()
   })
 

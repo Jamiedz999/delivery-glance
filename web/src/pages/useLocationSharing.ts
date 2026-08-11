@@ -122,7 +122,9 @@ export function useLocationSharing(): LocationSharing {
         // load can still be ended from here.
         await stopLocationSharing()
       } catch {
-        setNotice('Sharing stopped here, but the server could not be told. It forgets the position within two minutes.')
+        setNotice(
+          'Sharing stopped here, but the server could not be told. It forgets the position within two minutes.',
+        )
       } finally {
         setBusy(false)
         await queryClient.invalidateQueries({ queryKey: queryKeys.courier })
@@ -154,7 +156,9 @@ export function useLocationSharing(): LocationSharing {
       },
       (error) => {
         if (error.code === error.PERMISSION_DENIED) {
-          void stop('Location permission was refused, so sharing stopped and the server forgot your position.')
+          void stop(
+            'Location permission was refused, so sharing stopped and the server forgot your position.',
+          )
           return
         }
         setStatus('INTERRUPTED')
