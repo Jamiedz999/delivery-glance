@@ -98,5 +98,5 @@ Delivery Glance 不是这三个项目的完整重复，但也不能把“实时�
 
 - 产品范围以 [Ticket 12](../12-rescope-to-resume-ready-core.md) 为准。
 - 技术栈与模块边界以 [Core technical baseline](../implementation/TECHNICAL-BASELINE.md) 为准。
-- 可交给 Agent 的工作从 [DG-020](../issues/20-scaffold-full-stack-walking-skeleton.md) 开始。
+- 可交给 Agent 的工作从 [DG-020](https://github.com/Jamiedz999/delivery-glance/issues/1) 开始。
 - ETA、Link recovery、异常/Reassignment、Service Zone、完整 Matching、scale experiment 与 durable event backbone 保留为 Future Work 13–19，不能描述成已实现功能。

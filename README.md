@@ -3,8 +3,8 @@
 A recipient-first delivery tracking product. The current Sprint 2 increment lets a Dispatcher
 create a Delivery, see the nearest three Eligible Couriers and make one atomic Direct Assignment.
 The assigned Courier explicitly confirms pickup and handoff while foreground Location Sharing keeps
-only the newest usable position. Tracking Links are the next increment — see
-`docs/planning/issues/` for the implementation queue.
+only the newest usable position. Tracking Links are the next increment — see the
+[implementation queue](https://github.com/Jamiedz999/delivery-glance/issues) on GitHub.
 
 ## Prerequisites
 

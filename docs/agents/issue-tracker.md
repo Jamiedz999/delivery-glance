@@ -2,9 +2,9 @@
 
 Execution state for this repo lives in GitHub issues. Use the `gh` CLI for all operations.
 
-**Specs do not live in issue bodies.** A GitHub Issue carries a one-paragraph summary, a permalink to the committed spec and the execution state (labels, open/closed). The spec itself is a file in this repo. The split is:
+**The issue body is the spec.** A GitHub Issue carries the whole implementation specification — outcome, scope, acceptance criteria, non-goals — plus the execution state (the `ready` label, open/closed, milestone, dependency edges). This repository holds no second copy. The split is:
 
-- **`docs/planning/issues/`** — the implementation specs, `DG-020` through `DG-028`. These are the only planning files that become GitHub Issues.
+- **GitHub Issues** — the nine implementation specs. The queue is fixed and takes no additions.
 - **`docs/adr/`** — resolved product and architecture decisions. Read these; never open them as issues.
 - **`docs/planning/future-work/`** — designed-but-deferred increments. Not commitments, not issues.
 - **`docs/planning/map.md`** — the scope and readiness index over all of the above.
@@ -22,7 +22,7 @@ See `docs/planning/implementation/ISSUE-WORKFLOW.md` for the handoff pattern and
 
 Infer the repo from `git remote -v` — `gh` does this automatically when run inside a clone.
 
-Local planning IDs (`DG-020`, etc.) predate the GitHub issue number and stay in the issue title — see `ISSUE-WORKFLOW.md` for the full handoff pattern.
+Issue titles are plain. The local planning IDs (`DG-020`, etc.) predate the GitHub issue number and survive as the branch and commit key and in each Issue's footer — see `ISSUE-WORKFLOW.md`.
 
 ## Pull requests as a triage surface
 
