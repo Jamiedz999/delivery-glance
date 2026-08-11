@@ -26,13 +26,16 @@ class Deliveries implements DeliveryAssignmentOperations {
 
 	private final ActiveAssignments assignments;
 
+	private final NewDeliveryLinks trackingLinks;
+
 	private final Clock clock;
 
 	Deliveries(DeliveryRepository repository, CurrentActorProvider currentActorProvider, ActiveAssignments assignments,
-			Clock clock) {
+			NewDeliveryLinks trackingLinks, Clock clock) {
 		this.repository = repository;
 		this.currentActorProvider = currentActorProvider;
 		this.assignments = assignments;
+		this.trackingLinks = trackingLinks;
 		this.clock = clock;
 	}
 
@@ -49,6 +52,9 @@ class Deliveries implements DeliveryAssignmentOperations {
 			throw DeliveryConflictException.referenceTaken(request.reference());
 		}
 		this.repository.insertTransition(id, null, DeliveryState.AWAITING_COURIER, actor, null, null, null, now);
+		// Same transaction as the Delivery itself: ADR 06 says the link exists and is valid from
+		// creation, so a Delivery that committed without one would be permanently untrackable.
+		this.trackingLinks.createFor(id, now);
 
 		return requireDetail(id);
 	}

@@ -37,6 +37,18 @@ server:
         # The Compose demo serves plain HTTP on localhost; set this to true behind TLS.
         secure: ${SESSION_COOKIE_SECURE:false}
 
+delivery-glance:
+  tracking:
+    # HMAC key material by version. Every Tracking Link is derived from one of these, so replacing a
+    # key changes every link issued under it; add a new version and move current-key-version instead.
+    # The default below is a fictional development value and is not a secret — set TRACKING_KEY_V1
+    # to real key material before serving a link anyone outside the demo can open.
+    keys:
+      1: ${TRACKING_KEY_V1:development-only-tracking-key-do-not-deploy}
+    current-key-version: ${TRACKING_CURRENT_KEY_VERSION:1}
+    # Production default is secure; the plain-HTTP local Compose demo has to opt out explicitly.
+    cookie-secure: ${TRACKING_COOKIE_SECURE:true}
+
 management:
   endpoints:
     web:
