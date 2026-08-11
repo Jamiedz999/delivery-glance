@@ -19,10 +19,10 @@ const UNAVAILABLE = 'This tracking link is no longer available. Contact the deli
 /**
  * Runs the script against a document holding the two elements /track gives it.
  *
- * <p>A real script element would be more faithful, but jsdom evaluates one in its own VM realm,
- * where the stubbed fetch does not exist. The Function constructor runs it in this realm instead.
- * The rule below guards against evaluating untrusted input; this input is a file in this repository
- * that the server inlines verbatim, and executing exactly it is the point of the test.
+ * A real script element would be more faithful, but jsdom evaluates one in its own VM realm, where
+ * the stubbed fetch does not exist. The Function constructor runs it in this realm instead. The rule
+ * below guards against evaluating untrusted input; this input is a file in this repository that the
+ * server inlines verbatim, and executing exactly it is the point of the test.
  */
 function openTrackPageAt(hash: string) {
   document.body.innerHTML =

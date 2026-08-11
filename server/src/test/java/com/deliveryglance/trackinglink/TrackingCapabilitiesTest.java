@@ -4,6 +4,7 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 
+import com.deliveryglance.shared.Secrets;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -85,22 +86,22 @@ class TrackingCapabilitiesTest {
 	void verifiesATokenAgainstItsOwnVerifier() {
 		String token = this.capabilities.derive(LINK, 1, 1);
 
-		assertThat(TrackingCapabilities.matches(token, TrackingCapabilities.verifierOf(token))).isTrue();
+		assertThat(Secrets.matches(token, Secrets.verifierOf(token))).isTrue();
 	}
 
 	@Test
 	void rejectsATokenAgainstAnotherLinksVerifier() {
 		String token = this.capabilities.derive(LINK, 1, 1);
-		String otherVerifier = TrackingCapabilities.verifierOf(this.capabilities.derive(OTHER_LINK, 1, 1));
+		String otherVerifier = Secrets.verifierOf(this.capabilities.derive(OTHER_LINK, 1, 1));
 
-		assertThat(TrackingCapabilities.matches(token, otherVerifier)).isFalse();
+		assertThat(Secrets.matches(token, otherVerifier)).isFalse();
 	}
 
 	@Test
 	void storesAVerifierThatCannotBeReadBackAsAToken() {
 		String token = this.capabilities.derive(LINK, 1, 1);
 
-		assertThat(TrackingCapabilities.verifierOf(token)).doesNotContain(token).matches("^[0-9a-f]{64}$");
+		assertThat(Secrets.verifierOf(token)).doesNotContain(token).matches("^[0-9a-f]{64}$");
 	}
 
 }

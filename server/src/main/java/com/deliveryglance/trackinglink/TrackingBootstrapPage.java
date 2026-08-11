@@ -3,9 +3,9 @@ package com.deliveryglance.trackinglink;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
+
+import com.deliveryglance.shared.Secrets;
 
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
@@ -85,14 +85,9 @@ class TrackingBootstrapPage {
 		}
 	}
 
+	/** Standard base64, not the url-safe alphabet: CSP hashes are quoted, not put in a URL. */
 	private static String sha256Base64(String source) {
-		try {
-			return Base64.getEncoder()
-				.encodeToString(MessageDigest.getInstance("SHA-256").digest(source.getBytes(StandardCharsets.UTF_8)));
-		}
-		catch (NoSuchAlgorithmException ex) {
-			throw new IllegalStateException("SHA-256 is required by every Java platform", ex);
-		}
+		return Base64.getEncoder().encodeToString(Secrets.digest(source));
 	}
 
 }

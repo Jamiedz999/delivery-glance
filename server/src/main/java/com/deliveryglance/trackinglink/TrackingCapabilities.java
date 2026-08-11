@@ -1,15 +1,15 @@
 package com.deliveryglance.trackinglink;
 
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
-import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+
+import com.deliveryglance.shared.Secrets;
 
 /**
  * Turns a link's identity into its capability. The token is not generated and stored; it is derived
@@ -19,6 +19,9 @@ import javax.crypto.spec.SecretKeySpec;
  * <p>The 256 bits of output are unpredictable without the key, so the link identity may be an
  * ordinary random UUID that appears in internal records; RFC 9562 is explicit that a UUID is not
  * itself a security capability, and here it is not being used as one.
+ *
+ * <p>Deriving is this class's own business. Storing and comparing the result is {@link Secrets},
+ * the same handling every other credential in the application gets.
  */
 final class TrackingCapabilities {
 
@@ -54,17 +57,7 @@ final class TrackingCapabilities {
 		// The UUID's text form is fixed width, so no other (linkId, generation) pair can produce the
 		// same input bytes and therefore the same capability.
 		byte[] message = (linkId + ":" + generation).getBytes(StandardCharsets.UTF_8);
-		return Base64.getUrlEncoder().withoutPadding().encodeToString(hmac(key, message));
-	}
-
-	static String verifierOf(String token) {
-		return HexFormat.of().formatHex(sha256().digest(token.getBytes(StandardCharsets.UTF_8)));
-	}
-
-	/** Compares in constant time, so a wrong token cannot be improved one character at a time. */
-	static boolean matches(String token, String verifier) {
-		return MessageDigest.isEqual(verifierOf(token).getBytes(StandardCharsets.US_ASCII),
-				verifier.getBytes(StandardCharsets.US_ASCII));
+		return Secrets.encode(hmac(key, message));
 	}
 
 	private static byte[] hmac(byte[] key, byte[] message) {
@@ -73,17 +66,8 @@ final class TrackingCapabilities {
 			mac.init(new SecretKeySpec(key, ALGORITHM));
 			return mac.doFinal(message);
 		}
-		catch (NoSuchAlgorithmException | java.security.InvalidKeyException ex) {
+		catch (NoSuchAlgorithmException | InvalidKeyException ex) {
 			throw new IllegalStateException("HmacSHA256 is required by every Java platform", ex);
-		}
-	}
-
-	private static MessageDigest sha256() {
-		try {
-			return MessageDigest.getInstance("SHA-256");
-		}
-		catch (NoSuchAlgorithmException ex) {
-			throw new IllegalStateException("SHA-256 is required by every Java platform", ex);
 		}
 	}
 

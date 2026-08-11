@@ -9,6 +9,10 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Turns the deployment inputs into the two objects the module holds for its whole lifetime: the key
+ * set every capability is derived from, and the one attempt limiter.
+ */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(TrackingLinkProperties.class)
 class TrackingLinkConfig {
