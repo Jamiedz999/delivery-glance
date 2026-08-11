@@ -40,7 +40,7 @@ These are resolved records in [`docs/adr/`](../adr/), plus the research and prot
 
 These are the only planning files that become GitHub Issues, one at a time and in this order.
 
-[Technical baseline](implementation/TECHNICAL-BASELINE.md) is the single source for stack, repository shape and module boundaries. [Issue workflow](implementation/ISSUE-WORKFLOW.md) defines the handoff pattern and when an Issue may receive the `ready` label. The dependency chain below is fixed; which link is currently live is a question for GitHub.
+[Technical baseline](implementation/TECHNICAL-BASELINE.md) is the single source for stack, repository shape and module boundaries. [Issue workflow](implementation/ISSUE-WORKFLOW.md) defines the handoff pattern and when an Issue may receive the `ready` label. [Incidental findings](implementation/INCIDENTAL-FINDINGS.md) collects real problems spotted while implementing something else; it is a note pad, never a queue. The dependency chain below is fixed; which link is currently live is a question for GitHub.
 
 - [20 · Scaffold the full-stack walking skeleton](issues/20-scaffold-full-stack-walking-skeleton.md) — prove React, Spring Boot, PostgreSQL, Flyway, Docker and CI work together without adding business logic.
 - *after 20* — [21 · Add Internal Account sign-in and the persisted Delivery slice](issues/21-add-authenticated-delivery-slice.md) — finish the Sprint 1 vertical slice.
