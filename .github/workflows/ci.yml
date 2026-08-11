@@ -38,7 +38,11 @@ jobs:
         working-directory: web
         run: npm ci
       # The baseline defines `check` as type checking, unit tests and a production build, so
-      # linting stays a separate step rather than being folded into it.
+      # linting stays a separate step rather than being folded into it. Formatting is a third
+      # step for the same reason: a failure should name itself rather than arrive as "check".
+      - name: Format
+        working-directory: web
+        run: npm run format:check
       - name: Lint
         working-directory: web
         run: npm run lint

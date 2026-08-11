@@ -1,0 +1,7 @@
+dist
+coverage
+# Prettier is scoped to TypeScript here. CSS shorthands and the tsconfig project
+# references both read worse under it, and neither was where formatting cost review time.
+*.css
+*.json
+*.html
