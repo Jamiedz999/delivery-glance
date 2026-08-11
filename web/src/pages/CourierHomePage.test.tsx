@@ -9,6 +9,7 @@ import {
   renderWithProviders,
   requestBodyOf,
   respondWith,
+  urlOf,
 } from '../testing/support'
 
 const GENERATION = 'a3f1c2d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d'
@@ -71,7 +72,7 @@ function respondForCourier(courier: unknown = offDuty) {
 function callsTo(path: string): [RequestInfo | URL, RequestInit | undefined][] {
   return vi
     .mocked(fetch)
-    .mock.calls.filter(([url]) => String(url).endsWith(path))
+    .mock.calls.filter(([url]) => urlOf(url).endsWith(path))
     .map(([url, init]) => [url, init])
 }
 

@@ -9,6 +9,7 @@ import {
   renderWithProviders,
   requestBodyOf,
   respondWith,
+  urlOf,
 } from '../testing/support'
 
 const DELIVERY_ID = '5f2d0b1e-3f6e-4a1f-9f1a-9a2b3c4d5e6f'
@@ -46,7 +47,7 @@ function renderDetail() {
 }
 
 function cancelCalls() {
-  return vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith('/cancel'))
+  return vi.mocked(fetch).mock.calls.filter(([url]) => urlOf(url).endsWith('/cancel'))
 }
 
 describe('DeliveryDetailPage', () => {

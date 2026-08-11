@@ -39,8 +39,37 @@ export function noContentResponse(): Response {
   return new Response(null, { status: 204 })
 }
 
+/**
+ * fetch's first argument may be a string, a URL or a Request, and each keeps its URL somewhere
+ * different. Stringifying the union blindly turns a Request into "[object Request]", which then
+ * matches no path and fails the assertion for the wrong reason.
+ */
+export function urlOf(input: RequestInfo | URL): string {
+  if (typeof input === 'string') {
+    return input
+  }
+  return input instanceof URL ? input.href : input.url
+}
+
+/**
+ * The request body of a call the app made, as the string it was sent as. A JSON body arrives as a
+ * string and a form body as URLSearchParams, both of which have one honest string form; the rest of
+ * the BodyInit union (Blob, FormData, streams) does not, and stringifying one would silently
+ * compare "[object Object]" instead of failing.
+ */
+export function requestBodyStringOf(init: RequestInit | undefined): string {
+  const body = init?.body
+  if (typeof body === 'string') {
+    return body
+  }
+  if (body instanceof URLSearchParams) {
+    return body.toString()
+  }
+  throw new Error(`Expected a string or URLSearchParams request body, got ${typeof body}.`)
+}
+
 export function requestBodyOf(call: [RequestInfo | URL, RequestInit | undefined]): unknown {
-  return JSON.parse(String(call[1]?.body))
+  return JSON.parse(requestBodyStringOf(call[1]))
 }
 
 /**
@@ -49,6 +78,6 @@ export function requestBodyOf(call: [RequestInfo | URL, RequestInit | undefined]
  */
 export function respondWith(build: (url: string, method: string) => Response) {
   vi.mocked(fetch).mockImplementation((input, init) =>
-    Promise.resolve(build(String(input), (init?.method ?? 'GET').toUpperCase())),
+    Promise.resolve(build(urlOf(input), (init?.method ?? 'GET').toUpperCase())),
   )
 }
