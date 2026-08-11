@@ -32,8 +32,18 @@ final class TrackingLinkExpiry {
 		return graceEnd.isBefore(issuedExpiry) ? graceEnd : issuedExpiry;
 	}
 
+	/**
+	 * The expiry instant is the first moment the link no longer works, not the last moment it does.
+	 *
+	 * <p>Which way to round a single instant looks arbitrary, and would be, except that the database
+	 * has already chosen: {@code tracking_grant} requires {@code expires_at > established_at}, so a
+	 * link exchanged at exactly its expiry would produce a grant with no lifetime at all and the
+	 * insert would be refused. Calling the instant valid therefore turns a link that should get one
+	 * quiet Unavailable response into a stack trace. Half-open is also the rule everything else here
+	 * already assumes: a link is valid for seven days, not seven days and one instant.
+	 */
 	static boolean isValidAt(Instant expiry, Instant now) {
-		return !now.isAfter(expiry);
+		return now.isBefore(expiry);
 	}
 
 }

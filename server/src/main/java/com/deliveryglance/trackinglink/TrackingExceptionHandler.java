@@ -1,7 +1,5 @@
 package com.deliveryglance.trackinglink;
 
-import jakarta.servlet.http.HttpServletResponse;
-
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -25,8 +23,8 @@ import static com.deliveryglance.shared.ApiProblemResponses.problem;
 class TrackingExceptionHandler {
 
 	@ExceptionHandler(UnavailableLinkException.class)
-	ProblemDetail handleUnavailable(HttpServletResponse response) {
-		return unavailable(response);
+	ProblemDetail handleUnavailable() {
+		return unavailable();
 	}
 
 	/**
@@ -34,8 +32,8 @@ class TrackingExceptionHandler {
 	 * separate "you sent nonsense" from "that link is unknown", and the two have to be one response.
 	 */
 	@ExceptionHandler(HttpMessageNotReadableException.class)
-	ProblemDetail handleUnreadableBody(HttpServletResponse response) {
-		return unavailable(response);
+	ProblemDetail handleUnreadableBody() {
+		return unavailable();
 	}
 
 	@ExceptionHandler(TrackingLinkNotFoundException.class)
@@ -44,13 +42,7 @@ class TrackingExceptionHandler {
 				exception.getMessage());
 	}
 
-	/**
-	 * The headers are reapplied here because an exception can be raised before the controller set
-	 * them, and an error page that is cacheable would undo the rule for the response that matters
-	 * most.
-	 */
-	private static ProblemDetail unavailable(HttpServletResponse response) {
-		TrackingResponseHeaders.apply(response);
+	private static ProblemDetail unavailable() {
 		return problem(HttpStatus.NOT_FOUND, "tracking-link-unavailable", "Tracking link unavailable",
 				"This tracking link is no longer available. Contact the delivery team that shared it.");
 	}

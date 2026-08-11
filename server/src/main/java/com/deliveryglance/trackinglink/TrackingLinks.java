@@ -18,9 +18,16 @@ import org.springframework.transaction.annotation.Transactional;
  * The Tracking Link use cases: create one with a Delivery, hand the Dispatcher the same link as
  * often as they ask, and turn a presented capability into a scoped grant.
  *
- * <p>Every failure on the holder-facing paths raises the same {@link UnavailableLinkException}, and
- * they are written so the refusals cost roughly the same work: a token that decodes to nothing and a
- * token whose link expired yesterday both do a verifier lookup and then stop.
+ * <p>Every failure on the holder-facing paths raises the same {@link UnavailableLinkException}, with
+ * nothing in the response to tell them apart.
+ *
+ * <p>What is deliberately <em>not</em> claimed is constant time. A malformed token and an unknown one
+ * take the same path — the shape check does not short-circuit the lookup — but an expired link is
+ * found, verified and dated before it is refused, so it costs measurably more. Closing that gap would
+ * mean doing the Delivery read on every rejected guess, which is a denial-of-service lever pointed at
+ * the application rather than a defence. It is an acceptable trade because the distinction only
+ * separates "unknown" from "expired", and reaching that distinction already requires holding a
+ * capability that was once valid. Guessing one is what the 256 bits prevent.
  */
 @Service
 class TrackingLinks implements NewDeliveryLinks {
@@ -30,6 +37,13 @@ class TrackingLinks implements NewDeliveryLinks {
 
 	/** Exactly one 256-bit base64url capability, and nothing else. */
 	private static final Pattern WELL_FORMED_TOKEN = Pattern.compile("^[A-Za-z0-9_-]{43}$");
+
+	/**
+	 * Stands in for a malformed token so the lookup still happens. It is the right shape and could
+	 * in principle be somebody's capability, which is why it is not: no key derives it, because a
+	 * derived token is 32 random-looking bytes and this is a sentence.
+	 */
+	private static final String NO_TOKEN_MATCHES_THIS = "this-value-is-never-a-derived-capability-xy";
 
 	private static final int FIRST_GENERATION = 1;
 
@@ -96,16 +110,19 @@ class TrackingLinks implements NewDeliveryLinks {
 	 */
 	@Transactional
 	GrantIssued exchange(String token) {
-		if (token == null || !WELL_FORMED_TOKEN.matcher(token).matches()) {
-			throw new UnavailableLinkException();
-		}
+		// A wrongly shaped token is not rejected on the spot; a fixed stand-in is looked up in its
+		// place. The lookup cannot match, so the outcome is the same, but the shape check stops being
+		// the timing step that separates "not even a token" from "a token nobody issued". The
+		// stand-in rather than the caller's own bytes keeps an oversized body out of the digest.
+		boolean wellFormed = token != null && WELL_FORMED_TOKEN.matcher(token).matches();
+		String presented = wellFormed ? token : NO_TOKEN_MATCHES_THIS;
 
 		TrackingLinkRepository.StoredLink link = this.repository
-			.findByTokenVerifier(Secrets.verifierOf(token))
+			.findByTokenVerifier(Secrets.verifierOf(presented))
 			.orElseThrow(UnavailableLinkException::new);
 		// The lookup above found a candidate by an indexed equality match on a digest; this is the
 		// comparison that actually authorizes, and it does not stop early on the first wrong byte.
-		if (!Secrets.matches(token, link.tokenVerifier())) {
+		if (!Secrets.matches(presented, link.tokenVerifier())) {
 			throw new UnavailableLinkException();
 		}
 

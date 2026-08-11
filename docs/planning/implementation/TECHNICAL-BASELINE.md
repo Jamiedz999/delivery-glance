@@ -97,7 +97,7 @@ Create a new seam only when it hides real complexity or has a real second side. 
 Issue 20 must establish these commands; later Issues keep them green:
 
 ```bash
-./server/mvnw verify
+(cd server && ./mvnw verify)
 npm --prefix web ci
 npm --prefix web run check
 docker compose up --build --wait

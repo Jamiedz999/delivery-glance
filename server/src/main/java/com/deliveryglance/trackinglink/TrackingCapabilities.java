@@ -54,9 +54,12 @@ final class TrackingCapabilities {
 		if (key == null) {
 			throw new IllegalStateException("No tracking key configured for version " + keyVersion);
 		}
-		// The UUID's text form is fixed width, so no other (linkId, generation) pair can produce the
-		// same input bytes and therefore the same capability.
-		byte[] message = (linkId + ":" + generation).getBytes(StandardCharsets.UTF_8);
+		// The key version is part of the message, not only the choice of key. Selecting the key with
+		// it looks equivalent and is not: two versions configured with the same material — a
+		// half-finished key rollover, or a copy-paste — would then derive the same capability, and
+		// the version column would stop meaning anything. The UUID's text form is fixed width, so no
+		// other (linkId, generation, keyVersion) triple can produce these bytes.
+		byte[] message = (linkId + ":" + generation + ":" + keyVersion).getBytes(StandardCharsets.UTF_8);
 		return Secrets.encode(hmac(key, message));
 	}
 

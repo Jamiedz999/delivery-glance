@@ -35,7 +35,10 @@ class TrackingBootstrapController {
 	@GetMapping(path = { "/track", "/track/**" }, produces = MediaType.TEXT_HTML_VALUE)
 	@ResponseBody
 	String bootstrap(HttpServletResponse response) {
-		TrackingResponseHeaders.apply(response, this.page.contentSecurityPolicy());
+		// The rest of the tracking headers are already on this response; TrackingHeadersFilter put
+		// them there before the request reached any of this. Only the policy differs: the JSON routes
+		// may render nothing at all, and this page has a script and a stylesheet to allow.
+		response.setHeader("Content-Security-Policy", this.page.contentSecurityPolicy());
 		return this.page.html();
 	}
 

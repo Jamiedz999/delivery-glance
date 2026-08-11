@@ -29,15 +29,11 @@ final class TrackingResponseHeaders {
 	}
 
 	static void apply(HttpServletResponse response) {
-		apply(response, INERT_POLICY);
-	}
-
-	static void apply(HttpServletResponse response, String contentSecurityPolicy) {
 		response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
 		response.setHeader("Referrer-Policy", "no-referrer");
 		response.setHeader("X-Robots-Tag", "noindex, nofollow, nosnippet");
 		response.setHeader("X-Content-Type-Options", "nosniff");
-		response.setHeader("Content-Security-Policy", contentSecurityPolicy);
+		response.setHeader("Content-Security-Policy", INERT_POLICY);
 	}
 
 }

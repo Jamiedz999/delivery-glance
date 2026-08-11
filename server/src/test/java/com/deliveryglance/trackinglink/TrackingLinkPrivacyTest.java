@@ -37,6 +37,12 @@ class TrackingLinkPrivacyTest {
 
 	private static final AtomicInteger SEQUENCE = new AtomicInteger();
 
+	/** Well formed, and no link was ever derived from it: the shape a real guess would have. */
+	private static final String REJECTED_TOKEN = "bm8tbGluay13YXMtZXZlci1kZXJpdmVkLWZyb20tdGg";
+
+	/** Sent inside a body the message converter cannot parse, so only the exception ever holds it. */
+	private static final String UNREADABLE_BODY_TOKEN = "dGhpcy1vbmUtbmV2ZXItcmVhY2hlZC10aGUtbW9kdWw";
+
 	@Autowired
 	private MockMvc mockMvc;
 
@@ -98,21 +104,27 @@ class TrackingLinkPrivacyTest {
 	 */
 	@Test
 	void keepsRawTokensOutOfTheApplicationLog() throws Exception {
-		String deliveryId = createDelivery();
-
+		// Capture starts before the Delivery is created, because creation is the first moment a token
+		// exists at all: it is derived there so its verifier can be stored, and the spec names
+		// creation as one of the paths that must not log it.
 		ListAppender<ILoggingEvent> captured = captureApplicationLog();
 		String token;
 		String grantCookie;
 		try {
-			String url = copiedUrl(deliveryId);
-			token = tokenOf(url);
+			String deliveryId = createDelivery();
+			token = tokenOf(copiedUrl(deliveryId));
 			BrowserLikeClient holder = holderWhoOpened();
 			grantCookie = grantCookieOf(exchange(holder, token));
 			assertThat(holder.send(get("/api/tracking/snapshot")).getStatus()).isEqualTo(200);
-			assertThat(exchange(holderWhoOpened(), "bm8tbGluay13YXMtZXZlci1kZXJpdmVkLWZyb20tdGg").getStatus())
-				.isEqualTo(404);
+
+			// A rejected guess: the value the caller sent is a secret to them, and it must not be
+			// written down either — a log of rejected tokens is a log of near misses.
+			assertThat(exchange(holderWhoOpened(), REJECTED_TOKEN).getStatus()).isEqualTo(404);
+			// The parse-failure path, carrying a token in a body the converter cannot read, so the
+			// exception it throws holds the token rather than this module ever seeing it.
 			assertThat(holderWhoOpened()
-				.send(post("/api/tracking-session").contentType(MediaType.APPLICATION_JSON).content("{"))
+				.send(post("/api/tracking-session").contentType(MediaType.APPLICATION_JSON)
+					.content("{\"token\":\"%s\"".formatted(UNREADABLE_BODY_TOKEN)))
 				.getStatus()).isEqualTo(404);
 		}
 		finally {
@@ -121,6 +133,8 @@ class TrackingLinkPrivacyTest {
 
 		assertThat(captured.list).allSatisfy((event) -> assertThat(describe(event)).doesNotContain(token)
 			.doesNotContain(grantCookie)
+			.doesNotContain(REJECTED_TOKEN)
+			.doesNotContain(UNREADABLE_BODY_TOKEN)
 			.doesNotContain("/track#"));
 	}
 

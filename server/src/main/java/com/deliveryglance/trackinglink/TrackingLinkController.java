@@ -2,8 +2,6 @@ package com.deliveryglance.trackinglink;
 
 import java.util.UUID;
 
-import jakarta.servlet.http.HttpServletResponse;
-
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,10 +26,7 @@ class TrackingLinkController {
 	}
 
 	@PostMapping("/api/deliveries/{id}/tracking-link/copy")
-	TrackingLinkViews.CopiedLink copy(@PathVariable UUID id, HttpServletResponse response) {
-		// This is the only response in the application whose body contains a raw capability. It is
-		// no-store and no-referrer for the same reasons the Recipient's own responses are.
-		TrackingResponseHeaders.apply(response);
+	TrackingLinkViews.CopiedLink copy(@PathVariable UUID id) {
 		return this.links.copyFor(id);
 	}
 
