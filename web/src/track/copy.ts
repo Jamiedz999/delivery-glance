@@ -42,6 +42,14 @@ export const UNREACHABLE = 'Could not reach the delivery service. Check your con
 
 export const MAP_UNAVAILABLE = 'The map is unavailable, so the courier’s position is described below instead.'
 
+/**
+ * Said when the server holds no usable position at all. It names the state and not a cause, because
+ * three different causes arrive here as the same absence — the Courier never started sharing, they
+ * pressed Stop, or their last reading aged past the point where the server keeps coordinates — and
+ * the response cannot tell them apart. Asserting one of them would be a guess presented as fact.
+ */
+export const NO_POSITION = 'The courier’s position is not available right now.'
+
 /** A whole time, in the reader's own locale. Core has no time-zone lookup for the handoff address. */
 export function formatTime(instant: string): string {
   return new Date(instant).toLocaleString()

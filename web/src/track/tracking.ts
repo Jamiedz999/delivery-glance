@@ -8,7 +8,14 @@
  * must not share anything with it.
  */
 
-export type RecipientState = 'AWAITING_COURIER' | 'ASSIGNED' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED'
+import type { DeliveryState } from '../api/deliveries'
+
+/**
+ * The same five states the internal application names, aliased rather than re-declared: they are
+ * one server enum, and two copies of it would be two places to update when a sixth arrives. The
+ * import above is type-only, so none of the internal API module reaches this bundle.
+ */
+export type RecipientState = DeliveryState
 
 export interface Place {
   latitude: number

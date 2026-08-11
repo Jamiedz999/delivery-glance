@@ -23,7 +23,7 @@ if (container !== null) {
 
   createRoot(container).render(
     <StrictMode>
-      <TrackingPage mapStyleUrl={mapStyleUrl()} />
+      <TrackingPage map={{ styleUrl: mapStyleUrl() }} />
     </StrictMode>,
   )
 }
