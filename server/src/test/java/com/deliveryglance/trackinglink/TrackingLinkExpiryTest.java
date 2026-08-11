@@ -49,10 +49,16 @@ class TrackingLinkExpiryTest {
 			.isEqualTo(SEVEN_DAYS_LATER);
 	}
 
+	/**
+	 * Half-open, and it has to be. A grant is written with the link's expiry as its own, and
+	 * {@code tracking_grant} requires that to be strictly after the moment it was established — so
+	 * counting the expiry instant as valid would mean answering a link exchanged on the tick with a
+	 * constraint violation rather than with the Unavailable response.
+	 */
 	@Test
-	void countsTheLinkValidUpToAndIncludingItsExpiryInstant() {
-		assertThat(TrackingLinkExpiry.isValidAt(SEVEN_DAYS_LATER, SEVEN_DAYS_LATER)).isTrue();
-		assertThat(TrackingLinkExpiry.isValidAt(SEVEN_DAYS_LATER, SEVEN_DAYS_LATER.plusMillis(1))).isFalse();
+	void stopsCountingTheLinkValidAtItsExpiryInstant() {
+		assertThat(TrackingLinkExpiry.isValidAt(SEVEN_DAYS_LATER, SEVEN_DAYS_LATER.minusMillis(1))).isTrue();
+		assertThat(TrackingLinkExpiry.isValidAt(SEVEN_DAYS_LATER, SEVEN_DAYS_LATER)).isFalse();
 	}
 
 }

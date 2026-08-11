@@ -236,6 +236,24 @@ class TrackingLinkApiTest {
 	}
 
 	/**
+	 * The instant the link expires, exactly. This is the one moment where the application's rule and
+	 * the database's disagreed: treating the expiry instant as still valid meant writing a grant
+	 * whose expires_at equalled its established_at, which the CHECK constraint refuses — so a link
+	 * exchanged on the tick produced a 500 with a stack trace instead of the one Unavailable
+	 * response every other failure gets.
+	 */
+	@Test
+	void refusesTheExchangeOnTheExpiryInstantItselfRatherThanFailingOnIt() throws Exception {
+		String token = tokenOf(copiedUrl(createDelivery()));
+
+		this.clock.advance(TrackingLinks.LIFETIME);
+
+		MockHttpServletResponse response = exchange(holderWhoOpened(), token);
+		assertThat(response.getStatus()).isEqualTo(404);
+		assertThat((String) JsonPath.read(response.getContentAsString(), "$.code")).isEqualTo(UNAVAILABLE_CODE);
+	}
+
+	/**
 	 * The grant's own bound, checked before the link is consulted at all. A Delivery that never
 	 * reaches a terminal state gives the grant the full seven days and no more.
 	 */
@@ -328,6 +346,23 @@ class TrackingLinkApiTest {
 		assertProtectedHeaders(exchange(holder, token));
 		assertProtectedHeaders(holder.send(get("/api/tracking/snapshot")));
 		assertProtectedHeaders(exchange(holderWhoOpened(), "not-a-token"));
+	}
+
+	/**
+	 * A request Spring Security refuses never reaches a handler, so for as long as the handlers were
+	 * the things applying these headers, a rejected CSRF token produced a tracking response with none
+	 * of them. "All tracking responses" has to include the ones the application never got to answer.
+	 */
+	@Test
+	void sendsTheHeadersEvenOnResponsesTheSecurityChainWritesWithoutReachingAHandler() throws Exception {
+		BrowserLikeClient holder = holderWhoOpened();
+
+		MockHttpServletResponse rejected = holder.sendWithoutCsrfHeader(post("/api/tracking-session")
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"token\":\"%s\"}".formatted(tokenOf(copiedUrl(createDelivery())))));
+
+		assertThat(rejected.getStatus()).isEqualTo(403);
+		assertProtectedHeaders(rejected);
 	}
 
 	/**

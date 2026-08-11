@@ -45,8 +45,20 @@ class TrackingCapabilitiesTest {
 		assertThat(this.capabilities.derive(LINK, 1, 1)).isNotEqualTo(this.capabilities.derive(LINK, 2, 1));
 	}
 
+	/**
+	 * Deliberately configured with the <em>same</em> key material under both versions. Using
+	 * different material would pass whether or not the version reached the digest, and would prove
+	 * only that different keys give different tokens — which is not what the criterion asks.
+	 */
 	@Test
-	void derivesADifferentTokenForADifferentKeyVersion() {
+	void derivesADifferentTokenForADifferentKeyVersionEvenUnderIdenticalKeyMaterial() {
+		TrackingCapabilities sameMaterial = new TrackingCapabilities(Map.of(1, KEY_ONE, 2, KEY_ONE), 2);
+
+		assertThat(sameMaterial.derive(LINK, 1, 1)).isNotEqualTo(sameMaterial.derive(LINK, 1, 2));
+	}
+
+	@Test
+	void derivesADifferentTokenForADifferentKey() {
 		assertThat(this.capabilities.derive(LINK, 1, 1)).isNotEqualTo(this.capabilities.derive(LINK, 1, 2));
 	}
 

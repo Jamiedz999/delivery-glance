@@ -36,23 +36,17 @@ class TrackingSessionController {
 	@PostMapping("/api/tracking-session")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void exchange(@RequestBody Exchange request, HttpServletRequest httpRequest, HttpServletResponse response) {
-		TrackingResponseHeaders.apply(response);
-
 		String source = sourceOf(httpRequest);
-		if (!this.attempts.allow(source)) {
+		// Charged before the attempt runs, not after it fails: checking the budget and spending it
+		// in two steps lets concurrent guesses all read the same count and all pass. A success
+		// refunds it below.
+		if (!this.attempts.tryAttempt(source)) {
 			// Same refusal as an unknown token: a throttled guesser learns only that they are being
 			// throttled, which they can see from the timing anyway.
 			throw new UnavailableLinkException();
 		}
 
-		TrackingLinks.GrantIssued issued;
-		try {
-			issued = this.links.exchange(request.token());
-		}
-		catch (UnavailableLinkException ex) {
-			this.attempts.recordFailure(source);
-			throw ex;
-		}
+		TrackingLinks.GrantIssued issued = this.links.exchange(request.token());
 
 		this.attempts.recordSuccess(source);
 		this.grants.issue(response, issued.secret(), issued.expiresAt(), issued.establishedAt());
@@ -60,7 +54,6 @@ class TrackingSessionController {
 
 	@GetMapping("/api/tracking/snapshot")
 	TrackingLinkViews.Snapshot snapshot(HttpServletRequest request, HttpServletResponse response) {
-		TrackingResponseHeaders.apply(response);
 		String secret = this.grants.presentedSecret(request).orElseThrow(UnavailableLinkException::new);
 		try {
 			return this.links.snapshotFor(secret);

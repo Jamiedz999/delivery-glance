@@ -41,6 +41,22 @@ final class TrackingAttempts {
 		};
 	}
 
+	/**
+	 * Reserves one attempt, or refuses. Reserving and recording are one locked step on purpose: a
+	 * separate {@code allow} then {@code record} lets any number of concurrent requests read the
+	 * same count and all pass it, which is precisely the case a guesser can arrange.
+	 *
+	 * <p>The attempt is charged up front and refunded by {@link #recordSuccess}, so the budget is
+	 * spent by guesses rather than by the holder who gets it right.
+	 */
+	synchronized boolean tryAttempt(String source) {
+		if (!allow(source)) {
+			return false;
+		}
+		recordFailure(source);
+		return true;
+	}
+
 	synchronized boolean allow(String source) {
 		Failures failures = this.bySource.get(source);
 		return failures == null || failures.countAt(this.clock.instant()) < FAILURES_PER_SOURCE;
