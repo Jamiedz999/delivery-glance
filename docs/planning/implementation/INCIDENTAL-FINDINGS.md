@@ -6,7 +6,7 @@ Things noticed while implementing something else. They are real, they are not th
 found them, and the alternative to writing them here is a PR body nobody rereads — which is exactly
 how ADR 04's callout below went stale for a Sprint.
 
-This file is **not** a queue. `docs/planning/issues/` is the queue, it is fixed at DG-020…DG-028, and
+This file is **not** a queue. The [GitHub Issues](https://github.com/Jamiedz999/delivery-glance/issues) are the queue, it is fixed at nine Issues, and
 nothing here becomes a GitHub Issue. An entry earns a plain PR when someone picks it up, the way
 tooling work already does. Delete an entry when it is fixed; a list of things already done is worse
 than no list.
