@@ -28,22 +28,15 @@ class TrackingBootstrapController {
 		this.page = page;
 	}
 
-	@GetMapping(path = "/track", produces = MediaType.TEXT_HTML_VALUE)
-	@ResponseBody
-	String bootstrap(HttpServletResponse response) {
-		TrackingResponseHeaders.apply(response);
-		response.setHeader("Content-Security-Policy", this.page.contentSecurityPolicy());
-		return this.page.html();
-	}
-
 	/**
-	 * Anything under /track is the same generic page. A path segment is not a second way to present
+	 * Anything under /track is this same generic page. A path segment is not a second way to present
 	 * a capability, and it must not become one by accident when DG-025 adds client-side routes.
 	 */
-	@GetMapping(path = "/track/**", produces = MediaType.TEXT_HTML_VALUE)
+	@GetMapping(path = { "/track", "/track/**" }, produces = MediaType.TEXT_HTML_VALUE)
 	@ResponseBody
-	String bootstrapSubPath(HttpServletResponse response) {
-		return bootstrap(response);
+	String bootstrap(HttpServletResponse response) {
+		TrackingResponseHeaders.apply(response, this.page.contentSecurityPolicy());
+		return this.page.html();
 	}
 
 }

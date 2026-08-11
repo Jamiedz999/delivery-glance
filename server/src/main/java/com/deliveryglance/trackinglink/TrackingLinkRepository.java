@@ -74,15 +74,21 @@ class TrackingLinkRepository {
 			.update();
 	}
 
+	/**
+	 * Carries the link's own cap alongside the grant's, so authorizing a read is one query rather
+	 * than a second trip back for the link this statement has already joined to.
+	 */
 	Optional<StoredGrant> findGrantByVerifier(String secretVerifier) {
 		return this.jdbcClient.sql("""
-				SELECT g.link_id, g.generation, g.expires_at, l.delivery_id, l.generation AS link_generation
+				SELECT g.generation, g.expires_at, l.delivery_id, l.generation AS link_generation,
+				       l.expires_at AS link_expires_at
 				FROM tracking_grant g JOIN tracking_link l ON l.link_id = g.link_id
 				WHERE g.secret_verifier = :secretVerifier
 				""")
 			.param("secretVerifier", secretVerifier)
-			.query((rs, rowNumber) -> new StoredGrant(rs.getObject("link_id", UUID.class), rs.getInt("generation"),
-					rs.getObject("delivery_id", UUID.class), rs.getInt("link_generation"), instant(rs, "expires_at")))
+			.query((rs, rowNumber) -> new StoredGrant(rs.getInt("generation"),
+					rs.getObject("delivery_id", UUID.class), rs.getInt("link_generation"),
+					instant(rs, "expires_at"), instant(rs, "link_expires_at")))
 			.optional();
 	}
 
@@ -120,8 +126,12 @@ class TrackingLinkRepository {
 	/**
 	 * @param generation the generation the grant was established through
 	 * @param linkGeneration the link's generation now, so a grant from a superseded one is refused
+	 * @param expiresAt the grant's own bound, fixed when it was established
+	 * @param linkExpiresAt the link's seven-day cap, which the terminal grace period may shorten
+	 * below the grant's bound after the grant was issued
 	 */
-	record StoredGrant(UUID linkId, int generation, UUID deliveryId, int linkGeneration, Instant expiresAt) {
+	record StoredGrant(int generation, UUID deliveryId, int linkGeneration, Instant expiresAt,
+			Instant linkExpiresAt) {
 	}
 
 }

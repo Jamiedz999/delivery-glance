@@ -18,9 +18,15 @@ import org.springframework.stereotype.Repository;
 /**
  * Explicit SQL for the two Delivery tables. Every statement is written out here rather than
  * generated, so the durable shape of a Delivery is readable in one place.
+ *
+ * <p>It also implements {@link TrackedDeliveries} for the same reason {@code AssignmentRepository}
+ * implements {@code ActiveAssignments}: {@code Deliveries} depends on trackinglink to create a
+ * link, so implementing the return port on a service would close a constructor-injection cycle
+ * between the two modules. The port asks only for one read, with no policy to place above it, and
+ * its caller is itself a transactional service method.
  */
 @Repository
-class DeliveryRepository {
+class DeliveryRepository implements TrackedDeliveries {
 
 	private final JdbcClient jdbcClient;
 
@@ -175,7 +181,8 @@ class DeliveryRepository {
 	 * The Delivery Reference, and when the Delivery ended if it has. The terminal time comes from
 	 * the transition history rather than {@code updated_at}, which any later write would move.
 	 */
-	Optional<TrackedDeliveries.TrackedDelivery> findTrackedDelivery(UUID id) {
+	@Override
+	public Optional<TrackedDeliveries.TrackedDelivery> find(UUID id) {
 		return this.jdbcClient.sql("""
 				SELECT d.id, d.reference,
 				       (SELECT min(t.occurred_at) FROM delivery_transition t

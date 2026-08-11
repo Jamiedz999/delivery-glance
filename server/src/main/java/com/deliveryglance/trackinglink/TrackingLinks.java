@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 import com.deliveryglance.delivery.NewDeliveryLinks;
 import com.deliveryglance.identityaccess.CurrentActor;
 import com.deliveryglance.identityaccess.CurrentActorProvider;
+import com.deliveryglance.shared.Secrets;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,7 +60,7 @@ class TrackingLinks implements NewDeliveryLinks {
 		// The token is derived here only so its verifier can be stored. It is not returned, not
 		// logged, and goes out of scope with this method.
 		this.repository.insertLink(deliveryId, linkId, FIRST_GENERATION, keyVersion,
-				TrackingCapabilities.verifierOf(token), createdAt, createdAt.plus(LIFETIME));
+				Secrets.verifierOf(token), createdAt, createdAt.plus(LIFETIME));
 	}
 
 	/**
@@ -73,7 +74,7 @@ class TrackingLinks implements NewDeliveryLinks {
 		TrackingLinkRepository.StoredLink link = this.repository.findByDelivery(deliveryId)
 			.orElseThrow(TrackingLinkNotFoundException::new);
 		String token = this.capabilities.derive(link.linkId(), link.generation(), link.keyVersion());
-		if (!TrackingCapabilities.matches(token, link.tokenVerifier())) {
+		if (!Secrets.matches(token, link.tokenVerifier())) {
 			throw new IllegalStateException(
 					"Rederived capability for link " + link.linkId() + " does not match its stored verifier");
 		}
@@ -100,11 +101,11 @@ class TrackingLinks implements NewDeliveryLinks {
 		}
 
 		TrackingLinkRepository.StoredLink link = this.repository
-			.findByTokenVerifier(TrackingCapabilities.verifierOf(token))
+			.findByTokenVerifier(Secrets.verifierOf(token))
 			.orElseThrow(UnavailableLinkException::new);
 		// The lookup above found a candidate by an indexed equality match on a digest; this is the
 		// comparison that actually authorizes, and it does not stop early on the first wrong byte.
-		if (!TrackingCapabilities.matches(token, link.tokenVerifier())) {
+		if (!Secrets.matches(token, link.tokenVerifier())) {
 			throw new UnavailableLinkException();
 		}
 
@@ -114,10 +115,10 @@ class TrackingLinks implements NewDeliveryLinks {
 			throw new UnavailableLinkException();
 		}
 
-		String secret = TrackingGrants.newSecret();
+		String secret = Secrets.issue();
 		this.repository.insertGrant(UUID.randomUUID(), link.linkId(), link.generation(),
-				TrackingCapabilities.verifierOf(secret), now, expiry);
-		return new GrantIssued(secret, expiry);
+				Secrets.verifierOf(secret), now, expiry);
+		return new GrantIssued(secret, now, expiry);
 	}
 
 	/**
@@ -127,7 +128,7 @@ class TrackingLinks implements NewDeliveryLinks {
 	@Transactional(readOnly = true)
 	TrackingLinkViews.Snapshot snapshotFor(String grantSecret) {
 		TrackingLinkRepository.StoredGrant grant = this.repository
-			.findGrantByVerifier(TrackingCapabilities.verifierOf(grantSecret))
+			.findGrantByVerifier(Secrets.verifierOf(grantSecret))
 			.orElseThrow(UnavailableLinkException::new);
 		// A grant is scoped to the generation it was established through, so a rotation invalidates
 		// derived access without having to find every grant it produced. Core never rotates; the
@@ -143,9 +144,10 @@ class TrackingLinks implements NewDeliveryLinks {
 
 		TrackedDeliveries.TrackedDelivery delivery = this.deliveries.find(grant.deliveryId())
 			.orElseThrow(UnavailableLinkException::new);
-		// The grant's own expiry was fixed at exchange. A Delivery that has reached a terminal state
+		// The grant's own bound was fixed at exchange. A Delivery that has reached a terminal state
 		// since then has a shorter one, and the link is the authority on that, not the cookie.
-		if (!TrackingLinkExpiry.isValidAt(effectiveExpiryFor(grant.linkId(), delivery), now)) {
+		if (!TrackingLinkExpiry.isValidAt(
+				TrackingLinkExpiry.effective(grant.linkExpiresAt(), delivery.terminalAt()), now)) {
 			throw new UnavailableLinkException();
 		}
 
@@ -158,15 +160,12 @@ class TrackingLinks implements NewDeliveryLinks {
 		return TrackingLinkExpiry.effective(link.expiresAt(), delivery.terminalAt());
 	}
 
-	private Instant effectiveExpiryFor(UUID linkId, TrackedDeliveries.TrackedDelivery delivery) {
-		TrackingLinkRepository.StoredLink link = this.repository.findByDelivery(delivery.deliveryId())
-			.filter((stored) -> stored.linkId().equals(linkId))
-			.orElseThrow(UnavailableLinkException::new);
-		return TrackingLinkExpiry.effective(link.expiresAt(), delivery.terminalAt());
-	}
-
-	/** @param secret the value the cookie carries; only its verifier was stored */
-	record GrantIssued(String secret, Instant expiresAt) {
+	/**
+	 * @param secret the value the cookie carries; only its verifier was stored
+	 * @param establishedAt returned so the caller sizing the cookie's max-age uses the instant the
+	 * grant was actually written, rather than reading the clock a second time
+	 */
+	record GrantIssued(String secret, Instant establishedAt, Instant expiresAt) {
 	}
 
 }

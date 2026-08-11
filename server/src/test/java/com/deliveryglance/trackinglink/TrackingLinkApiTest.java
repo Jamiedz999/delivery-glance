@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 /**
  * The Tracking Link through the API a Dispatcher and a Link Holder actually use.
@@ -133,12 +134,18 @@ class TrackingLinkApiTest {
 
 		MockHttpServletResponse response = exchange(holder, tokenOf(copiedUrl(createDelivery())));
 
-		String setCookie = response.getHeaders("Set-Cookie")
+		assertThat(setCookieFor(response, TrackingGrants.COOKIE_NAME)).contains("HttpOnly")
+			.contains("SameSite=Lax")
+			.contains("Path=/")
+			.doesNotContain("Domain=");
+	}
+
+	private static String setCookieFor(MockHttpServletResponse response, String name) {
+		return response.getHeaders("Set-Cookie")
 			.stream()
-			.filter((header) -> header.startsWith(TrackingGrants.COOKIE_NAME + "="))
+			.filter((header) -> header.startsWith(name + "="))
 			.findFirst()
 			.orElseThrow();
-		assertThat(setCookie).contains("HttpOnly").contains("SameSite=Lax").contains("Path=/").doesNotContain("Domain=");
 	}
 
 	@Test
@@ -210,6 +217,54 @@ class TrackingLinkApiTest {
 		assertThat((String) JsonPath.read(snapshot.getContentAsString(), "$.code")).isEqualTo(UNAVAILABLE_CODE);
 	}
 
+	/**
+	 * The Delivered half of the terminal rule. Cancelled is covered above; both come from one
+	 * {@code next_state IN (...)} list, and if DELIVERED fell out of it the Cancelled test and the
+	 * expiry unit test would both still pass while a delivered Delivery stayed readable for a week.
+	 */
+	@Test
+	void stopsAcceptingALinkTwentyFourHoursAfterTheDeliveryIsDelivered() throws Exception {
+		String deliveryId = createDelivery();
+		String token = tokenOf(copiedUrl(deliveryId));
+		deliver(deliveryId);
+
+		this.clock.advance(Duration.ofHours(23));
+		assertThat(exchange(holderWhoOpened(), token).getStatus()).isEqualTo(204);
+
+		this.clock.advance(Duration.ofHours(2));
+		assertThat(exchange(holderWhoOpened(), token).getStatus()).isEqualTo(404);
+	}
+
+	/**
+	 * The grant's own bound, checked before the link is consulted at all. A Delivery that never
+	 * reaches a terminal state gives the grant the full seven days and no more.
+	 */
+	@Test
+	void stopsHonouringAnEstablishedGrantOnceItsOwnBoundPasses() throws Exception {
+		BrowserLikeClient holder = holderWhoOpened();
+		assertThat(exchange(holder, tokenOf(copiedUrl(createDelivery()))).getStatus()).isEqualTo(204);
+		assertThat(holder.send(get("/api/tracking/snapshot")).getStatus()).isEqualTo(200);
+
+		this.clock.advance(TrackingLinks.LIFETIME.plusSeconds(1));
+
+		MockHttpServletResponse snapshot = holder.send(get("/api/tracking/snapshot"));
+		assertThat(snapshot.getStatus()).isEqualTo(404);
+		assertThat((String) JsonPath.read(snapshot.getContentAsString(), "$.code")).isEqualTo(UNAVAILABLE_CODE);
+		// The cookie is cleared so the browser stops presenting something that can never work again.
+		assertThat(snapshot.getCookie(TrackingGrants.COOKIE_NAME).getMaxAge()).isZero();
+	}
+
+	/**
+	 * Production defaults to Secure and the local Compose demo is what opts out, so the default
+	 * configuration the tests run under is the one that has to carry the flag.
+	 */
+	@Test
+	void marksTheGrantCookieSecureUnderTheDefaultConfiguration() throws Exception {
+		MockHttpServletResponse response = exchange(holderWhoOpened(), tokenOf(copiedUrl(createDelivery())));
+
+		assertThat(setCookieFor(response, TrackingGrants.COOKIE_NAME)).contains("Secure");
+	}
+
 	@Test
 	void refusesASnapshotToABrowserHoldingNoGrant() throws Exception {
 		BrowserLikeClient stranger = holderWhoOpened();
@@ -273,6 +328,20 @@ class TrackingLinkApiTest {
 		assertProtectedHeaders(exchange(holder, token));
 		assertProtectedHeaders(holder.send(get("/api/tracking/snapshot")));
 		assertProtectedHeaders(exchange(holderWhoOpened(), "not-a-token"));
+	}
+
+	/**
+	 * The JSON routes render nothing, so they say nothing may be rendered. The bootstrap page needs a
+	 * wider policy and carries its own.
+	 */
+	@Test
+	void sendsAnInertContentSecurityPolicyOnTheTrackingApiResponsesToo() throws Exception {
+		BrowserLikeClient holder = holderWhoOpened();
+		exchange(holder, tokenOf(copiedUrl(createDelivery())));
+
+		String policy = holder.send(get("/api/tracking/snapshot")).getHeader("Content-Security-Policy");
+		assertThat(policy).isEqualTo(
+				"default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
 	}
 
 	@Test
@@ -353,6 +422,66 @@ class TrackingLinkApiTest {
 	private String referenceOf(String deliveryId) throws Exception {
 		return JsonPath.read(this.dispatcher.send(get("/api/deliveries/{id}", deliveryId)).getContentAsString(),
 				"$.reference");
+	}
+
+	/**
+	 * Drives one Delivery all the way to Delivered through the real API, because that is the only
+	 * thing that writes the terminal transition the link's grace period is derived from. The Courier
+	 * is created here rather than reusing the seeded demo one: a Courier may hold only one active
+	 * Assignment, and borrowing the shared account would couple this class to what every other test
+	 * happens to have left behind.
+	 */
+	private void deliver(String deliveryId) throws Exception {
+		int sequence = SEQUENCE.incrementAndGet();
+		UUID courierId = UUID.randomUUID();
+		String email = "courier-tracking-%d@delivery-glance.example".formatted(sequence);
+		this.jdbcClient.sql("""
+				INSERT INTO internal_account (id, email, password_hash, display_name, role, enabled)
+				SELECT :id, :email, password_hash, :displayName, 'COURIER', true
+				FROM internal_account WHERE email = :sourceEmail
+				""")
+			.param("id", courierId)
+			.param("email", email)
+			.param("displayName", "Tracking Courier %d".formatted(sequence))
+			.param("sourceEmail", DemoAccounts.COURIER_EMAIL)
+			.update();
+
+		BrowserLikeClient courier = new BrowserLikeClient(this.mockMvc);
+		courier.signIn(email, DemoAccounts.COURIER_PASSWORD);
+		assertThat(courier
+			.send(put("/api/couriers/me/duty").contentType(MediaType.APPLICATION_JSON).content("{\"onDuty\":true}"))
+			.getStatus()).isEqualTo(200);
+		MockHttpServletResponse started = courier.send(post("/api/couriers/me/location-sharing"));
+		assertThat(courier.send(post("/api/couriers/me/location-reports").contentType(MediaType.APPLICATION_JSON)
+			.content("""
+					{"generation":"%s","reportingSecret":"%s","longitude":-0.1278,"latitude":51.5074,
+					 "accuracyMetres":12.0,"recordedAt":"%s"}
+					""".formatted(JsonPath.read(started.getContentAsString(), "$.generation"),
+					JsonPath.<String>read(started.getContentAsString(), "$.reportingSecret"),
+					this.clock.instant())))
+			.getStatus()).isEqualTo(200);
+
+		assertThat(this.dispatcher.send(post("/api/deliveries/{id}/assignment", deliveryId)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("""
+					{"courierId":"%s","expectedVersion":0,"commandId":"%s"}
+					""".formatted(courierId, UUID.randomUUID())))
+			.getStatus()).isEqualTo(204);
+		progress(courier, deliveryId, "pickup", 1);
+		progress(courier, deliveryId, "handoff", 2);
+
+		assertThat((String) JsonPath.read(this.dispatcher.send(get("/api/deliveries/{id}", deliveryId))
+			.getContentAsString(), "$.state")).isEqualTo("DELIVERED");
+	}
+
+	private void progress(BrowserLikeClient courier, String deliveryId, String action, int expectedVersion)
+			throws Exception {
+		assertThat(courier.send(post("/api/couriers/me/deliveries/{id}/{action}", deliveryId, action)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("""
+					{"commandId":"%s","expectedVersion":%d}
+					""".formatted(UUID.randomUUID(), expectedVersion)))
+			.getStatus()).isEqualTo(204);
 	}
 
 	private void cancel(String deliveryId) throws Exception {

@@ -1,7 +1,5 @@
 package com.deliveryglance.trackinglink;
 
-import java.time.Clock;
-
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -29,13 +27,10 @@ class TrackingSessionController {
 
 	private final TrackingAttempts attempts;
 
-	private final Clock clock;
-
-	TrackingSessionController(TrackingLinks links, TrackingGrants grants, TrackingAttempts attempts, Clock clock) {
+	TrackingSessionController(TrackingLinks links, TrackingGrants grants, TrackingAttempts attempts) {
 		this.links = links;
 		this.grants = grants;
 		this.attempts = attempts;
-		this.clock = clock;
 	}
 
 	@PostMapping("/api/tracking-session")
@@ -60,7 +55,7 @@ class TrackingSessionController {
 		}
 
 		this.attempts.recordSuccess(source);
-		this.grants.issue(response, issued.secret(), issued.expiresAt(), this.clock.instant());
+		this.grants.issue(response, issued.secret(), issued.expiresAt(), issued.establishedAt());
 	}
 
 	@GetMapping("/api/tracking/snapshot")

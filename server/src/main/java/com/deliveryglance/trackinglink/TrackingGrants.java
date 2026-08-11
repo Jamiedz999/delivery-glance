@@ -1,17 +1,15 @@
 package com.deliveryglance.trackinglink;
 
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Optional;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
 /**
@@ -31,20 +29,10 @@ class TrackingGrants {
 
 	static final String COOKIE_NAME = "DG_TRACKING";
 
-	private static final SecureRandom RANDOM = new SecureRandom();
-
-	private static final int SECRET_BYTES = 32;
-
 	private final TrackingLinkProperties properties;
 
 	TrackingGrants(TrackingLinkProperties properties) {
 		this.properties = properties;
-	}
-
-	static String newSecret() {
-		byte[] secret = new byte[SECRET_BYTES];
-		RANDOM.nextBytes(secret);
-		return Base64.getUrlEncoder().withoutPadding().encodeToString(secret);
 	}
 
 	void issue(HttpServletResponse response, String secret, Instant expiresAt, Instant now) {
