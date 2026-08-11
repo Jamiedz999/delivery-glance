@@ -2,12 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { describeFreshness, formatCountdown } from '../api/courier'
 import type { CourierDelivery } from '../api/deliveries'
 import { ApiError } from '../api/http'
-import {
-  useCourier,
-  useCurrentCourierDelivery,
-  useProgressCourierDelivery,
-  useSetDuty,
-} from '../api/queries'
+import { useCourier, useCurrentCourierDelivery, useProgressCourierDelivery, useSetDuty } from '../api/queries'
 import { SHARING_STATUS_LABELS, useLocationSharing } from './useLocationSharing'
 
 export function CourierHomePage() {
@@ -38,7 +33,10 @@ export function CourierHomePage() {
         <p role="status">{courier.onDuty ? 'On duty' : 'Off duty'}</p>
         {courier.onDutyChangedAt !== null && (
           <p>
-            Since <time dateTime={courier.onDutyChangedAt}>{new Date(courier.onDutyChangedAt).toLocaleString()}</time>
+            Since{' '}
+            <time dateTime={courier.onDutyChangedAt}>
+              {new Date(courier.onDutyChangedAt).toLocaleString()}
+            </time>
           </p>
         )}
         <button
@@ -59,8 +57,8 @@ export function CourierHomePage() {
         {sharing.notice !== null && <p role="alert">{sharing.notice}</p>}
 
         <p>
-          Your position is only reported while this page is open and in front of you. Reloading,
-          signing out or pressing Stop ends it, and the server forgets where you are.
+          Your position is only reported while this page is open and in front of you. Reloading, signing out
+          or pressing Stop ends it, and the server forgets where you are.
         </p>
 
         {leftoverSession && (
@@ -69,19 +67,28 @@ export function CourierHomePage() {
             <time dateTime={courier.sharing?.startedAt}>
               {new Date(courier.sharing?.startedAt ?? '').toLocaleTimeString()}
             </time>
-            . This page holds no reporting secret for it, so it can only replace that session or end
-            it.
+            . This page holds no reporting secret for it, so it can only replace that session or end it.
           </p>
         )}
 
         {sharing.status === 'OFF' && (
-          <button type="button" onClick={() => void sharing.start()} disabled={sharing.busy} aria-busy={sharing.busy}>
+          <button
+            type="button"
+            onClick={() => void sharing.start()}
+            disabled={sharing.busy}
+            aria-busy={sharing.busy}
+          >
             Start sharing
           </button>
         )}
         {/* Offered for a session this page did not start too, so a reload cannot strand one. */}
         {(sharing.status !== 'OFF' || leftoverSession) && (
-          <button type="button" onClick={() => void sharing.stop()} disabled={sharing.busy} aria-busy={sharing.busy}>
+          <button
+            type="button"
+            onClick={() => void sharing.stop()}
+            disabled={sharing.busy}
+            aria-busy={sharing.busy}
+          >
             Stop sharing
           </button>
         )}

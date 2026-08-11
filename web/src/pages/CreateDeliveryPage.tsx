@@ -37,7 +37,11 @@ export function CreateDeliveryPage() {
     <section>
       <h1>New delivery</h1>
 
-      {create.isError && <p role="alert" className="error">{summaryFor(create.error)}</p>}
+      {create.isError && (
+        <p role="alert" className="error">
+          {summaryFor(create.error)}
+        </p>
+      )}
 
       <form onSubmit={submit} noValidate>
         <Field id="reference" label="Delivery reference" error={fieldErrors.reference}>
@@ -92,9 +96,7 @@ function AddressFieldset({ legend, name, value, onChange, errors }: AddressField
           value={value.addressLabel}
           onChange={(event) => onChange({ ...value, addressLabel: event.target.value })}
           aria-invalid={errors[`${name}.addressLabel`] !== undefined}
-          aria-describedby={
-            errors[`${name}.addressLabel`] !== undefined ? `${name}-label-error` : undefined
-          }
+          aria-describedby={errors[`${name}.addressLabel`] !== undefined ? `${name}-label-error` : undefined}
         />
       </Field>
 
@@ -108,9 +110,7 @@ function AddressFieldset({ legend, name, value, onChange, errors }: AddressField
           value={value.latitude}
           onChange={(event) => onChange({ ...value, latitude: event.target.value })}
           aria-invalid={errors[`${name}.latitude`] !== undefined}
-          aria-describedby={
-            errors[`${name}.latitude`] !== undefined ? `${name}-latitude-error` : undefined
-          }
+          aria-describedby={errors[`${name}.latitude`] !== undefined ? `${name}-latitude-error` : undefined}
         />
       </Field>
 
@@ -124,9 +124,7 @@ function AddressFieldset({ legend, name, value, onChange, errors }: AddressField
           value={value.longitude}
           onChange={(event) => onChange({ ...value, longitude: event.target.value })}
           aria-invalid={errors[`${name}.longitude`] !== undefined}
-          aria-describedby={
-            errors[`${name}.longitude`] !== undefined ? `${name}-longitude-error` : undefined
-          }
+          aria-describedby={errors[`${name}.longitude`] !== undefined ? `${name}-longitude-error` : undefined}
         />
       </Field>
     </fieldset>

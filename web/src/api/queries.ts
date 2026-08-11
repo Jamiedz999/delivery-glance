@@ -116,7 +116,8 @@ export function useProgressCourierDelivery(action: 'pickup' | 'handoff') {
   return useMutation({
     mutationFn: ({ deliveryId, input }: { deliveryId: string; input: ProgressDeliveryInput }) =>
       progressCourierDelivery(deliveryId, action, input),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.currentCourierDelivery, exact: true }),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.currentCourierDelivery, exact: true }),
   })
 }
 

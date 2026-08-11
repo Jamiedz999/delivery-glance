@@ -11,9 +11,5 @@ export function ConnectionPage() {
     return <p role="alert">Could not reach the Delivery Glance API.</p>
   }
 
-  return (
-    <p role="status">
-      Frontend connected to Delivery Glance API — status: {data.status}
-    </p>
-  )
+  return <p role="status">Frontend connected to Delivery Glance API — status: {data.status}</p>
 }
