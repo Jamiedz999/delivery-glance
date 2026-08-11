@@ -166,12 +166,13 @@ class RecipientViewApiTest {
 	}
 
 	/**
-	 * A cancelled link keeps working for its grace period, and what it shows in that window is a
-	 * generic outcome. CONTEXT's Terminal Tracking View allows nothing else — not the Reference and
-	 * not the address — so a link left in a group chat stops describing where anybody lives.
+	 * A cancelled link keeps working for its grace period, and what it shows in that window is the
+	 * Reference, a generic outcome and who to ask. The Handoff Address goes: ADR 06 keeps the
+	 * identifier a Recipient needs in order to phone the team, and drops the field that says where
+	 * somebody lives, so a link left in a group chat stops describing anybody's home.
 	 */
 	@Test
-	void showsACancelledDeliveryOnlyItsOutcomeTimeAndWhoToAsk() throws Exception {
+	void showsACancelledDeliveryItsReferenceOutcomeTimeAndWhoToAskAndNoAddress() throws Exception {
 		String delivery = createDelivery();
 		cancel(delivery);
 
@@ -179,11 +180,9 @@ class RecipientViewApiTest {
 
 		assertThat(read(snapshot, "$.state")).isEqualTo("CANCELLED");
 		assertThat(read(snapshot, "$.completedAt")).isEqualTo(this.clock.instant().toString());
-		assertThat(read(snapshot, "$.reference")).isNull();
+		assertThat(read(snapshot, "$.reference")).isEqualTo(referenceOf(delivery));
 		assertThat(read(snapshot, "$.handoffAddressLabel")).isNull();
-		assertThat(snapshot).doesNotContain(HANDOFF_LABEL)
-			.doesNotContain(referenceOf(delivery))
-			.doesNotContain("NO_LONGER_REQUIRED");
+		assertThat(snapshot).doesNotContain(HANDOFF_LABEL).doesNotContain("NO_LONGER_REQUIRED");
 	}
 
 	/**

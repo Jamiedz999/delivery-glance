@@ -166,8 +166,9 @@ Sprint 3 gate, and it is best followed on a phone on the same network.
    immediately, and the handoff marker remains.
 7. Have the Courier confirm handoff. The Recipient page keeps the Reference, the Handoff Address and
    the actual handoff time, and loses the Courier's name and every trace of location.
-8. Cancel a different Delivery before pickup and open its link. It shows only that it was cancelled,
-   when, and who to contact — no Reference, no address and no internal reason.
+8. Cancel a different Delivery before pickup and open its link. It shows its Reference, that it was
+   cancelled, when, and who to contact — but not the Handoff Address, and never the internal reason
+   the Dispatcher gave.
 
 Tampering with the fragment, or opening a link more than seven days old, produces one identical
 response in every case, which is what stops the page becoming a way to ask whether a Delivery exists.

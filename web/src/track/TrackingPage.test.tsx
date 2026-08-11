@@ -280,11 +280,15 @@ describe('the Recipient tracking view', () => {
     expect(map.mounts).toHaveLength(0)
   })
 
-  it('shows a cancelled delivery its outcome, its time and who to ask, and nothing else', async () => {
+  /**
+   * The Reference survives cancellation because the same page offers a Delivery Team Contact, and a
+   * Recipient phoning that number needs something to name the delivery by. The Handoff Address does
+   * not: it is the field that says where somebody lives, and nothing is being delivered there now.
+   */
+  it('shows a cancelled delivery its reference, outcome, time and who to ask, but no address', async () => {
     const map = recordingEngine()
     respondWithSnapshot(
       snapshotOf('CANCELLED', {
-        reference: null,
         handoffAddressLabel: null,
         completedAt: '2026-08-10T09:42:00.000Z',
         deliveryTeamContact: '+44 20 7946 0000',
@@ -294,15 +298,15 @@ describe('the Recipient tracking view', () => {
     renderPage(map.engine)
 
     expect(await screen.findByRole('heading', { name: 'This delivery was cancelled' })).toBeInTheDocument()
+    expect(screen.getByText('DG-0042')).toBeInTheDocument()
     expect(screen.getByText(/Cancelled at/)).toBeInTheDocument()
     expect(screen.getByText(/\+44 20 7946 0000/)).toBeInTheDocument()
-    expect(screen.queryByText('DG-0042')).not.toBeInTheDocument()
     expect(screen.queryByText('2 Handoff Road, London')).not.toBeInTheDocument()
     expect(map.mounts).toHaveLength(0)
   })
 
   it('points a cancelled Recipient back at whoever shared the link when no contact is configured', async () => {
-    respondWithSnapshot(snapshotOf('CANCELLED', { reference: null, handoffAddressLabel: null }))
+    respondWithSnapshot(snapshotOf('CANCELLED', { handoffAddressLabel: null }))
 
     renderPage()
 

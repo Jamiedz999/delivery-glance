@@ -87,13 +87,16 @@ class RecipientSnapshots {
 	}
 
 	/**
-	 * Generic outcome, its time, and who to ask. CONTEXT's Terminal Tracking View allows a cancelled
-	 * page nothing else — not the Reference and not the Handoff Address — so a link that outlives
-	 * the Delivery in a group chat stops describing anybody's address.
+	 * The Reference, a generic outcome, its time, and who to ask. The Reference stays because the
+	 * same page hands out a Delivery Team Contact, and a page that tells somebody to phone the team
+	 * while withholding the only identifier that call can start from is not being careful, it is
+	 * being useless. The Handoff Address goes, because that is the field that says where a person
+	 * lives — so a link left in a group chat outlives the Delivery without describing anybody's
+	 * home. ADR 06 records the split.
 	 */
 	private RecipientViews.Snapshot cancelled(RecipientDelivery delivery) {
-		return new RecipientViews.Snapshot(null, delivery.state(), null, null, null, delivery.completedAt(),
-				configuredContact());
+		return new RecipientViews.Snapshot(delivery.reference(), delivery.state(), null, null, null,
+				delivery.completedAt(), configuredContact());
 	}
 
 	private RecipientViews.MapView mapFor(RecipientDelivery delivery) {

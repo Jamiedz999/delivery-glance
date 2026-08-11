@@ -36,7 +36,14 @@ The server-enforced expiry is the earlier of:
 Opening and reuse never extend either limit. A terminal outcome immediately removes Courier identity, map, location, and ETA while the valid link enters its remaining grace period:
 
 - `DELIVERED` shows Delivery Reference, Handoff Address, the Delivered result, and actual Handoff Confirmation time.
-- `CANCELLED` and `UNDELIVERABLE` show only a generic outcome, occurrence time, and Delivery Team Contact.
+- `CANCELLED` and `UNDELIVERABLE` show the Delivery Reference, a generic outcome, occurrence time, and Delivery Team Contact, and nothing else — in particular no Handoff Address.
+
+The Reference is on that second line because the same line offers a Delivery Team Contact. A page
+that tells a Recipient to phone somebody, and simultaneously withholds the only identifier that
+conversation can start from, is asking them to describe a delivery they cannot name. The Reference
+is also not what makes the page sensitive: it identifies a Delivery to the team that already owns
+it, while the Handoff Address identifies where a person lives, which is why the address is the thing
+a cancelled page still drops.
 
 The Tracking Link lifecycle is independent of the Delivery lifecycle. Expiry, Rotation, Revocation, or Reissue never transitions or cancels the Delivery.
 
