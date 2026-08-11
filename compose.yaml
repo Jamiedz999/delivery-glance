@@ -35,6 +35,10 @@ services:
       # exception that has to say so, which is the right way round for a public bearer link.
       TRACKING_COOKIE_SECURE: ${TRACKING_COOKIE_SECURE:-false}
       TRACKING_KEY_V1: ${TRACKING_KEY_V1:-development-only-tracking-key-do-not-deploy}
+      # Unset by default, and the demo works that way: the Recipient view keeps its status and
+      # freshness content and says the map is unavailable. Set it to see the map itself.
+      TRACKING_MAP_STYLE_URL: ${TRACKING_MAP_STYLE_URL:-}
+      DELIVERY_TEAM_CONTACT: ${DELIVERY_TEAM_CONTACT:-}
       # Only used the first time Flyway runs against an empty database; see .env.example.
       DEMO_DISPATCHER_EMAIL: ${DEMO_DISPATCHER_EMAIL:-dispatcher@delivery-glance.example}
       DEMO_DISPATCHER_DISPLAY_NAME: ${DEMO_DISPATCHER_DISPLAY_NAME:-Dana the Dispatcher}

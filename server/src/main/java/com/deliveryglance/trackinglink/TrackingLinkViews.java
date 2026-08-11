@@ -2,7 +2,7 @@ package com.deliveryglance.trackinglink;
 
 import java.time.Instant;
 
-/** The two responses this module serialises. Neither is a domain object. */
+/** The one response this module serialises. It is not a domain object. */
 final class TrackingLinkViews {
 
 	private TrackingLinkViews() {
@@ -17,14 +17,6 @@ final class TrackingLinkViews {
 	 * the Recipient opens it. Core has no Reissue, so this is information, not an action.
 	 */
 	record CopiedLink(String url, Instant expiresAt) {
-	}
-
-	/**
-	 * The placeholder authorised snapshot. It carries the Delivery Reference and nothing else: the
-	 * Reference is Recipient-facing by Ticket 12, and it is enough to prove the grant resolved to the
-	 * right Delivery. Everything else the Recipient sees is DG-025's to design.
-	 */
-	record Snapshot(String deliveryReference) {
 	}
 
 }

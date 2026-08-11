@@ -19,7 +19,11 @@ import static com.deliveryglance.shared.ApiProblemResponses.problem;
  * guesser wants and RFC 7662 says an introspection response must not reveal.
  */
 @Order(Ordered.HIGHEST_PRECEDENCE)
-@RestControllerAdvice(assignableTypes = { TrackingSessionController.class, TrackingLinkController.class })
+// recipientview is named by package rather than by controller class because it depends on this
+// module for authorization; referring to its controller here would close the import cycle. It is
+// covered at all because the refusal is the same refusal — a Link Holder must not be able to tell
+// "the exchange failed" from "the view refused me", and one handler is the only way to be sure.
+@RestControllerAdvice(basePackages = { "com.deliveryglance.trackinglink", "com.deliveryglance.recipientview" })
 class TrackingExceptionHandler {
 
 	@ExceptionHandler(UnavailableLinkException.class)
