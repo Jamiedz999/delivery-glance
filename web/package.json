@@ -9,8 +9,8 @@
     "test": "vitest run",
     "check": "tsc -b && vitest run && vite build",
     "lint": "oxlint --type-aware",
-    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"public/**/*.css\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"public/**/*.css\"",
     "preview": "vite preview"
   },
   "dependencies": {

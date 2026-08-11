@@ -16,6 +16,7 @@ import com.deliveryglance.trackinglink.UnavailableLinkException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -114,8 +115,8 @@ class RecipientSnapshotsTest {
 	 * matrix tests above rather than let a filter downstream be the only thing protecting it.
 	 */
 	@ParameterizedTest
-	@MethodSource("theStateMatrix")
-	void asksLocationWhereTheCourierIsOnlyWhileInTransit(DeliveryState state, Set<String> allowed) {
+	@EnumSource(DeliveryState.class)
+	void asksLocationWhereTheCourierIsOnlyWhileInTransit(DeliveryState state) {
 		this.deliveries.holds(deliveryIn(state));
 		this.locations.holds(livePosition());
 

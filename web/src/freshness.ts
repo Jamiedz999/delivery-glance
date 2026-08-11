@@ -3,8 +3,15 @@ export type LocationFreshness = 'LIVE' | 'DELAYED' | 'UNAVAILABLE'
 const LIVE_LIMIT_SECONDS = 30
 const USABLE_LIMIT_SECONDS = 120
 
+/**
+ * The three words every role sees. Typed rather than left as a string because the pages branch on
+ * it — a marker is removed on Unavailable — and a comparison against a free string is a typo away
+ * from a page that keeps showing a courier nobody has heard from.
+ */
+export type FreshnessLabel = 'Live' | 'Delayed' | 'Unavailable'
+
 export interface FreshnessDescription {
-  label: string
+  label: FreshnessLabel
   ageSeconds: number
   /** How long the server will still hold the position, which is what the countdown shows. */
   secondsUntilUnavailable: number
@@ -24,7 +31,7 @@ export function describeFreshness(recordedAt: string | null, now: number): Fresh
     return null
   }
   const ageSeconds = Math.max(0, Math.floor((now - Date.parse(recordedAt)) / 1000))
-  const label =
+  const label: FreshnessLabel =
     ageSeconds <= LIVE_LIMIT_SECONDS ? 'Live' : ageSeconds <= USABLE_LIMIT_SECONDS ? 'Delayed' : 'Unavailable'
   return {
     label,

@@ -98,7 +98,7 @@ function respondWithSnapshot(snapshot: TrackingSnapshot) {
 }
 
 function renderPage(engine?: MapEngine, styleUrl = STYLE_URL) {
-  return render(<TrackingPage mapStyleUrl={styleUrl} mapEngine={engine} />)
+  return render(<TrackingPage map={{ styleUrl, engine }} />)
 }
 
 describe('the Recipient tracking view', () => {
@@ -224,11 +224,15 @@ describe('the Recipient tracking view', () => {
     })
     expect(screen.getByText(/Live location — updated 30 seconds ago/)).toBeInTheDocument()
     expect(map.kindsLastDrawn()).toEqual(['handoff', 'courier'])
+    // Thirty seconds of ticking, and the live region has said one thing. The sentence is not the
+    // region precisely so that a reader is not told the age every second for as long as they look.
+    expect(screen.getByRole('status')).toHaveTextContent('Live location.')
 
     await act(async () => {
       vi.advanceTimersByTime(1_000)
     })
     expect(screen.getByText(/Delayed location — updated 31 seconds ago/)).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Delayed location.')
 
     await act(async () => {
       vi.advanceTimersByTime(89_000)
@@ -244,7 +248,12 @@ describe('the Recipient tracking view', () => {
     expect(map.kindsLastDrawn()).toEqual(['handoff'])
   })
 
-  it('keeps the map and says so plainly when the courier is not sharing at all', async () => {
+  /**
+   * Sharing never started, Stop was pressed, and a reading that aged out of the server's keeping
+   * all arrive as the same absent position. The page therefore says the position is unavailable
+   * rather than naming one of the three, which it has no way to tell apart.
+   */
+  it('names no cause when the server holds no usable position at all', async () => {
     const map = recordingEngine()
     respondWithSnapshot(
       inTransit({ map: { handoff: { latitude: 51.509, longitude: -0.13 }, courier: null } }),
@@ -252,9 +261,9 @@ describe('the Recipient tracking view', () => {
 
     renderPage(map.engine)
 
-    expect(
-      await screen.findByText('The courier is not sharing their position right now.'),
-    ).toBeInTheDocument()
+    // Said in the sentence and again in the live region: a courier's position vanishing is one of
+    // the two changes on this page worth interrupting a reader for.
+    expect(await screen.findAllByText('The courier’s position is not available right now.')).toHaveLength(2)
     await waitFor(() => expect(map.kindsLastDrawn()).toEqual(['handoff']))
   })
 
@@ -308,7 +317,7 @@ describe('the Recipient tracking view', () => {
 
     renderPage(map.engine, '')
 
-    expect(await screen.findByText(/Live location/)).toBeInTheDocument()
+    expect(await screen.findByText(/Live location — updated/)).toBeInTheDocument()
     expect(screen.getByText(/The map is unavailable/)).toBeInTheDocument()
     expect(map.mounts).toHaveLength(0)
   })
@@ -319,7 +328,7 @@ describe('the Recipient tracking view', () => {
     renderPage(failingEngine)
 
     expect(await screen.findByText(/The map is unavailable/)).toBeInTheDocument()
-    expect(screen.getByText(/Live location/)).toBeInTheDocument()
+    expect(screen.getByText(/Live location — updated/)).toBeInTheDocument()
   })
 
   /**
@@ -366,7 +375,7 @@ describe('the Recipient tracking view', () => {
 
     render(
       <StrictMode>
-        <TrackingPage mapStyleUrl={STYLE_URL} mapEngine={map.engine} />
+        <TrackingPage map={{ styleUrl: STYLE_URL, engine: map.engine }} />
       </StrictMode>,
     )
     await waitFor(() => expect(map.surfaces.length).toBeGreaterThan(1))
@@ -395,7 +404,7 @@ describe('the Recipient tracking view', () => {
     expect(await screen.findByRole('heading', { name: 'Your delivery is on the way' })).toBeInTheDocument()
     expect(screen.getByText('2 Handoff Road, London')).toBeInTheDocument()
     expect(screen.getByText('Cory C.')).toBeInTheDocument()
-    expect(screen.getByText(/Live location/)).toBeInTheDocument()
+    expect(screen.getByText(/Live location — updated/)).toBeInTheDocument()
     expect(screen.getByRole('img', { name: /Map of the handoff address/ })).toBeInTheDocument()
   })
 })

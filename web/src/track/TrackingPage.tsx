@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { describeFreshness } from '../freshness'
+import { type FreshnessDescription, describeFreshness } from '../freshness'
 import { DeliveryMap } from './DeliveryMap'
-import { STATE_COPY, UNAVAILABLE_LINK, UNREACHABLE, formatAge, formatTime } from './copy'
+import { NO_POSITION, STATE_COPY, UNAVAILABLE_LINK, UNREACHABLE, formatAge, formatTime } from './copy'
 import type { MapEngine, MapMarker } from './mapEngine'
-import { type TrackingResult, type TrackingSnapshot, fetchSnapshot } from './tracking'
+import { type TrackingMap, type TrackingResult, type TrackingSnapshot, fetchSnapshot } from './tracking'
+
+/** Everything about the map that comes from deployment rather than from the Delivery. */
+export interface MapConfiguration {
+  /** The configured map style, empty when this deployment has none. */
+  styleUrl: string
+  /** Tests supply a recording engine; production gets MapLibre, loaded on first use. */
+  engine?: MapEngine
+}
 
 interface TrackingPageProps {
-  /** The configured map style, empty when this deployment has none. */
-  mapStyleUrl: string
-  /** Tests supply a recording engine; production gets MapLibre, loaded on first use. */
-  mapEngine?: MapEngine
+  map: MapConfiguration
 }
 
 /**
@@ -23,7 +28,7 @@ interface TrackingPageProps {
  * how old that is now is a question only this page can keep answering, because nothing arrives to
  * tell it the marker has expired.
  */
-export function TrackingPage({ mapStyleUrl, mapEngine }: TrackingPageProps) {
+export function TrackingPage({ map }: TrackingPageProps) {
   const [result, setResult] = useState<TrackingResult | null>(null)
   const [attempt, setAttempt] = useState(0)
 
@@ -68,10 +73,10 @@ export function TrackingPage({ mapStyleUrl, mapEngine }: TrackingPageProps) {
       </div>
     )
   }
-  return <Delivery snapshot={result.snapshot} mapStyleUrl={mapStyleUrl} mapEngine={mapEngine} />
+  return <Delivery snapshot={result.snapshot} map={map} />
 }
 
-function Delivery({ snapshot, mapStyleUrl, mapEngine }: { snapshot: TrackingSnapshot } & TrackingPageProps) {
+function Delivery({ snapshot, map }: { snapshot: TrackingSnapshot } & TrackingPageProps) {
   const copy = STATE_COPY[snapshot.state]
 
   return (
@@ -99,9 +104,7 @@ function Delivery({ snapshot, mapStyleUrl, mapEngine }: { snapshot: TrackingSnap
         </section>
       )}
 
-      {snapshot.map !== null && (
-        <CourierLocation map={snapshot.map} mapStyleUrl={mapStyleUrl} mapEngine={mapEngine} />
-      )}
+      {snapshot.map !== null && <CourierLocation positions={snapshot.map} map={map} />}
 
       {snapshot.completedAt !== null && (
         <p className="completed">
@@ -126,19 +129,15 @@ function Delivery({ snapshot, mapStyleUrl, mapEngine }: { snapshot: TrackingSnap
  * makes the map honest. If the map cannot be drawn at all, the sentence is still here and still
  * says the same thing.
  */
-function CourierLocation({
-  map,
-  mapStyleUrl,
-  mapEngine,
-}: { map: NonNullable<TrackingSnapshot['map']> } & TrackingPageProps) {
-  const courier = map.courier
+function CourierLocation({ positions, map }: { positions: TrackingMap } & TrackingPageProps) {
+  const courier = positions.courier
   const freshness = useFreshness(courier?.recordedAt ?? null)
   // The browser's own timer is what removes the marker. Nothing arrives from the server to say the
   // reading expired, so a page left open on a phone in a pocket has to reach this on its own.
   const stillUsable = freshness !== null && freshness.label !== 'Unavailable'
 
   const markers = useMemo<MapMarker[]>(() => {
-    const drawn: MapMarker[] = [{ kind: 'handoff', ...map.handoff }]
+    const drawn: MapMarker[] = [{ kind: 'handoff', ...positions.handoff }]
     if (courier !== null && stillUsable) {
       drawn.push({
         kind: 'courier',
@@ -148,18 +147,25 @@ function CourierLocation({
       })
     }
     return drawn
-  }, [map.handoff, courier, stillUsable])
+  }, [positions.handoff, courier, stillUsable])
 
   return (
     <section aria-labelledby="location-heading">
       <h3 id="location-heading">Courier location</h3>
-      <p className="freshness" role="status">
-        {describeLocation(courier, freshness, stillUsable)}
-      </p>
+      {/*
+        The sentence ticks every second, so it is deliberately not the live region: announcing
+        "32 seconds ago", then "33", would talk over everything else on the page for as long as it
+        is open. What is worth interrupting for is the reading changing category, which happens
+        twice, and that is what the region below carries.
+      */}
+      <p className="freshness">{describeLocation(courier, freshness)}</p>
+      <span className="visually-hidden" role="status">
+        {freshness === null ? NO_POSITION : `${freshness.label} location.`}
+      </span>
       <DeliveryMap
-        styleUrl={mapStyleUrl}
+        styleUrl={map.styleUrl}
         markers={markers}
-        engine={mapEngine}
+        engine={map.engine}
         label={
           stillUsable
             ? 'Map of the handoff address and the courier’s last reported position'
@@ -172,19 +178,18 @@ function CourierLocation({
 
 function describeLocation(
   courier: { accuracyMetres: number } | null,
-  freshness: ReturnType<typeof describeFreshness>,
-  stillUsable: boolean,
+  freshness: FreshnessDescription | null,
 ): string {
   if (courier === null || freshness === null) {
-    return 'The courier is not sharing their position right now.'
+    return NO_POSITION
   }
-  if (!stillUsable) {
+  if (freshness.label === 'Unavailable') {
+    // The last report time survives the marker, which is the whole difference between this and the
+    // sentence above: here the page knows when the courier was last heard from and says so.
     return `Location unavailable — last reported ${formatAge(freshness.ageSeconds)}.`
   }
   const accuracy = `accurate to about ${Math.round(courier.accuracyMetres)} metres`
-  return freshness.label === 'Live'
-    ? `Live location — updated ${formatAge(freshness.ageSeconds)}, ${accuracy}.`
-    : `Delayed location — updated ${formatAge(freshness.ageSeconds)}, ${accuracy}.`
+  return `${freshness.label} location — updated ${formatAge(freshness.ageSeconds)}, ${accuracy}.`
 }
 
 /**

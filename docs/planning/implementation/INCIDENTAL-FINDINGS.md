@@ -33,6 +33,28 @@ Fix: amend the callout to say Core assigns any currently Eligible Courier with e
 revalidated at assignment time, and that ADR 04's structured Recommendation Override reason stays
 with Future Work 16. Leave the rest of the ADR alone; its preserved full-product design is intended.
 
+### Recipient-facing times are shown in the reader's time zone, not the Handoff Address's
+
+CONTEXT's **Delivery Time Zone** is "the Handoff Address's time zone, used for every Recipient-facing
+Delivery time regardless of the viewing device's current zone", and ADR 05 adds that every public
+time "includes its abbreviation". `web/src/track/copy.ts` calls `toLocaleString()`, which is the
+reader's own zone and carries no abbreviation. A Recipient who has travelled — exactly the person a
+delivery is being sent to at an address they are not currently at — is told the handoff happened at
+a time that is right for their phone and wrong for their doorstep.
+
+Closing it needs a time zone for a coordinate, which means a `tzdata` lookup keyed by latitude and
+longitude. TECHNICAL-BASELINE lists external geocoding calls under "Explicitly absent from Core", and
+a bundled boundary dataset is a dependency of the same size, so DG-025 could not close it either
+way — it renders the correct instant in the wrong zone rather than inventing one.
+
+Found while implementing DG-025's Delivered and Cancelled views. Recorded here rather than left in a
+source comment, because a comment inside `formatTime` is not somewhere anyone goes looking for the
+gap between the ADR and the product.
+
+Fix: decide whether Core carries a coordinate-to-time-zone dataset at all. If not, amend ADR 05's
+callout and CONTEXT's Delivery Time Zone to say Core shows the reader's zone, so the glossary stops
+describing something the product does not do.
+
 ### A Dispatcher cannot copy a Tracking Link without leaving the application
 
 `POST /api/deliveries/{id}/tracking-link/copy` exists, is Dispatcher-only and is tested, but no
