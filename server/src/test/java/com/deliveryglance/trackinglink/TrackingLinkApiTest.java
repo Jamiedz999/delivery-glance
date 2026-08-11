@@ -322,7 +322,15 @@ class TrackingLinkApiTest {
 			assertThat(previewer.send(get("/track?t={token}", token)).getStatus()).isEqualTo(200);
 		}
 
-		assertThat(this.jdbcClient.sql("SELECT count(*) FROM tracking_grant").query(Integer.class).single()).isZero();
+		// Scoped to this Delivery's own link rather than counting the whole table. Every test class
+		// in the suite shares one database, so a table-wide count was really asserting that no other
+		// test had ever exchanged a token — true by luck of ordering until one of them did, and a
+		// failure that would then point at this page rather than at whoever exchanged.
+		assertThat(this.jdbcClient.sql("""
+				SELECT count(*) FROM tracking_grant g
+				JOIN tracking_link l ON l.link_id = g.link_id
+				WHERE l.delivery_id = :id
+				""").param("id", UUID.fromString(deliveryId)).query(Integer.class).single()).isZero();
 		assertThat(exchange(holderWhoOpened(), token).getStatus()).isEqualTo(204);
 	}
 
