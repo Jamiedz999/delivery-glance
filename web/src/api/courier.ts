@@ -1,6 +1,7 @@
 import { apiRequest } from './http'
+import type { LocationFreshness } from '../freshness'
 
-export type LocationFreshness = 'LIVE' | 'DELAYED' | 'UNAVAILABLE'
+export type { LocationFreshness }
 
 export type ReportOutcome =
   'ACCEPTED' | 'REJECTED_LOW_ACCURACY' | 'REJECTED_FUTURE_DATED' | 'REJECTED_STALE' | 'REJECTED_NOT_NEWER'
@@ -42,9 +43,6 @@ export interface LocationReportResult {
   location: CourierLocation
 }
 
-const LIVE_LIMIT_SECONDS = 30
-const USABLE_LIMIT_SECONDS = 120
-
 export function fetchCourier(): Promise<Courier> {
   return apiRequest<Courier>('/api/couriers/me')
 }
@@ -71,34 +69,4 @@ export function reportLocation(input: LocationReportInput): Promise<LocationRepo
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   })
-}
-
-export interface FreshnessDescription {
-  label: string
-  ageSeconds: number
-  /** How long the server will still hold the position, which is what the countdown shows. */
-  secondsUntilUnavailable: number
-}
-
-/**
- * Derived in the browser from the measurement time, so the page keeps ageing honestly between
- * requests instead of showing a freshness the server reported some time ago.
- */
-export function describeFreshness(recordedAt: string | null, now: number): FreshnessDescription | null {
-  if (recordedAt === null) {
-    return null
-  }
-  const ageSeconds = Math.max(0, Math.floor((now - Date.parse(recordedAt)) / 1000))
-  const label =
-    ageSeconds <= LIVE_LIMIT_SECONDS ? 'Live' : ageSeconds <= USABLE_LIMIT_SECONDS ? 'Delayed' : 'Unavailable'
-  return {
-    label,
-    ageSeconds,
-    secondsUntilUnavailable: Math.max(0, USABLE_LIMIT_SECONDS - ageSeconds),
-  }
-}
-
-export function formatCountdown(seconds: number): string {
-  const minutes = Math.floor(seconds / 60)
-  return `${minutes}:${String(seconds % 60).padStart(2, '0')}`
 }

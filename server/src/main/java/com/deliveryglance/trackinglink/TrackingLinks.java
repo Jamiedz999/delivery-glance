@@ -139,11 +139,12 @@ class TrackingLinks implements NewDeliveryLinks {
 	}
 
 	/**
-	 * The minimal authorised snapshot DG-024 owes: enough to prove the grant resolves to one
-	 * Delivery and no more. DG-025 replaces it with the real Recipient projection.
+	 * Resolves a presented grant to the one Delivery it authorizes reading. What a Recipient may
+	 * then be told about that Delivery is recipientview's decision; this module's answer stops at
+	 * the identifier.
 	 */
 	@Transactional(readOnly = true)
-	TrackingLinkViews.Snapshot snapshotFor(String grantSecret) {
+	UUID authorizedDeliveryFor(String grantSecret) {
 		TrackingLinkRepository.StoredGrant grant = this.repository
 			.findGrantByVerifier(Secrets.verifierOf(grantSecret))
 			.orElseThrow(UnavailableLinkException::new);
@@ -168,7 +169,7 @@ class TrackingLinks implements NewDeliveryLinks {
 			throw new UnavailableLinkException();
 		}
 
-		return new TrackingLinkViews.Snapshot(delivery.reference());
+		return delivery.deliveryId();
 	}
 
 	private Instant effectiveExpiryOf(TrackingLinkRepository.StoredLink link) {

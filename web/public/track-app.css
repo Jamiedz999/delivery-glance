@@ -1,0 +1,114 @@
+/*
+ * The Recipient view's stylesheet.
+ *
+ * It is served verbatim from a fixed path rather than bundled with the application, because the
+ * /track bootstrap has to be able to name it before any build artefact has been fetched, and a
+ * content-hashed filename is exactly what a hand-written script cannot know. It is small, it is
+ * first-party, and the page's Content-Security-Policy admits it as 'self'.
+ *
+ * Mobile first throughout: the layout below is the phone layout, and the one media query widens it
+ * for anything larger. A Tracking Link is opened on a phone, from a message.
+ */
+
+body {
+  /* The bootstrap page's own padding is fine on a phone; the map wants the full width beneath it. */
+  padding: 1.25rem 1rem 3rem;
+  color-scheme: light dark;
+}
+
+#tracking-app h2 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  margin-block: 0.5rem 0.25rem;
+}
+
+#tracking-app h3 {
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+  margin-block: 1.25rem 0.25rem;
+}
+
+#tracking-app p {
+  margin-block: 0.25rem;
+}
+
+.next-step {
+  font-size: 1.0625rem;
+}
+
+.reference {
+  opacity: 0.8;
+}
+
+.freshness {
+  font-variant-numeric: tabular-nums;
+}
+
+.map {
+  /* A tall-ish box on a phone, so the two markers are not squeezed into a letterbox. */
+  position: relative;
+  block-size: min(60vh, 22rem);
+  inline-size: 100%;
+  margin-block-start: 0.75rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+/*
+ * One per mount, so a renderer tearing itself down cannot empty another one's element. Two class
+ * selectors rather than one, because MapLibre's own stylesheet is injected after this file and its
+ * `.maplibregl-map { position: relative }` lands on the very same element — at equal specificity it
+ * would win on order, and the surface would collapse to no height at all.
+ */
+.map .map-surface {
+  position: absolute;
+  inset: 0;
+}
+
+/* MapLibre draws into a canvas that takes no focus ring of its own; keyboard users need one. */
+.map:focus-visible,
+.map .maplibregl-canvas:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 2px;
+}
+
+.map-unavailable,
+.notice {
+  margin-block-start: 0.75rem;
+}
+
+.completed,
+.contact {
+  margin-block-start: 1rem;
+}
+
+.notice button {
+  margin-block-start: 0.75rem;
+  min-block-size: 44px;
+  padding-inline: 1rem;
+  font: inherit;
+}
+
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (min-width: 40rem) {
+  body {
+    padding: 2rem 1.25rem 4rem;
+  }
+
+  .map {
+    block-size: 26rem;
+  }
+}

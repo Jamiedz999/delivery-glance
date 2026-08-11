@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { describeFreshness, formatCountdown } from '../api/courier'
+import { describeFreshness, formatCountdown } from '../freshness'
 import type { CourierDelivery } from '../api/deliveries'
 import { ApiError } from '../api/http'
 import { useCourier, useCurrentCourierDelivery, useProgressCourierDelivery, useSetDuty } from '../api/queries'

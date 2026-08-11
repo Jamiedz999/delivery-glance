@@ -9,12 +9,13 @@
     "test": "vitest run",
     "check": "tsc -b && vitest run && vite build",
     "lint": "oxlint --type-aware",
-    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"public/**/*.css\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"public/**/*.css\"",
     "preview": "vite preview"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",
+    "maplibre-gl": "^6.3.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router": "^8.3.0"
@@ -23,6 +24,7 @@
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.3",
+    "@types/geojson": "^7946.0.16",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

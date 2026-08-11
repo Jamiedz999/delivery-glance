@@ -8,10 +8,13 @@ package com.deliveryglance.trackinglink;
  *
  * <p>It is thrown without a stack trace. The trace would say which branch refused the request, and
  * that is exactly the distinction this exception exists to erase from anything that might be logged.
+ *
+ * <p>Public because recipientview answers the same audience and must answer it identically. Its
+ * status and wording stay owned here, in one place, for the same reason there is one exception.
  */
-class UnavailableLinkException extends RuntimeException {
+public class UnavailableLinkException extends RuntimeException {
 
-	UnavailableLinkException() {
+	public UnavailableLinkException() {
 		super("This tracking link is no longer available.", null, false, false);
 	}
 

@@ -125,7 +125,9 @@ class TrackingLinkApiTest {
 
 		MockHttpServletResponse snapshot = holder.send(get("/api/tracking/snapshot"));
 		assertThat(snapshot.getStatus()).isEqualTo(200);
-		assertThat((String) JsonPath.read(snapshot.getContentAsString(), "$.deliveryReference")).isEqualTo(reference);
+		// Only that the grant resolved to this Delivery and not some other one. What the snapshot
+		// is allowed to say about it is recipientview's rule and is tested there.
+		assertThat((String) JsonPath.read(snapshot.getContentAsString(), "$.reference")).isEqualTo(reference);
 	}
 
 	@Test
@@ -320,7 +322,15 @@ class TrackingLinkApiTest {
 			assertThat(previewer.send(get("/track?t={token}", token)).getStatus()).isEqualTo(200);
 		}
 
-		assertThat(this.jdbcClient.sql("SELECT count(*) FROM tracking_grant").query(Integer.class).single()).isZero();
+		// Scoped to this Delivery's own link rather than counting the whole table. Every test class
+		// in the suite shares one database, so a table-wide count was really asserting that no other
+		// test had ever exchanged a token — true by luck of ordering until one of them did, and a
+		// failure that would then point at this page rather than at whoever exchanged.
+		assertThat(this.jdbcClient.sql("""
+				SELECT count(*) FROM tracking_grant g
+				JOIN tracking_link l ON l.link_id = g.link_id
+				WHERE l.delivery_id = :id
+				""").param("id", UUID.fromString(deliveryId)).query(Integer.class).single()).isZero();
 		assertThat(exchange(holderWhoOpened(), token).getStatus()).isEqualTo(204);
 	}
 
@@ -377,6 +387,24 @@ class TrackingLinkApiTest {
 		String policy = holder.send(get("/api/tracking/snapshot")).getHeader("Content-Security-Policy");
 		assertThat(policy).isEqualTo(
 				"default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+	}
+
+	/**
+	 * The two files the bootstrap names cannot carry a content hash — it is inlined and pinned, so
+	 * it is not regenerated per build and has no hash to ask for. Revalidation is what stops a
+	 * returning Recipient running a previous deployment's application against this one's API.
+	 *
+	 * <p>The assets themselves are a frontend build artefact and are absent from a backend test's
+	 * classpath, so these are 404s. That is the point: the rule is applied in front of the handler,
+	 * so it holds whether the file is there or not.
+	 */
+	@Test
+	void makesTheBrowserRevalidateTheRecipientApplicationOnEveryVisit() throws Exception {
+		BrowserLikeClient visitor = new BrowserLikeClient(this.mockMvc);
+
+		for (String path : RecipientApplicationHeadersFilter.PATHS) {
+			assertThat(visitor.send(get(path)).getHeader("Cache-Control")).as(path).isEqualTo("no-cache");
+		}
 	}
 
 	@Test
