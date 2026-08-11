@@ -6,16 +6,18 @@ Status: current
 
 The planning tree holds four kinds of file, and only one of them is a queue:
 
+**The nine GitHub Issues are the queue, and each Issue is its own specification in full.** Nothing in this repository duplicates one, and nothing in this repository is an instruction to write code:
+
 | Location | What it is | Becomes a GitHub Issue? |
 | --- | --- | --- |
+| GitHub Issues | the bounded implementation queue — outcome, scope, acceptance, non-goals | it already is one |
 | `docs/adr/` | resolved product and architecture decisions | never |
 | `docs/planning/research/`, `prototypes/` | evidence and visuals behind those decisions | never |
 | `docs/planning/future-work/` | designed but deliberately deferred increments | never, until after Core Acceptance |
-| `docs/planning/issues/` | the bounded implementation queue, DG-020…DG-028 | yes, one at a time |
 
-Only the last row is an instruction to write code. Opening the other three as Issues turns a finished record into a permanently open ticket, which is noise for anyone reading the repository.
+Opening any of the other rows as an Issue turns a finished record into a permanently open ticket, which is noise for anyone reading the repository.
 
-The numeric prefix is a local planning ID. A GitHub Issue does not need the same number; keep the ID in its title, for example `[DG-020] Scaffold the full-stack walking skeleton`.
+Issue titles are plain. The `DG-0NN` planning IDs are gone from titles but remain the **branch and commit key** — `dg-026-add-recipient-sse-refresh`, `DG-026:` — because ten merged pull requests already use them, and each Issue's footer records its own ID.
 
 ## Labels and milestones
 
@@ -26,9 +28,9 @@ Everything else a label might have carried is already represented somewhere that
 | Question | Where it is answered |
 | --- | --- |
 | Which Sprint is this? | the **milestone** — which also gives a progress view a label cannot |
-| Is it blocked, and by what? | GitHub's **native dependency edge**, from the spec's `Blocked by` line |
-| Which part of the stack? | the spec's `Area:` field |
-| Is it Core work? | it is in `docs/planning/issues/`; nothing else becomes an Issue |
+| Is it blocked, and by what? | GitHub's **native dependency edge** |
+| Which part of the stack? | the Area named in the Issue's header line |
+| Is it Core work? | it is one of the nine Issues; the queue takes no additions |
 
 A label that lands on every Issue is not a filter, and a label that lands on exactly one Issue is not a filter either. Both are just a second copy of something already true elsewhere, which is the failure this file exists to prevent. Do not reintroduce `core`, `blocked`, `sprint-*` or per-area labels; if a filter is genuinely needed later, add it then.
 
@@ -36,7 +38,7 @@ A label that lands on every Issue is not a filter, and a label that lands on exa
 
 Apply `ready` to exactly one Issue at a time, and remove it when the Issue closes. A closed Issue still carrying `ready` is exactly the kind of drift this file exists to prevent.
 
-**State exists only on GitHub.** The spec files carry no status field, so there is nothing to keep in sync and nothing that can silently go stale. To find what is startable, ask GitHub for the open Issue with no open blockers and the `ready` label — do not infer it from a Markdown header. `Status:` on an ADR (`resolved`) or a Future Work file (`future`) is document lifecycle, not execution state, and stays where it is.
+**State exists only on GitHub**, and now so does the specification, so there is nothing to keep in sync and nothing that can silently go stale. To find what is startable, ask GitHub for the open Issue with no open blockers and the `ready` label. `Status:` on an ADR (`resolved`) or a Future Work file (`future`) is document lifecycle, not execution state, and stays where it is.
 
 ## Definition of Ready
 
@@ -59,43 +61,25 @@ An implementation Issue is Done only when:
 - tests cover the risk named in the Issue rather than only line coverage;
 - no non-goal or Future Work feature was added;
 - user-facing or operational behaviour changed by the Issue is documented;
-- the PR links the local planning ID and includes concise evidence (test output, screenshot, or demo path as applicable); and
+- the PR links its Issue and includes concise evidence (test output, screenshot, or demo path as applicable); and
 - CI is green and reviewer feedback is resolved before merge.
 
-## GitHub handoff pattern
-
-Commit the planning files first. Then create a GitHub Issue that **summarises** the specification and **links** to it. A summary is safe to duplicate — if it drifts, nobody implements the wrong thing. A specification is not, so it exists exactly once, in the repository.
-
-An Issue body carries four things and nothing else:
-
-```markdown
-A pre-provisioned Dispatcher can sign in, create a Delivery, list Deliveries, reopen a
-persisted detail after restart, and cancel it while it is still awaiting a Courier.
-This completes the Sprint 1 vertical slice.
-
-Full specification, at this revision — this is the merge gate, not the summary above:
-https://github.com/Jamiedz999/delivery-glance/blob/<sha>/docs/planning/issues/21-add-authenticated-delivery-slice.md
-
-Acceptance — the canonical commands from TECHNICAL-BASELINE, plus the
-risk-specific evidence this Issue names:
-    (cd server && ./mvnw verify)
-    npm --prefix web ci
-    npm --prefix web run check
-
-Not in this PR: Courier duty and Location Sharing (DG-022), or any Future Work.
-```
-
-Use a commit SHA in the permalink, not `main`, so the Agent implements a specification that cannot move underneath it. Never paste a second copy of the specification into the Issue body.
+## Handing an Issue to an Agent
 
 Assign the Agent one GitHub Issue and one branch. The Agent may make normal implementation choices inside the Issue, but any new product behaviour or new infrastructure dependency returns to backlog refinement rather than silently expanding the PR.
 
+The Issue body carries the outcome, what to read first, the ordered scope, the acceptance criteria and the explicit non-goals. There is no summary-plus-link indirection and no SHA permalink: the specification is the thing being read, so it cannot point at a stale revision of itself.
+
 ### When the specification turns out to be wrong
 
-This happens, and how it is handled decides whether the repository stays trustworthy.
+This happens, and how it is handled decides whether the repository stays trustworthy. Moving the specification into the Issue costs something real here, and the cost is paid deliberately rather than hidden: **an edited Issue body has no reviewable diff.** GitHub keeps an edit history, but nobody reviews it and no PR gates it.
 
-Change the file in `docs/planning/issues/` as a commit in the same PR, with a message saying what was wrong and why the new rule is better. Do not record the decision in an Issue comment and then code against it — a comment cannot be reviewed, cannot be diffed, and will not answer "why is it like this?" six months from now.
+So the rule is split by what the change actually is:
 
-Issue comments carry process: being blocked, needing a choice made. Decisions belong in the specification, or in `docs/adr/` when they change product or architecture beyond this one Issue.
+- **A change to product or architecture behaviour goes to `docs/adr/`** as a commit in the same PR, with a message saying what was wrong and why the new rule is better. That is diffable, reviewed and answers "why is it like this?" six months from now. The Issue is then edited to match.
+- **A clarification that changes no behaviour** — wording, a missing acceptance command, an ambiguity — is edited into the Issue body directly, followed by a comment saying what changed and why.
+
+Never code against a decision that exists only as an Issue comment. Comments carry process: being blocked, needing a choice made. Behaviour belongs in an ADR.
 
 ### Creating an Issue and promoting it are two different steps
 
@@ -103,26 +87,21 @@ The queue is visible on GitHub from the start: every implementation Issue exists
 
 **Exactly one Issue is `ready` at any moment.** That is the constraint that matters, because it stops an Agent building on assumptions a dependency has not yet established. An open-but-blocked Issue cannot cause that; only a `ready` label can.
 
-Splitting the two steps also avoids a trap. A specification pinned into an Issue body today is often not the specification that gets implemented four Sprints later — the "fix the spec in the PR" rule above guarantees the file will change. A SHA permalink written at creation time would then point at a stale revision and fail silently. So the pin is applied at promotion, when it is about to be used.
-
 #### Step 1 — create (all Issues, up front)
 
-1. Title `[DG-0NN] <title>`; body carries the Outcome summary, the non-goals, and a plain `main` link to the spec — **no SHA permalink, no acceptance commands yet**.
-2. Set its milestone from the spec's `Sprint:` field. Apply no labels.
-3. Wire the real dependency edge from its `Blocked by` line — `gh issue create --blocked-by <n>`, or the API in `docs/agents/issue-tracker.md`. This is what makes the Issue blocked; there is no `blocked` label to keep in sync.
+1. A plain title, and a body carrying the full specification.
+2. Set its milestone from the Sprint named in its header line. Apply no labels.
+3. Wire the real dependency edge — `gh issue create --blocked-by <n>`, or the API in `docs/agents/issue-tracker.md`. This is what makes the Issue blocked; there is no `blocked` label to keep in sync.
 
 #### Step 2 — promote (one at a time, when its blocker merges)
 
 1. Confirm the predecessor is merged and closed, and that the deployed increment still works.
-2. Edit the body: replace the `main` link with a permalink pinned to the current `main` SHA, and add the acceptance commands. State plainly that the pinned spec, not the summary, is the merge gate.
-3. Add the `ready` label.
-4. Give the Agent that one Issue on one feature branch.
-5. Merge only after its acceptance commands pass from a clean checkout and CI is green.
-6. Close the Issue **and remove `ready`**, then promote only its immediate successor.
+2. Add the `ready` label.
+3. Give the Agent that one Issue on one feature branch.
+4. Merge only after its acceptance commands pass from a clean checkout and CI is green.
+5. Close the Issue **and remove `ready`**, then promote only its immediate successor.
 
 At the end of each Sprint, run the whole cumulative demo before promoting the next Sprint.
-
-The planning-only initial commit is the honest point to publish the repository; the first implementation PR is DG-020. GitHub's numeric Issue ID may be `#1`, which is why the stable planning key stays `DG-020`.
 
 ## Sprint release gates
 

@@ -9,7 +9,7 @@ Produce a build-ready, collision-checked recipient-first delivery tracker and a 
 ## Notes
 
 - Domain language lives in [CONTEXT.md](../../CONTEXT.md); every session should use the `grilling` and `domain-modeling` skills for human decisions.
-- This map is the authoritative scope and readiness index across `docs/adr/`, `docs/planning/issues/` and `docs/planning/future-work/`. Product decisions are resolved; implementation is queued in Sprint order.
+- This map is the authoritative scope index across `docs/adr/` and `docs/planning/future-work/`. Product decisions are resolved; the implementation queue lives entirely in GitHub Issues.
 - Readiness lives on GitHub, not here. This map records dependency order; the `ready`/`blocked` labels and open/closed state on the Issues are what say where execution actually is.
 - The user has delegated all remaining ticket decisions to the agent's recommended option; proceed without asking choice questions unless completion requires genuinely new authority or unavailable input.
 - Core answers a Recipient's questions: what stage is my Delivery in, where is it, and what happens next? “When should it arrive?” returns only with Future Work 13.
@@ -38,20 +38,19 @@ These are resolved records in [`docs/adr/`](../adr/), plus the research and prot
 
 ## Core implementation queue
 
-These are the only planning files that become GitHub Issues, one at a time and in this order.
+The queue lives entirely in [GitHub Issues](https://github.com/Jamiedz999/delivery-glance/issues) — each Issue **is** its specification, in full. Nothing under `docs/planning/` duplicates one.
 
-[Technical baseline](implementation/TECHNICAL-BASELINE.md) is the single source for stack, repository shape and module boundaries. [Issue workflow](implementation/ISSUE-WORKFLOW.md) defines the handoff pattern and when an Issue may receive the `ready` label. [Incidental findings](implementation/INCIDENTAL-FINDINGS.md) collects real problems spotted while implementing something else; it is a note pad, never a queue. The dependency chain below is fixed; which link is currently live is a question for GitHub.
+[Technical baseline](implementation/TECHNICAL-BASELINE.md) is the single source for stack, repository shape and module boundaries. [Issue workflow](implementation/ISSUE-WORKFLOW.md) defines when an Issue may receive the `ready` label. [Incidental findings](implementation/INCIDENTAL-FINDINGS.md) collects real problems spotted while implementing something else; it is a note pad, never a queue. The dependency chain below is fixed and is wired as real GitHub dependency edges; which link is currently live is a question for GitHub.
 
-- [20 · Scaffold the full-stack walking skeleton](issues/20-scaffold-full-stack-walking-skeleton.md) — prove React, Spring Boot, PostgreSQL, Flyway, Docker and CI work together without adding business logic.
-- *after 20* — [21 · Add Internal Account sign-in and the persisted Delivery slice](issues/21-add-authenticated-delivery-slice.md) — finish the Sprint 1 vertical slice.
-- *after 21* — [22 · Add Courier duty and latest-only Location Sharing](issues/22-add-courier-duty-and-location-sharing.md) — implement the first half of Sprint 2.
-- *after 22* — [23 · Add nearest recommendation and atomic Direct Assignment](issues/23-add-recommendation-and-direct-assignment.md) — finish the internal workflow and Sprint 2.
-- *after 23* — [24 · Add the secure Core Tracking Link](issues/24-add-secure-core-tracking-link.md) — implement creation, Copy, bootstrap and Expiry.
-- *after 24* — [25 · Build the Core Recipient tracking view](issues/25-build-core-recipient-tracking-view.md) — add the mobile state/next-step/map/freshness surface.
-- *after 25* — [26 · Add Recipient SSE refresh and reconnect](issues/26-add-recipient-sse-refresh.md) — complete the deployed end-to-end Sprint 3 MVP.
-- *after 26* — [27 · Harden the Core with risk-based evidence](issues/27-harden-core-with-risk-based-evidence.md) — cover concurrency, privacy, degradation, accessibility and E2E risks.
-- *after 27, plus deployment inputs* — [28 · Package the portfolio release](issues/28-package-portfolio-release.md) — make the Sprint 4 Core reproducible and resume-ready.
-
+- [#1 · Scaffold the full-stack walking skeleton](https://github.com/Jamiedz999/delivery-glance/issues/1) — prove React, Spring Boot, PostgreSQL, Flyway, Docker and CI work together without adding business logic.
+- *after #1* — [#3 · Add Internal Account sign-in and the persisted Delivery slice](https://github.com/Jamiedz999/delivery-glance/issues/3) — finish the Sprint 1 vertical slice.
+- *after #3* — [#6 · Add Courier duty and latest-only Location Sharing](https://github.com/Jamiedz999/delivery-glance/issues/6) — implement the first half of Sprint 2.
+- *after #6* — [#7 · Add nearest recommendation and atomic Direct Assignment](https://github.com/Jamiedz999/delivery-glance/issues/7) — finish the internal workflow and Sprint 2.
+- *after #7* — [#8 · Add the secure Core Tracking Link](https://github.com/Jamiedz999/delivery-glance/issues/8) — implement creation, Copy, bootstrap and Expiry.
+- *after #8* — [#9 · Build the Core Recipient tracking view](https://github.com/Jamiedz999/delivery-glance/issues/9) — add the mobile state/next-step/map/freshness surface.
+- *after #9* — [#10 · Add Recipient SSE refresh and reconnect](https://github.com/Jamiedz999/delivery-glance/issues/10) — complete the deployed end-to-end Sprint 3 MVP.
+- *after #10* — [#11 · Harden the Core with risk-based evidence](https://github.com/Jamiedz999/delivery-glance/issues/11) — cover concurrency, privacy, degradation, accessibility and E2E risks.
+- *after #11* — [#12 · Package the portfolio release](https://github.com/Jamiedz999/delivery-glance/issues/12) — make the Sprint 4 Core reproducible and resume-ready.
 ## Future work
 
 In [`docs/planning/future-work/`](future-work/). These are intentionally not Core commitments. They preserve the fuller product reasoning so it is not lost, and they may migrate into a GitHub backlog after Core Acceptance — not before. Opening them now would leave the repository showing a row of tickets nobody intends to work on.
