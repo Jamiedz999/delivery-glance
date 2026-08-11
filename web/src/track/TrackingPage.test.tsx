@@ -6,6 +6,7 @@ import { jsonResponse, problemResponse, urlOf } from '../testing/support'
 import { TrackingPage } from './TrackingPage'
 import type { MapEngine, MapMarker, MapOptions } from './mapEngine'
 import type { RecipientState, TrackingSnapshot } from './tracking'
+import type { OpenUpdates, UpdateHandlers } from './updates'
 
 const STYLE_URL = 'https://tiles.delivery-glance.example/styles/core/style.json'
 
@@ -97,8 +98,50 @@ function respondWithSnapshot(snapshot: TrackingSnapshot) {
   vi.mocked(fetch).mockImplementation(() => Promise.resolve(jsonResponse(snapshot)))
 }
 
-function renderPage(engine?: MapEngine, styleUrl = STYLE_URL) {
-  return render(<TrackingPage map={{ styleUrl, engine }} />)
+function renderPage(engine?: MapEngine, styleUrl = STYLE_URL, updates?: OpenUpdates) {
+  return render(<TrackingPage map={{ styleUrl, engine }} updates={updates} />)
+}
+
+/**
+ * A refresh stream the test is holding the other end of.
+ *
+ * Nothing here fakes a network. What it stands in for is the browser's own EventSource, which jsdom
+ * does not have — so the alternative is not a more realistic test, it is no test of this behaviour
+ * at all. What it makes drivable is exactly the three things a real stream does to this page:
+ * connect, hint, and go away either temporarily or for good.
+ */
+function fakeUpdates() {
+  let handlers: UpdateHandlers | null = null
+  let closes = 0
+
+  const open: OpenUpdates = (given) => {
+    handlers = given
+    return () => {
+      closes += 1
+    }
+  }
+
+  const drive = async (use: (handlers: UpdateHandlers) => void) => {
+    await act(async () => {
+      if (handlers === null) {
+        throw new Error('The page has not opened a stream.')
+      }
+      use(handlers)
+    })
+  }
+
+  return {
+    open,
+    connect: () => drive((on) => on.onConnected()),
+    hint: (version: number) => drive((on) => on.onChanged(version)),
+    hintUnreadable: () => drive((on) => on.onChanged(Number.NaN)),
+    drop: (retrying: boolean) => drive((on) => on.onDropped(retrying)),
+    closeCount: () => closes,
+  }
+}
+
+function snapshotRequests() {
+  return vi.mocked(fetch).mock.calls.map(([input]) => urlOf(input))
 }
 
 describe('the Recipient tracking view', () => {
@@ -389,6 +432,181 @@ describe('the Recipient tracking view', () => {
     expect(survivors[0].element.isConnected).toBe(true)
     // Every element handed out is its own, so no teardown can reach the survivor's.
     expect(new Set(map.surfaces.map((surface) => surface.element)).size).toBe(map.surfaces.length)
+  })
+
+  /**
+   * The whole point of the stream: a change reaches the page without anybody touching it. What
+   * arrives is a hint, and the state on screen still comes from the snapshot fetched because of it.
+   */
+  it('refetches and shows the new state when a hint says the delivery changed', async () => {
+    const updates = fakeUpdates()
+    respondWithSnapshot(snapshotOf('ASSIGNED', { courierDisplayName: 'Cory C.' }))
+
+    renderPage(undefined, STYLE_URL, updates.open)
+    expect(await screen.findByRole('heading', { name: 'A courier has been assigned' })).toBeInTheDocument()
+
+    respondWithSnapshot(snapshotOf('DELIVERED', { completedAt: '2026-08-10T09:42:00.000Z' }))
+    await updates.hint(1)
+
+    expect(screen.getByRole('heading', { name: 'Delivered' })).toBeInTheDocument()
+    expect(screen.getByText(/Handed over at/)).toBeInTheDocument()
+  })
+
+  it('skips a hint it has already acted on and refetches for one it has not', async () => {
+    const updates = fakeUpdates()
+    respondWithSnapshot(snapshotOf('ASSIGNED', { courierDisplayName: 'Cory C.' }))
+    renderPage(undefined, STYLE_URL, updates.open)
+    await screen.findByRole('heading', { name: 'A courier has been assigned' })
+
+    await updates.hint(4)
+    const afterFirst = snapshotRequests().length
+
+    // Same version again, then an older one: both describe a snapshot this page already fetched.
+    await updates.hint(4)
+    await updates.hint(2)
+    expect(snapshotRequests()).toHaveLength(afterFirst)
+
+    await updates.hint(5)
+    expect(snapshotRequests()).toHaveLength(afterFirst + 1)
+  })
+
+  /** A frame nobody can read is still a page asking to be refreshed, so it is refreshed. */
+  it('refetches for a hint whose version it could not read', async () => {
+    const updates = fakeUpdates()
+    respondWithSnapshot(snapshotOf('ASSIGNED', { courierDisplayName: 'Cory C.' }))
+    renderPage(undefined, STYLE_URL, updates.open)
+    await screen.findByRole('heading', { name: 'A courier has been assigned' })
+    const before = snapshotRequests().length
+
+    await updates.hintUnreadable()
+
+    expect(snapshotRequests()).toHaveLength(before + 1)
+  })
+
+  /**
+   * The Issue's reconnect rule, from the page's side: it does not replay anything and it does not
+   * ask what it missed. It fetches the snapshot once, which is the current answer whatever happened
+   * while it was away.
+   */
+  it('fetches the snapshot exactly once each time it connects', async () => {
+    const updates = fakeUpdates()
+    respondWithSnapshot(snapshotOf('AWAITING_COURIER'))
+    renderPage(undefined, STYLE_URL, updates.open)
+    await screen.findByRole('heading', { name: 'We’re preparing your delivery' })
+    expect(snapshotRequests()).toEqual(['/api/tracking/snapshot'])
+
+    await updates.connect()
+    expect(snapshotRequests()).toHaveLength(2)
+
+    await updates.drop(true)
+    respondWithSnapshot(snapshotOf('CANCELLED', { handoffAddressLabel: null }))
+    await updates.connect()
+
+    expect(snapshotRequests()).toHaveLength(3)
+    // The change it never heard about, arriving anyway.
+    expect(screen.getByRole('heading', { name: 'This delivery was cancelled' })).toBeInTheDocument()
+  })
+
+  it('keeps the delivery and its timestamps on screen while it is reconnecting', async () => {
+    const updates = fakeUpdates()
+    const map = recordingEngine()
+    respondWithSnapshot(inTransit())
+    renderPage(map.engine, STYLE_URL, updates.open)
+    await screen.findByRole('heading', { name: 'Your delivery is on the way' })
+
+    await updates.drop(true)
+
+    expect(screen.getByRole('heading', { name: 'Your delivery is on the way' })).toBeInTheDocument()
+    expect(screen.getByText('Cory C.')).toBeInTheDocument()
+    expect(screen.getByText(/Live location — updated/)).toBeInTheDocument()
+    expect(screen.getByText('Reconnecting for updates…')).toBeInTheDocument()
+  })
+
+  /**
+   * Connection and freshness are two different facts and the page says both, because a reader with
+   * only one of them will draw the wrong conclusion from it: a live connection is not a promise
+   * that the marker is current, and a stale marker is not evidence that the page has stopped
+   * working.
+   */
+  it('says whether it is connected separately from how old the position is', async () => {
+    const updates = fakeUpdates()
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
+    respondWithSnapshot(inTransit())
+    renderPage(recordingEngine().engine, STYLE_URL, updates.open)
+    await act(async () => {})
+    await updates.connect()
+
+    // Connected, and the reading is fresh.
+    expect(screen.getByText('Updating automatically')).toBeInTheDocument()
+    expect(screen.getByText(/Live location — updated/)).toBeInTheDocument()
+
+    // Still connected two minutes later, and the position is gone anyway.
+    await act(async () => {
+      vi.advanceTimersByTime(121_000)
+    })
+    expect(screen.getByText('Updating automatically')).toBeInTheDocument()
+    expect(screen.getByText(/Location unavailable — last reported/)).toBeInTheDocument()
+  })
+
+  /**
+   * A refused stream is not a refused link. The browser stops retrying, the page says so and keeps
+   * everything it already has, and a reload is still a complete answer.
+   */
+  it('keeps the delivery and asks for a reload when the browser gives the stream up', async () => {
+    const updates = fakeUpdates()
+    respondWithSnapshot(snapshotOf('ASSIGNED', { courierDisplayName: 'Cory C.' }))
+    renderPage(undefined, STYLE_URL, updates.open)
+    await screen.findByRole('heading', { name: 'A courier has been assigned' })
+
+    await updates.drop(false)
+
+    expect(screen.getByRole('heading', { name: 'A courier has been assigned' })).toBeInTheDocument()
+    expect(screen.getByText(/Not updating automatically/)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  /**
+   * A reconnect happens exactly when the network has been unreliable, so the refetch that follows
+   * one is the read most likely to fail. Letting it replace the delivery with "could not reach the
+   * delivery service" would throw away a good snapshot over a moment the page was already handling.
+   */
+  it('does not replace a delivery it is showing when its own refetch cannot reach the server', async () => {
+    const updates = fakeUpdates()
+    respondWithSnapshot(inTransit())
+    renderPage(recordingEngine().engine, STYLE_URL, updates.open)
+    await screen.findByRole('heading', { name: 'Your delivery is on the way' })
+
+    vi.mocked(fetch).mockRejectedValue(new TypeError('Failed to fetch'))
+    await updates.connect()
+
+    expect(screen.getByRole('heading', { name: 'Your delivery is on the way' })).toBeInTheDocument()
+    expect(screen.getByText(/Live location — updated/)).toBeInTheDocument()
+    expect(screen.queryByText(/Could not reach the delivery service/)).not.toBeInTheDocument()
+  })
+
+  /** A link that expired while the page was open is still one refusal, arriving by refetch. */
+  it('shows the single refusal when a refetch finds the link is gone', async () => {
+    const updates = fakeUpdates()
+    respondWithSnapshot(snapshotOf('ASSIGNED', { courierDisplayName: 'Cory C.' }))
+    renderPage(undefined, STYLE_URL, updates.open)
+    await screen.findByRole('heading', { name: 'A courier has been assigned' })
+
+    vi.mocked(fetch).mockResolvedValue(problemResponse('tracking-link-unavailable', 404))
+    await updates.hint(1)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('This tracking link is no longer available')
+  })
+
+  it('closes the stream when the page goes away', async () => {
+    const updates = fakeUpdates()
+    respondWithSnapshot(snapshotOf('AWAITING_COURIER'))
+    const view = renderPage(undefined, STYLE_URL, updates.open)
+    await screen.findByRole('heading', { name: 'We’re preparing your delivery' })
+
+    view.unmount()
+
+    expect(updates.closeCount()).toBe(1)
   })
 
   /**

@@ -10,6 +10,8 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.deliveryglance.delivery.ActiveAssignments;
+import com.deliveryglance.delivery.DeliveryState;
+import com.deliveryglance.recipientview.CarriedDeliveries;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -20,9 +22,13 @@ import org.springframework.stereotype.Repository;
  * service-level implementation would close a constructor-injection cycle between the two modules.
  * Nothing is lost by it — {@link ActiveAssignments} asks only for reads and one end-stamp, with no
  * policy to place above them, and every caller is itself a transactional service method.
+ *
+ * <p>{@link CarriedDeliveries} is here for the same reason and answers the same table: the
+ * Assignment is what joins a Courier to a Delivery, so it is the only place that can say which
+ * Delivery a Courier's position currently belongs to.
  */
 @Repository
-class AssignmentRepository implements ActiveAssignments {
+class AssignmentRepository implements ActiveAssignments, CarriedDeliveries {
 
 	private final JdbcClient jdbcClient;
 
@@ -81,6 +87,25 @@ class AssignmentRepository implements ActiveAssignments {
 				""")
 			.param("courierId", courierId)
 			.query((rs, rowNumber) -> activeAssignment(rs))
+			.optional();
+	}
+
+	/**
+	 * The state comes from the Delivery row rather than from anything dispatch decides, because the
+	 * caller's rule is about what a Recipient may see and this is only the fact it needs to apply
+	 * it. The join is the same one {@code delivery_id} already carries; no new relationship.
+	 */
+	@Override
+	public Optional<CarriedDelivery> carriedBy(UUID courierAccountId) {
+		return this.jdbcClient.sql("""
+				SELECT assignment.delivery_id, delivery.state
+				FROM assignment
+				JOIN delivery ON delivery.id = assignment.delivery_id
+				WHERE assignment.courier_account_id = :courierAccountId AND assignment.ended_at IS NULL
+				""")
+			.param("courierAccountId", courierAccountId)
+			.query((rs, rowNumber) -> new CarriedDelivery(rs.getObject("delivery_id", UUID.class),
+					DeliveryState.valueOf(rs.getString("state"))))
 			.optional();
 	}
 

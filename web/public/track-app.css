@@ -85,6 +85,17 @@ body {
   margin-block-start: 1rem;
 }
 
+/*
+ * Whether the page is still hearing about changes. It sits at the foot of the delivery, quiet and
+ * small, because it is the answer to a question a reader only asks when something looks wrong —
+ * putting it near the status would invite it to be read as part of the delivery's own state.
+ */
+.connection {
+  margin-block-start: 1.5rem;
+  font-size: 0.8125rem;
+  opacity: 0.7;
+}
+
 .notice button {
   margin-block-start: 0.75rem;
   min-block-size: 44px;

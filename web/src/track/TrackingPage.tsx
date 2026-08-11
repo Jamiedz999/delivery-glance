@@ -1,9 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type FreshnessDescription, describeFreshness } from '../freshness'
 import { DeliveryMap } from './DeliveryMap'
-import { NO_POSITION, STATE_COPY, UNAVAILABLE_LINK, UNREACHABLE, formatAge, formatTime } from './copy'
+import {
+  CONNECTION_COPY,
+  NO_POSITION,
+  STATE_COPY,
+  UNAVAILABLE_LINK,
+  UNREACHABLE,
+  formatAge,
+  formatTime,
+} from './copy'
 import type { MapEngine, MapMarker } from './mapEngine'
 import { type TrackingMap, type TrackingResult, type TrackingSnapshot, fetchSnapshot } from './tracking'
+import { type Connection, type OpenUpdates, openUpdates, useSnapshotUpdates } from './updates'
 
 /** Everything about the map that comes from deployment rather than from the Delivery. */
 export interface MapConfiguration {
@@ -15,6 +24,8 @@ export interface MapConfiguration {
 
 interface TrackingPageProps {
   map: MapConfiguration
+  /** Tests drive the stream by hand; production gets the real EventSource. */
+  updates?: OpenUpdates
 }
 
 /**
@@ -28,24 +39,43 @@ interface TrackingPageProps {
  * how old that is now is a question only this page can keep answering, because nothing arrives to
  * tell it the marker has expired.
  */
-export function TrackingPage({ map }: TrackingPageProps) {
+export function TrackingPage({ map, updates = openUpdates }: TrackingPageProps) {
   const [result, setResult] = useState<TrackingResult | null>(null)
-  const [attempt, setAttempt] = useState(0)
+  const mounted = useRef(true)
 
   useEffect(() => {
-    let abandoned = false
-    setResult(null)
-    void fetchSnapshot().then((loaded) => {
-      if (!abandoned) {
-        setResult(loaded)
-      }
-    })
+    mounted.current = true
     return () => {
-      abandoned = true
+      mounted.current = false
     }
-  }, [attempt])
+  }, [])
 
-  const retry = useCallback(() => setAttempt((previous) => previous + 1), [])
+  /**
+   * @param keepWhatIsShown whether a browser that could not ask should be allowed to replace the
+   * delivery on screen with an error. It must not when the read was this page's own idea: a
+   * reconnect fires exactly when the network has been unreliable, and turning a moment of that into
+   * "could not reach the delivery service" would throw away a perfectly good snapshot and its
+   * timestamps. A read the reader asked for is the opposite — silence there looks broken.
+   */
+  const load = useCallback(async (keepWhatIsShown: boolean) => {
+    const loaded = await fetchSnapshot()
+    if (!mounted.current || (keepWhatIsShown && loaded.status === 'unreachable')) {
+      return
+    }
+    setResult(loaded)
+  }, [])
+
+  useEffect(() => {
+    void load(false)
+  }, [load])
+
+  const refresh = useCallback(() => void load(true), [load])
+  const connection = useSnapshotUpdates(refresh, updates)
+
+  const retry = useCallback(() => {
+    setResult(null)
+    void load(false)
+  }, [load])
 
   if (result === null) {
     return (
@@ -73,10 +103,14 @@ export function TrackingPage({ map }: TrackingPageProps) {
       </div>
     )
   }
-  return <Delivery snapshot={result.snapshot} map={map} />
+  return <Delivery snapshot={result.snapshot} map={map} connection={connection} />
 }
 
-function Delivery({ snapshot, map }: { snapshot: TrackingSnapshot } & TrackingPageProps) {
+function Delivery({
+  snapshot,
+  map,
+  connection,
+}: { snapshot: TrackingSnapshot; connection: Connection } & TrackingPageProps) {
   const copy = STATE_COPY[snapshot.state]
 
   return (
@@ -120,6 +154,14 @@ function Delivery({ snapshot, map }: { snapshot: TrackingSnapshot } & TrackingPa
             : `For questions, contact the delivery team on ${snapshot.deliveryTeamContact}.`}
         </p>
       )}
+
+      {/*
+        Deliberately not a live region, for the same reason the freshness sentence above is not one:
+        a phone moving between cells can flap between connected and reconnecting several times a
+        minute, and announcing each one would talk over everything else on the page. It is on screen
+        for a reader who wonders why nothing is changing, and silent for one who does not.
+      */}
+      <p className="connection">{CONNECTION_COPY[connection]}</p>
     </section>
   )
 }
@@ -129,7 +171,7 @@ function Delivery({ snapshot, map }: { snapshot: TrackingSnapshot } & TrackingPa
  * makes the map honest. If the map cannot be drawn at all, the sentence is still here and still
  * says the same thing.
  */
-function CourierLocation({ positions, map }: { positions: TrackingMap } & TrackingPageProps) {
+function CourierLocation({ positions, map }: { positions: TrackingMap; map: MapConfiguration }) {
   const courier = positions.courier
   const freshness = useFreshness(courier?.recordedAt ?? null)
   // The browser's own timer is what removes the marker. Nothing arrives from the server to say the

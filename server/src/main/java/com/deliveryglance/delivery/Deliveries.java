@@ -9,6 +9,7 @@ import java.util.UUID;
 import com.deliveryglance.identityaccess.CurrentActor;
 import com.deliveryglance.identityaccess.CurrentActorProvider;
 import com.deliveryglance.recipientview.RecipientDeliveryFacts;
+import com.deliveryglance.recipientview.RecipientViewUpdates;
 
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -33,14 +34,17 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 
 	private final NewDeliveryLinks trackingLinks;
 
+	private final RecipientViewUpdates recipientViews;
+
 	private final Clock clock;
 
 	Deliveries(DeliveryRepository repository, CurrentActorProvider currentActorProvider, ActiveAssignments assignments,
-			NewDeliveryLinks trackingLinks, Clock clock) {
+			NewDeliveryLinks trackingLinks, RecipientViewUpdates recipientViews, Clock clock) {
 		this.repository = repository;
 		this.currentActorProvider = currentActorProvider;
 		this.assignments = assignments;
 		this.trackingLinks = trackingLinks;
+		this.recipientViews = recipientViews;
 		this.clock = clock;
 	}
 
@@ -104,6 +108,9 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 		if (current.state().endsAssignmentOnMoveTo(DeliveryState.CANCELLED)) {
 			this.assignments.endForDelivery(id, now);
 		}
+		// Reported from inside the transaction, delivered only if it commits. A retry that took the
+		// idempotent path above never reaches here, because it changed nothing to report.
+		this.recipientViews.deliveryChanged(id);
 
 		return requireDetail(id);
 	}
@@ -158,6 +165,7 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 		if (current.state().endsAssignmentOnMoveTo(nextState)) {
 			this.assignments.endForDelivery(deliveryId, now);
 		}
+		this.recipientViews.deliveryChanged(deliveryId);
 	}
 
 	/**
@@ -212,6 +220,7 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 		}
 		this.repository.insertTransition(deliveryId, current.state(), DeliveryState.ASSIGNED, actor, null, null, commandId,
 				occurredAt);
+		this.recipientViews.deliveryChanged(deliveryId);
 	}
 
 	/**

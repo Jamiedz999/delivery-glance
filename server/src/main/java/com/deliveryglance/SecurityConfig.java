@@ -53,12 +53,13 @@ public class SecurityConfig {
 				.requestMatchers("/api/deliveries", "/api/deliveries/**")
 					.hasRole(InternalAccountRole.DISPATCHER.name())
 				.requestMatchers("/api/couriers/**").hasRole(InternalAccountRole.COURIER.name())
-				// The two Recipient routes. They are open here because their authorization is the
-				// Tracking grant, which this policy knows nothing about: a Link Holder has no
-				// Internal Account, and an Internal Account confers no Recipient access. The
-				// trackinglink module checks the grant itself and answers every failure with one
-				// generic response, which is the only way unknown, malformed and expired links can
-				// be told apart by nobody.
+				// The Recipient routes: the exchange, and everything a grant then reads —
+				// the snapshot and the stream that says when to read it again. They are open here
+				// because their authorization is the Tracking grant, which this policy knows
+				// nothing about: a Link Holder has no Internal Account, and an Internal Account
+				// confers no Recipient access. The trackinglink module checks the grant itself and
+				// answers every failure with one generic response, which is the only way unknown,
+				// malformed and expired links can be told apart by nobody.
 				.requestMatchers(HttpMethod.POST, "/api/tracking-session").permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/tracking/**").permitAll()
 				// HEAD is named explicitly because the frontend catch-all below permits GET only,

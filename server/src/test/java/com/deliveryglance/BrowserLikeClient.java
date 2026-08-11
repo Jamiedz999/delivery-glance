@@ -44,10 +44,29 @@ public final class BrowserLikeClient {
 	}
 
 	public MockHttpServletResponse sendWithoutCsrfHeader(MockHttpServletRequestBuilder request) throws Exception {
+		return perform(request).getResponse();
+	}
+
+	/**
+	 * The same request as {@link #send}, but keeping the result rather than only the response.
+	 *
+	 * <p>A streaming response is still being written when this returns, so a caller watching one
+	 * needs both halves of the result: the response, whose content grows as frames arrive, and the
+	 * request, which is holding the connection open and is the only way to hang up on it.
+	 */
+	public MvcResult open(MockHttpServletRequestBuilder request) throws Exception {
+		String csrfToken = this.cookies.get(CSRF_COOKIE_NAME);
+		if (csrfToken != null) {
+			request.header(CSRF_HEADER_NAME, csrfToken);
+		}
+		return perform(request);
+	}
+
+	private MvcResult perform(MockHttpServletRequestBuilder request) throws Exception {
 		this.cookies.forEach((name, value) -> request.cookie(new Cookie(name, value)));
 		MvcResult result = this.mockMvc.perform(request).andReturn();
 		rememberCookies(result.getResponse());
-		return result.getResponse();
+		return result;
 	}
 
 	/**

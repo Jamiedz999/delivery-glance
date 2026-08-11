@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.deliveryglance.recipientview.RecipientViewUpdates;
 import com.deliveryglance.shared.Secrets;
 
 import org.springframework.stereotype.Service;
@@ -25,11 +26,15 @@ class LocationSharing implements LocationFacts {
 
 	private final LatestLocationStore store;
 
+	private final RecipientViewUpdates recipientViews;
+
 	private final Clock clock;
 
-	LocationSharing(LocationSharingRepository repository, LatestLocationStore store, Clock clock) {
+	LocationSharing(LocationSharingRepository repository, LatestLocationStore store,
+			RecipientViewUpdates recipientViews, Clock clock) {
 		this.repository = repository;
 		this.store = store;
+		this.recipientViews = recipientViews;
 		this.clock = clock;
 	}
 
@@ -66,6 +71,15 @@ class LocationSharing implements LocationFacts {
 
 		ReportOutcome outcome = this.store.record(new LocationReport(courierAccountId, session.generation(),
 				request.longitude(), request.latitude(), request.accuracyMetres(), request.recordedAt()));
+
+		// Only an accepted reading moved Current Location. A duplicate, a late arrival or a poor fix
+		// left the snapshot exactly as it was, so there is nothing for a Recipient page to refetch —
+		// and telling it otherwise would describe a Courier still reporting, which is a fact about
+		// them rather than about the Delivery. Which Delivery this is, if any, is not asked here:
+		// this module knows about Couriers, and joining one to a Delivery is somebody else's read.
+		if (outcome == ReportOutcome.ACCEPTED) {
+			this.recipientViews.courierPositionChanged(courierAccountId);
+		}
 
 		return new LocationViews.Report(outcome, status(courierAccountId));
 	}

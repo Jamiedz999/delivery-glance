@@ -138,15 +138,24 @@ class TrackingLinks implements NewDeliveryLinks {
 		return new GrantIssued(secret, now, expiry);
 	}
 
+	/** The one digest a caller needs to hold a grant without holding the secret that produced it. */
+	static String verifierOf(String grantSecret) {
+		return Secrets.verifierOf(grantSecret);
+	}
+
 	/**
 	 * Resolves a presented grant to the one Delivery it authorizes reading. What a Recipient may
 	 * then be told about that Delivery is recipientview's decision; this module's answer stops at
 	 * the identifier.
+	 *
+	 * <p>The parameter is the stored verifier rather than the cookie value so a long-lived stream
+	 * can recheck itself without keeping the secret alive for the length of the connection. A
+	 * verifier is what the table is indexed by, so this is the same lookup either way.
 	 */
 	@Transactional(readOnly = true)
-	UUID authorizedDeliveryFor(String grantSecret) {
+	UUID authorizedDeliveryForVerifier(String grantSecretVerifier) {
 		TrackingLinkRepository.StoredGrant grant = this.repository
-			.findGrantByVerifier(Secrets.verifierOf(grantSecret))
+			.findGrantByVerifier(grantSecretVerifier)
 			.orElseThrow(UnavailableLinkException::new);
 		// A grant is scoped to the generation it was established through, so a rotation invalidates
 		// derived access without having to find every grant it produced. Core never rotates; the
