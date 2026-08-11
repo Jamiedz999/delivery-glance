@@ -7,6 +7,7 @@ import {
   noContentResponse,
   problemResponse,
   renderWithProviders,
+  requestBodyStringOf,
   respondWith,
 } from '../testing/support'
 
@@ -36,7 +37,7 @@ describe('SignInPage', () => {
       const call = vi.mocked(fetch).mock.calls.find(([url]) => url === '/api/session/login')
       expect(call).toBeDefined()
       expect(new Headers(call?.[1]?.headers).get('X-XSRF-TOKEN')).toBe('csrf-token-1')
-      expect(String(call?.[1]?.body)).toBe(
+      expect(requestBodyStringOf(call?.[1])).toBe(
         'email=dispatcher%40delivery-glance.example&password=Dispatcher-Demo-2026%21',
       )
     })
