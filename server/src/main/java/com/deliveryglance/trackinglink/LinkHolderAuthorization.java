@@ -27,4 +27,38 @@ public interface LinkHolderAuthorization {
 	 */
 	UUID requireAuthorizedDelivery(HttpServletRequest request, HttpServletResponse response);
 
+	/**
+	 * The same authorization, in a form a connection that outlives its request can ask again.
+	 *
+	 * <p>A one-shot answer is enough for a read that finishes in milliseconds and wrong for a stream
+	 * that stays open for minutes: the grant may expire, or the Delivery may end and shorten the
+	 * link's effective expiry, while nothing is arriving to notice. The alternative — handing the
+	 * caller the cookie value so it can re-present it — is the one thing {@link
+	 * LinkHolderAuthorization} exists to prevent, so the recheck stays inside this module and the
+	 * caller holds an object rather than a secret.
+	 *
+	 * @throws UnavailableLinkException on the same terms as {@link #requireAuthorizedDelivery}
+	 */
+	HeldGrant requireHeldGrant(HttpServletRequest request, HttpServletResponse response);
+
+	/**
+	 * A grant a long-lived connection keeps hold of. It answers the two questions such a connection
+	 * has — which Delivery, and may I still — and carries nothing that could be presented anywhere
+	 * else.
+	 */
+	interface HeldGrant {
+
+		UUID deliveryId();
+
+		/**
+		 * Whether this grant still authorizes reading its Delivery, rechecked against the clock,
+		 * the link's generation and the Delivery's own terminal grace period.
+		 *
+		 * @return false rather than throwing, because the caller's response to "no longer" is to
+		 * close a stream quietly rather than to explain anything
+		 */
+		boolean stillAuthorizes();
+
+	}
+
 }

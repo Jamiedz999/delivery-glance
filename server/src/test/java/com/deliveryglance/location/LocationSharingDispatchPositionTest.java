@@ -27,9 +27,10 @@ class LocationSharingDispatchPositionTest {
 
 	private final LatestLocationStore store = new LatestLocationStore(this.clock);
 
-	// The Location Sharing repository is untouched by this read: a position is held in memory only,
-	// so the dispatch read never reaches the database.
-	private final LocationSharing sharing = new LocationSharing(null, this.store, this.clock);
+	// The Location Sharing repository and the Recipient stream are both untouched by this read: a
+	// position is held in memory only, so the dispatch read never reaches the database, and nothing
+	// is being reported to anybody — this is a query.
+	private final LocationSharing sharing = new LocationSharing(null, this.store, null, this.clock);
 
 	@Test
 	void offersTheCoordinatesWhileTheStoredPositionIsStillUsable() {

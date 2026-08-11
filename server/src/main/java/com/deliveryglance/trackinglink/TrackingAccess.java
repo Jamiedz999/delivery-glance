@@ -28,9 +28,22 @@ class TrackingAccess implements LinkHolderAuthorization {
 
 	@Override
 	public UUID requireAuthorizedDelivery(HttpServletRequest request, HttpServletResponse response) {
+		return authorize(request, response).deliveryId();
+	}
+
+	@Override
+	public HeldGrant requireHeldGrant(HttpServletRequest request, HttpServletResponse response) {
+		return authorize(request, response);
+	}
+
+	private HeldGrant authorize(HttpServletRequest request, HttpServletResponse response) {
 		String secret = this.grants.presentedSecret(request).orElseThrow(UnavailableLinkException::new);
+		// The verifier, not the secret. It is what the grant table already stores and what the
+		// recheck below looks up by, so a connection that lives for minutes holds a value that
+		// could not be presented as a cookie even if it escaped.
+		String verifier = TrackingLinks.verifierOf(secret);
 		try {
-			return this.links.authorizedDeliveryFor(secret);
+			return new StoredGrantHeld(verifier, this.links.authorizedDeliveryForVerifier(verifier));
 		}
 		catch (UnavailableLinkException ex) {
 			// The cookie is no longer worth anything, so the browser stops sending it rather than
@@ -38,6 +51,40 @@ class TrackingAccess implements LinkHolderAuthorization {
 			this.grants.clear(response);
 			throw ex;
 		}
+	}
+
+	/**
+	 * The Delivery is remembered rather than reread on every recheck. It cannot change: a grant is
+	 * scoped to one link and a link to one Delivery, so the only thing a recheck can discover is
+	 * that the grant has stopped authorizing anything at all.
+	 */
+	private final class StoredGrantHeld implements HeldGrant {
+
+		private final String secretVerifier;
+
+		private final UUID deliveryId;
+
+		private StoredGrantHeld(String secretVerifier, UUID deliveryId) {
+			this.secretVerifier = secretVerifier;
+			this.deliveryId = deliveryId;
+		}
+
+		@Override
+		public UUID deliveryId() {
+			return this.deliveryId;
+		}
+
+		@Override
+		public boolean stillAuthorizes() {
+			try {
+				TrackingAccess.this.links.authorizedDeliveryForVerifier(this.secretVerifier);
+				return true;
+			}
+			catch (UnavailableLinkException ex) {
+				return false;
+			}
+		}
+
 	}
 
 }
