@@ -9,6 +9,8 @@
     "test": "vitest run",
     "check": "tsc -b && vitest run && vite build",
     "lint": "oxlint --type-aware",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -28,6 +30,7 @@
     "jsdom": "^30.0.1",
     "oxlint": "^1.75.0",
     "oxlint-tsgolint": "^7.0.2001",
+    "prettier": "3.9.6",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
     "vitest": "^4.1.10"

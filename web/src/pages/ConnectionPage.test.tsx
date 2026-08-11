@@ -35,18 +35,16 @@ describe('ConnectionPage', () => {
 
   it('shows the connected success state once the API responds', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({ application: 'delivery-glance', status: 'ok' }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } },
-      ),
+      new Response(JSON.stringify({ application: 'delivery-glance', status: 'ok' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
     )
 
     renderConnectionPage()
 
     await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent(
-        'Frontend connected to Delivery Glance API',
-      ),
+      expect(screen.getByRole('status')).toHaveTextContent('Frontend connected to Delivery Glance API'),
     )
   })
 
@@ -56,9 +54,7 @@ describe('ConnectionPage', () => {
     renderConnectionPage()
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent(
-        'Could not reach the Delivery Glance API.',
-      )
+      expect(screen.getByRole('alert')).toHaveTextContent('Could not reach the Delivery Glance API.')
     })
   })
 })

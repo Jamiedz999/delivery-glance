@@ -69,10 +69,7 @@ describe('CreateDeliveryPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Create delivery' }))
 
     const latitudeError = await screen.findByText('Latitude must be between -90 and 90')
-    expect(screen.getAllByLabelText('Latitude')[0]).toHaveAttribute(
-      'aria-describedby',
-      latitudeError.id,
-    )
+    expect(screen.getAllByLabelText('Latitude')[0]).toHaveAttribute('aria-describedby', latitudeError.id)
     expect(screen.getAllByLabelText('Latitude')[0]).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByText('Delivery reference is required')).toBeInTheDocument()
   })

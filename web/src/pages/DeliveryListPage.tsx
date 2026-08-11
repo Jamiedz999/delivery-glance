@@ -39,9 +39,7 @@ export function DeliveryListPage() {
                 <td>{DELIVERY_STATE_LABELS[delivery.state]}</td>
                 <td>{delivery.handoffAddressLabel}</td>
                 <td>
-                  <time dateTime={delivery.createdAt}>
-                    {new Date(delivery.createdAt).toLocaleString()}
-                  </time>
+                  <time dateTime={delivery.createdAt}>{new Date(delivery.createdAt).toLocaleString()}</time>
                 </td>
               </tr>
             ))}
