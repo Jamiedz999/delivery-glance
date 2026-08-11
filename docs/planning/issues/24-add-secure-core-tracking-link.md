@@ -37,7 +37,7 @@ Create the grant and authorization boundary now, but expose only a minimal autho
 - Deterministic tests with a fixed key prove repeated Copy returns the same token and changing link identity/generation/key version changes it.
 - Database/log scans prove no raw token or complete Tracking URL is persisted or logged on creation, Copy, exchange, rejection or exception.
 - Integration tests cover valid exchange, malformed/unknown/expired indistinguishability, Copy authorization, seven-day expiry, terminal-plus-24-hour expiry and grant expiry.
-- Browser tests prove the token is present only in the initial fragment, is absent from the first HTTP request, disappears from address/history immediately, and is absent from all subsequent API requests.
+- Frontend tests of the one bootstrap script prove the token is present only in the initial fragment, is absent from the first HTTP request, disappears from address/history immediately, and is absent from all subsequent API requests. A real-browser journey is DG-027's Playwright work, not this Issue's.
 - `GET` and `HEAD /track` cannot activate or consume the link, including repeated simulated preview requests.
 - Internal Account sessions do not grant Recipient access, and a Tracking grant does not grant Dispatcher/Courier access.
 - All tracking responses contain the agreed cache/referrer/indexing/content headers.
@@ -50,4 +50,4 @@ Create the grant and authorization boundary now, but expose only a minimal autho
 
 ## PR evidence
 
-Include security-test results and a browser trace showing the fragment disappears before protected content loads. After merge, promote only DG-025.
+Include security-test results and the bootstrap test output showing the fragment disappears before protected content loads. After merge, promote only DG-025.
