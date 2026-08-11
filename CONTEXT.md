@@ -147,7 +147,7 @@ The single data-free public response used for an unknown, invalid, expired, or r
 _Avoid_: Link-status diagnosis, Delivery lookup
 
 **Terminal Tracking View**:
-The privacy-reduced Tracking Link view available until expiry after a terminal outcome. Delivered shows the Delivery Reference, Handoff Address, result, and actual time; Cancelled or Undeliverable shows only a generic result, time, and Delivery Team Contact; no terminal view exposes Courier identity, location, map, or ETA.
+The privacy-reduced Tracking Link view available until expiry after a terminal outcome. Delivered shows the Delivery Reference, Handoff Address, result, and actual time; Cancelled or Undeliverable shows the Delivery Reference, a generic result, time, and Delivery Team Contact, and drops the Handoff Address; no terminal view exposes Courier identity, location, map, or ETA.
 _Avoid_: Live tracking, delivery history
 
 **Recipient Timeline**:

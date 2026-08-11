@@ -18,10 +18,11 @@ final class RecipientViews {
 	}
 
 	/**
-	 * @param reference the Recipient-facing Delivery Reference; null once Cancelled, where CONTEXT's
-	 * Terminal Tracking View allows only a generic outcome
-	 * @param handoffAddressLabel the full Handoff Address, which ADR 05 makes Recipient-facing;
-	 * null once Cancelled for the same reason
+	 * @param reference the Recipient-facing Delivery Reference, present in every state — it is what
+	 * a Recipient quotes when they contact the Delivery Team
+	 * @param handoffAddressLabel the full Handoff Address, which ADR 05 makes Recipient-facing; null
+	 * once Cancelled, because it is the field that says where somebody lives and there is nothing
+	 * left to deliver there
 	 * @param courierDisplayName the limited Courier Display Name, present only while a Courier is
 	 * actually carrying the Delivery
 	 * @param map present only In Transit. Its absence is what withdraws Recipient-facing location on

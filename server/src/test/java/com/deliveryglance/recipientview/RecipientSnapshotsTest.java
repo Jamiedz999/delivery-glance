@@ -71,7 +71,8 @@ class RecipientSnapshotsTest {
 						Set.of("reference", "state", "handoffAddressLabel", "courierDisplayName", "map")),
 				Arguments.of(DeliveryState.DELIVERED,
 						Set.of("reference", "state", "handoffAddressLabel", "completedAt")),
-				Arguments.of(DeliveryState.CANCELLED, Set.of("state", "completedAt", "deliveryTeamContact")));
+				Arguments.of(DeliveryState.CANCELLED,
+						Set.of("reference", "state", "completedAt", "deliveryTeamContact")));
 	}
 
 	@ParameterizedTest
