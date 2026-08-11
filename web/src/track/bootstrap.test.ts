@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import BOOTSTRAP from '../../../server/src/main/resources/tracking/bootstrap.js?raw'
-import { jsonResponse, noContentResponse, problemResponse, urlOf } from '../testing/support'
+import { noContentResponse, problemResponse, urlOf } from '../testing/support'
 
 /**
  * The bootstrap script, read from the single copy the server inlines into /track. Importing it as a
@@ -25,8 +25,9 @@ const UNAVAILABLE = 'This tracking link is no longer available. Contact the deli
  * server inlines verbatim, and executing exactly it is the point of the test.
  */
 function openTrackPageAt(hash: string) {
+  document.head.innerHTML = ''
   document.body.innerHTML =
-    '<p id="tracking-status">Opening your tracking link…</p><p id="tracking-content"></p>'
+    '<p id="tracking-status">Opening your tracking link…</p><div id="tracking-app"></div>'
   window.history.replaceState(null, '', `/track${hash}`)
   // oxlint-disable-next-line typescript/no-implied-eval
   new Function(BOOTSTRAP)()
@@ -36,8 +37,13 @@ function status(): string {
   return document.getElementById('tracking-status')?.textContent ?? ''
 }
 
-function content(): string {
-  return document.getElementById('tracking-content')?.textContent ?? ''
+/** The application bundle, if the bootstrap has asked for it. */
+function applicationScript(): HTMLScriptElement | null {
+  return document.querySelector('script[src="/track-app.js"]')
+}
+
+function applicationStylesheet(): HTMLLinkElement | null {
+  return document.querySelector('link[href="/track-app.css"]')
 }
 
 function fetchCalls() {
@@ -60,24 +66,68 @@ describe('the /track bootstrap', () => {
     window.history.replaceState(null, '', '/')
   })
 
-  it('exchanges the fragment token and then shows the authorized delivery', async () => {
-    vi.mocked(fetch).mockImplementation((input) =>
-      Promise.resolve(
-        urlOf(input) === '/api/tracking-session'
-          ? noContentResponse()
-          : jsonResponse({ deliveryReference: 'DG-0042' }),
-      ),
-    )
+  it('exchanges the fragment token and only then asks for the Recipient application', async () => {
+    vi.mocked(fetch).mockResolvedValue(noContentResponse())
 
     openTrackPageAt(`#t=${TOKEN}`)
-    await vi.waitFor(() => expect(content()).toContain('DG-0042'))
+    expect(applicationScript()).toBeNull()
+
+    await vi.waitFor(() => expect(applicationScript()).not.toBeNull())
+    expect(applicationScript()?.type).toBe('module')
+    expect(applicationStylesheet()).not.toBeNull()
+  })
+
+  /**
+   * The strongest form of "the map is never loaded before a successful bootstrap": there is no
+   * application to load a map, because nothing has asked the browser for one.
+   */
+  it.each([
+    ['the exchange is refused', () => vi.mocked(fetch).mockResolvedValue(problemResponse('x', 404))],
+    [
+      'the exchange cannot be sent',
+      () => vi.mocked(fetch).mockRejectedValue(new TypeError('Failed to fetch')),
+    ],
+  ])('never asks for the application when %s', async (_description, arrange) => {
+    arrange()
+
+    openTrackPageAt(`#t=${TOKEN}`)
+    await settle()
+
+    expect(applicationScript()).toBeNull()
+    expect(applicationStylesheet()).toBeNull()
+  })
+
+  /**
+   * The reload path. This page removes the fragment as soon as it has spent it, so every visit
+   * after the first arrives with none — and DG-025's only way to see a newer position is to
+   * reload. It must therefore reach the application on the grant cookie alone, and it must do so
+   * without an exchange, because there is no longer a token to exchange.
+   */
+  it('loads the application on the grant cookie alone when there is no fragment left', async () => {
+    vi.mocked(fetch).mockResolvedValue(noContentResponse())
+
+    openTrackPageAt('')
+
+    await vi.waitFor(() => expect(applicationScript()).not.toBeNull())
+    expect(fetchCalls()).toHaveLength(0)
+  })
+
+  /** A grant the browser holds is no use if the application it authorizes never arrives. */
+  it('says the service is unreachable when the application bundle fails to load', async () => {
+    vi.mocked(fetch).mockResolvedValue(noContentResponse())
+
+    openTrackPageAt(`#t=${TOKEN}`)
+    await vi.waitFor(() => expect(applicationScript()).not.toBeNull())
+    applicationScript()?.dispatchEvent(new Event('error'))
+
+    expect(status()).toContain('Could not reach the delivery service')
   })
 
   it('sends the token in the request body and never in a URL', async () => {
     vi.mocked(fetch).mockResolvedValue(noContentResponse())
 
     openTrackPageAt(`#t=${TOKEN}`)
-    await vi.waitFor(() => expect(fetchCalls()).toHaveLength(2))
+    await vi.waitFor(() => expect(applicationScript()).not.toBeNull())
 
     const [exchangeInput, exchangeInit] = fetchCalls()[0]
     expect(urlOf(exchangeInput)).toBe('/api/tracking-session')
@@ -89,7 +139,7 @@ describe('the /track bootstrap', () => {
     vi.mocked(fetch).mockResolvedValue(noContentResponse())
 
     openTrackPageAt(`#t=${TOKEN}`)
-    await vi.waitFor(() => expect(fetchCalls()).toHaveLength(2))
+    await vi.waitFor(() => expect(applicationScript()).not.toBeNull())
 
     const exchanges = fetchCalls().filter(([input]) => urlOf(input) === '/api/tracking-session')
     expect(exchanges).toHaveLength(1)
@@ -134,38 +184,33 @@ describe('the /track bootstrap', () => {
     expect(pushState).not.toHaveBeenCalled()
   })
 
+  /**
+   * The exchange is the last thing that ever carries the token. Everything the page loads after it
+   * is named by a fixed path, so nothing downstream can be handed a capability to put in a URL.
+   */
   it('never sends the token again once the grant cookie exists', async () => {
-    vi.mocked(fetch).mockImplementation((input) =>
-      Promise.resolve(
-        urlOf(input) === '/api/tracking-session'
-          ? noContentResponse()
-          : jsonResponse({ deliveryReference: 'DG-0042' }),
-      ),
-    )
+    vi.mocked(fetch).mockResolvedValue(noContentResponse())
 
     openTrackPageAt(`#t=${TOKEN}`)
-    await vi.waitFor(() => expect(content()).toContain('DG-0042'))
+    await vi.waitFor(() => expect(applicationScript()).not.toBeNull())
 
-    const laterCalls = fetchCalls().slice(1)
-    expect(laterCalls).not.toHaveLength(0)
-    for (const [input, init] of laterCalls) {
-      expect(urlOf(input)).not.toContain(TOKEN)
-      expect(JSON.stringify(init ?? {})).not.toContain(TOKEN)
-    }
+    expect(fetchCalls()).toHaveLength(1)
+    expect(applicationScript()?.getAttribute('src')).toBe('/track-app.js')
+    expect(applicationStylesheet()?.getAttribute('href')).toBe('/track-app.css')
+    expect(document.documentElement.innerHTML).not.toContain(TOKEN)
   })
 
   it('echoes the CSRF cookie as a header, the way every other command in this app does', async () => {
     vi.mocked(fetch).mockResolvedValue(noContentResponse())
 
     openTrackPageAt(`#t=${TOKEN}`)
-    await vi.waitFor(() => expect(fetchCalls()).toHaveLength(2))
+    await vi.waitFor(() => expect(applicationScript()).not.toBeNull())
 
     const headers = fetchCalls()[0][1]?.headers as Record<string, string>
     expect(headers['X-XSRF-TOKEN']).toBe('csrf-cookie-value')
   })
 
   it.each([
-    ['no fragment at all', ''],
     ['an empty token', '#t='],
     ['a token that is too short', '#t=tooshort'],
     ['a token carrying characters base64url does not use', `#t=${'+'.repeat(43)}`],
@@ -179,6 +224,9 @@ describe('the /track bootstrap', () => {
     expect(fetchCalls()).toHaveLength(0)
     expect(status()).toBe(UNAVAILABLE)
     expect(window.location.hash).toBe('')
+    // Nor is a grant this browser happens to hold used to answer a broken link with some other
+    // Delivery, which would be a confusing kind of correct.
+    expect(applicationScript()).toBeNull()
   })
 
   it('shows the same unavailable wording the server uses, so the two cannot drift apart', async () => {
@@ -188,6 +236,6 @@ describe('the /track bootstrap', () => {
     await settle()
 
     expect(status()).toBe(UNAVAILABLE)
-    expect(content()).toBe('')
+    expect(applicationScript()).toBeNull()
   })
 })

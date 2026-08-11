@@ -86,6 +86,15 @@ class LocationSharing implements LocationFacts {
 			.map((snapshot) -> new DispatchPosition(snapshot.latitude(), snapshot.longitude()));
 	}
 
+	@Override
+	public Optional<TrackedPosition> positionForTracking(UUID courierAccountId) {
+		// Same read and the same usable limit as dispatch gets; the difference is entirely in what
+		// the caller is allowed to do with it, which is why the two are not one method.
+		return this.store.current(courierAccountId)
+			.map((snapshot) -> new TrackedPosition(snapshot.latitude(), snapshot.longitude(),
+					snapshot.accuracyMetres(), snapshot.recordedAt()));
+	}
+
 	private LocationStatus status(UUID courierAccountId) {
 		Optional<LatestLocation> current = this.store.current(courierAccountId);
 		if (current.isEmpty()) {

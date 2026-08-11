@@ -22,7 +22,6 @@
   var UNREACHABLE = 'Could not reach the delivery service. Check your connection and reload.';
 
   var status = document.getElementById('tracking-status');
-  var content = document.getElementById('tracking-content');
 
   function show(message) {
     status.textContent = message;
@@ -39,28 +38,42 @@
     return match ? decodeURIComponent(match[1]) : '';
   }
 
-  // DG-025 replaces this with the real Recipient view. Until then it proves only what DG-024
-  // claims: the grant cookie authorizes one Delivery, and nothing carries the token any more.
+  // The Recipient application, requested only from here. Nothing in the page references these
+  // files, so a visitor whose exchange failed — or who never had a token — downloads neither, and
+  // "the map is never loaded before a successful bootstrap" is a fact about the network rather than
+  // a rule the application has to keep. Both paths are fixed rather than content-hashed, because
+  // this file is inlined into the page by the server and pinned by a CSP hash: it cannot be
+  // regenerated per build, so it cannot know a hash.
   function loadRecipientApplication() {
-    return fetch('/api/tracking/snapshot', { credentials: 'same-origin' })
-      .then(function (response) {
-        if (!response.ok) {
-          show(UNAVAILABLE);
-          return;
-        }
-        return response.json().then(function (snapshot) {
-          show('');
-          content.textContent = 'Tracking delivery ' + snapshot.deliveryReference;
-        });
-      })
-      .catch(function () {
-        show(UNREACHABLE);
-      });
+    var stylesheet = document.createElement('link');
+    stylesheet.rel = 'stylesheet';
+    stylesheet.href = '/track-app.css';
+    document.head.appendChild(stylesheet);
+
+    var application = document.createElement('script');
+    application.type = 'module';
+    application.src = '/track-app.js';
+    application.onerror = function () {
+      show(UNREACHABLE);
+    };
+    document.body.appendChild(application);
   }
 
-  var match = FRAGMENT.exec(window.location.hash);
+  var presented = window.location.hash;
+  var match = FRAGMENT.exec(presented);
   if (!match) {
     forgetTheFragment();
+    if (presented === '') {
+      // No fragment at all is the ordinary case, not a failure: this page removes the fragment as
+      // soon as it has spent it, so every reload after the first arrives here. The grant cookie is
+      // the only thing that can authorize such a visit, and the application asks with it — which is
+      // also how a visitor holding no grant still gets the one unavailable answer.
+      loadRecipientApplication();
+      return;
+    }
+    // A fragment that is present and is not a capability. Nothing is sent anywhere, and no cookie
+    // is consulted either: somebody presented a broken link, and answering it with a different
+    // Delivery they happen to still hold a grant for would be a confusing kind of correct.
     show(UNAVAILABLE);
     return;
   }

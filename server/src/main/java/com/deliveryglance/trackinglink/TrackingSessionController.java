@@ -4,19 +4,19 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The two endpoints a Link Holder's browser talks to.
+ * The one endpoint that turns a presented capability into a grant.
  *
- * <p>Authorization here is the grant cookie and only the grant cookie. A signed-in Dispatcher who
- * calls these gets the same generic refusal as a stranger: ADR 06 says the capability authorizes
- * reading one Delivery, and an Internal Account role is a different question with a different
- * answer. The reverse holds too — a grant carries no authority anywhere else in the API.
+ * <p>Authorization here is the fragment token and nothing else, and what the resulting cookie is
+ * worth is settled by {@link LinkHolderAuthorization} rather than by any role. A signed-in
+ * Dispatcher who calls this gets the same generic refusal as a stranger: ADR 06 says the capability
+ * authorizes reading one Delivery, and an Internal Account role is a different question with a
+ * different answer. The reverse holds too — a grant carries no authority anywhere else in the API.
  */
 @RestController
 class TrackingSessionController {
@@ -50,20 +50,6 @@ class TrackingSessionController {
 
 		this.attempts.recordSuccess(source);
 		this.grants.issue(response, issued.secret(), issued.expiresAt(), issued.establishedAt());
-	}
-
-	@GetMapping("/api/tracking/snapshot")
-	TrackingLinkViews.Snapshot snapshot(HttpServletRequest request, HttpServletResponse response) {
-		String secret = this.grants.presentedSecret(request).orElseThrow(UnavailableLinkException::new);
-		try {
-			return this.links.snapshotFor(secret);
-		}
-		catch (UnavailableLinkException ex) {
-			// The cookie is no longer worth anything, so the browser stops sending it rather than
-			// retrying with it on every reconnect.
-			this.grants.clear(response);
-			throw ex;
-		}
 	}
 
 	/**

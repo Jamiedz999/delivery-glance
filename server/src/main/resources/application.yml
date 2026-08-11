@@ -48,6 +48,15 @@ delivery-glance:
     current-key-version: ${TRACKING_CURRENT_KEY_VERSION:1}
     # Production default is secure; the plain-HTTP local Compose demo has to opt out explicitly.
     cookie-secure: ${TRACKING_COOKIE_SECURE:true}
+    # The map style the tracking page loads, and the origin its Content-Security-Policy allows tiles
+    # from. It is a release input: unset is a supported deployment, and the Recipient view then keeps
+    # its status and freshness content and says the map is unavailable rather than failing the page.
+    map-style-url: ${TRACKING_MAP_STYLE_URL:}
+  recipient:
+    # Who a Recipient is told to contact about a cancelled Delivery. One value for the whole Delivery
+    # Team, never anything derived from the Delivery. Blank is supported; the page then points back
+    # at whoever shared the link.
+    delivery-team-contact: ${DELIVERY_TEAM_CONTACT:}
 
 management:
   endpoints:
