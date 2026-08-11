@@ -10,7 +10,7 @@ When is a Tracking Link created, shared, activated, expired, or revoked; what da
 
 ## Answer
 
-> **Portfolio Core scope update:** [Ticket 12](../planning/12-rescope-to-resume-ready-core.md) retains secure creation, repeatable Copy and automatic Expiry. Rotation, Revocation, Reissue and their history remain preserved here for [Future Work 14](../planning/future-work/14-add-tracking-link-recovery.md).
+> **Portfolio Core scope update:** [Ticket 12](../planning/12-rescope-to-resume-ready-core.md) retains secure creation, repeatable Copy, automatic Expiry, the fragment-to-Tracking-Grant exchange, the single Unavailable Link response and the cache/referrer/indexing headers. Core derives the capability rather than storing it, so Copy returns the same link without anything having kept one. Rotation, Revocation, Reissue, their structured reasons and their history remain preserved here for [Future Work 14](../planning/future-work/14-add-tracking-link-recovery.md); Core still records the link generation each Grant was established through, which is the hook those controls need.
 
 ### Capability and threat boundary
 
