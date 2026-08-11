@@ -124,7 +124,7 @@ page that started the session, so a new page load cannot resume it.
 These are the checks CI runs on every push; run them locally before opening a PR:
 
 ```bash
-./server/mvnw verify
+(cd server && ./mvnw verify)
 npm --prefix web ci
 npm --prefix web run lint
 npm --prefix web run check

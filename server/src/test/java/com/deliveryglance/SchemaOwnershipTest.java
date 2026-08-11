@@ -28,7 +28,7 @@ class SchemaOwnershipTest {
 
 		assertThat(tables).containsExactly("assignment", "courier", "courier_location_sharing", "delivery",
 				"delivery_transition", "flyway_schema_history", "internal_account", "spring_session",
-				"spring_session_attributes");
+				"spring_session_attributes", "tracking_grant", "tracking_link", "tracking_link_copy");
 	}
 
 	@Test
@@ -38,7 +38,7 @@ class SchemaOwnershipTest {
 			.query(String.class)
 			.list();
 
-		assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6");
+		assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7");
 	}
 
 	@Test

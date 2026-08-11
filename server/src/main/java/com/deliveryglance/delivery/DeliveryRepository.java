@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import com.deliveryglance.identityaccess.CurrentActor;
+import com.deliveryglance.trackinglink.TrackedDeliveries;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -17,9 +18,15 @@ import org.springframework.stereotype.Repository;
 /**
  * Explicit SQL for the two Delivery tables. Every statement is written out here rather than
  * generated, so the durable shape of a Delivery is readable in one place.
+ *
+ * <p>It also implements {@link TrackedDeliveries} for the same reason {@code AssignmentRepository}
+ * implements {@code ActiveAssignments}: {@code Deliveries} depends on trackinglink to create a
+ * link, so implementing the return port on a service would close a constructor-injection cycle
+ * between the two modules. The port asks only for one read, with no policy to place above it, and
+ * its caller is itself a transactional service method.
  */
 @Repository
-class DeliveryRepository {
+class DeliveryRepository implements TrackedDeliveries {
 
 	private final JdbcClient jdbcClient;
 
@@ -170,6 +177,25 @@ class DeliveryRepository {
 			.optional();
 	}
 
+	/**
+	 * The Delivery Reference, and when the Delivery ended if it has. The terminal time comes from
+	 * the transition history rather than {@code updated_at}, which any later write would move.
+	 */
+	@Override
+	public Optional<TrackedDeliveries.TrackedDelivery> find(UUID id) {
+		return this.jdbcClient.sql("""
+				SELECT d.id, d.reference,
+				       (SELECT min(t.occurred_at) FROM delivery_transition t
+				        WHERE t.delivery_id = d.id AND t.next_state IN ('DELIVERED', 'CANCELLED')) AS terminal_at
+				FROM delivery d
+				WHERE d.id = :id
+				""")
+			.param("id", id)
+			.query((rs, rowNumber) -> new TrackedDeliveries.TrackedDelivery(rs.getObject("id", UUID.class),
+					rs.getString("reference"), nullableInstant(rs, "terminal_at")))
+			.optional();
+	}
+
 	Optional<DeliveryViews.CourierDelivery> findCourierDelivery(UUID id) {
 		return this.jdbcClient.sql("""
 				SELECT id, reference, state, version, pickup_address_label, handoff_address_label
@@ -208,6 +234,11 @@ class DeliveryRepository {
 
 	private static Instant instant(ResultSet rs, String column) throws SQLException {
 		return rs.getObject(column, OffsetDateTime.class).toInstant();
+	}
+
+	private static Instant nullableInstant(ResultSet rs, String column) throws SQLException {
+		OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
+		return (value == null) ? null : value.toInstant();
 	}
 
 	/** Just enough of a Delivery to decide whether a command may be applied to it. */

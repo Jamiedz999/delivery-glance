@@ -5,12 +5,18 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.deliveryglance.shared.Secrets;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Start, report and Stop for one Courier's Location Sharing. The sharing intent is durable; the
  * position it produces is not, and this class is where those two lifetimes are kept in step.
+ *
+ * <p>The reporting secret this issues names the page load, not the Courier — the session cookie
+ * already says who is calling. Only its verifier is stored, so a database copy cannot be turned back
+ * into a working reporting credential.
  */
 @Service
 class LocationSharing implements LocationFacts {
@@ -30,10 +36,10 @@ class LocationSharing implements LocationFacts {
 	@Transactional
 	LocationViews.StartedSession start(UUID courierAccountId) {
 		UUID generation = UUID.randomUUID();
-		String reportingSecret = ReportingSecrets.issue();
+		String reportingSecret = Secrets.issue();
 		Instant startedAt = this.clock.instant();
 
-		this.repository.save(courierAccountId, generation, ReportingSecrets.verifierOf(reportingSecret), startedAt);
+		this.repository.save(courierAccountId, generation, Secrets.verifierOf(reportingSecret), startedAt);
 		// After the new generation is stored, not before: a report that was validated against the
 		// old one is then already speaking for a session the database no longer knows.
 		this.store.forget(courierAccountId);
@@ -52,7 +58,7 @@ class LocationSharing implements LocationFacts {
 	LocationViews.Report report(UUID courierAccountId, LocationRequests.Report request) {
 		LocationSharingRepository.CurrentSession session = this.repository.find(courierAccountId)
 			.filter((current) -> current.generation().equals(request.generation()))
-			.filter((current) -> ReportingSecrets.matches(request.reportingSecret(),
+			.filter((current) -> Secrets.matches(request.reportingSecret(),
 					current.reportingSecretVerifier()))
 			// A wrong generation and a wrong secret are answered identically, so a caller cannot
 			// learn which half it got right.

@@ -53,6 +53,20 @@ public class SecurityConfig {
 				.requestMatchers("/api/deliveries", "/api/deliveries/**")
 					.hasRole(InternalAccountRole.DISPATCHER.name())
 				.requestMatchers("/api/couriers/**").hasRole(InternalAccountRole.COURIER.name())
+				// The two Recipient routes. They are open here because their authorization is the
+				// Tracking grant, which this policy knows nothing about: a Link Holder has no
+				// Internal Account, and an Internal Account confers no Recipient access. The
+				// trackinglink module checks the grant itself and answers every failure with one
+				// generic response, which is the only way unknown, malformed and expired links can
+				// be told apart by nobody.
+				.requestMatchers(HttpMethod.POST, "/api/tracking-session").permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/tracking/**").permitAll()
+				// HEAD is named explicitly because the frontend catch-all below permits GET only,
+				// and every other route is happy to refuse a HEAD. This one is not: a Tracking Link
+				// travels through message apps and mail filters that issue HEAD before any person
+				// clicks, and answering those with 401 would make a working link look broken to the
+				// software carrying it. It is safe to allow because /track reads no token.
+				.requestMatchers(HttpMethod.HEAD, "/track", "/track/**").permitAll()
 				.requestMatchers("/api/**").denyAll()
 				.requestMatchers("/actuator/**").denyAll()
 				.requestMatchers(HttpMethod.GET, "/**").permitAll()
