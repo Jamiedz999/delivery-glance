@@ -4,12 +4,7 @@ import { Link, useParams } from 'react-router'
 import type { CancellationReason, DeliveryDetail } from '../api/deliveries'
 import { CANCELLATION_REASONS, DELIVERY_STATE_LABELS } from '../api/deliveries'
 import { ApiError } from '../api/http'
-import {
-  useAssignCourier,
-  useCancelDelivery,
-  useCourierRecommendation,
-  useDelivery,
-} from '../api/queries'
+import { useAssignCourier, useCancelDelivery, useCourierRecommendation, useDelivery } from '../api/queries'
 
 export function DeliveryDetailPage() {
   const { id = '' } = useParams()
@@ -23,7 +18,9 @@ export function DeliveryDetailPage() {
     const notFound = error instanceof ApiError && error.status === 404
     return (
       <p role="alert">
-        {notFound ? 'That delivery does not exist.' : 'Could not load this delivery. Reload the page to try again.'}
+        {notFound
+          ? 'That delivery does not exist.'
+          : 'Could not load this delivery. Reload the page to try again.'}
       </p>
     )
   }
@@ -59,10 +56,8 @@ export function DeliveryDetailPage() {
       <ol>
         {delivery.transitions.map((transition) => (
           <li key={`${transition.occurredAt}-${transition.nextState}`}>
-            <time dateTime={transition.occurredAt}>
-              {new Date(transition.occurredAt).toLocaleString()}
-            </time>{' '}
-            — {DELIVERY_STATE_LABELS[transition.nextState]} by {transition.actorDisplayName}
+            <time dateTime={transition.occurredAt}>{new Date(transition.occurredAt).toLocaleString()}</time> —{' '}
+            {DELIVERY_STATE_LABELS[transition.nextState]} by {transition.actorDisplayName}
             {transition.reasonCode != null && ` (${labelFor(transition.reasonCode)})`}
             {transition.reasonNote != null && `: ${transition.reasonNote}`}
           </li>
@@ -126,7 +121,8 @@ function RecommendationPanel({ delivery }: { delivery: DeliveryDetail }) {
             <ol>
               {recommendation.data.candidates.map((candidate) => (
                 <li key={candidate.courierId}>
-                  <strong>{candidate.displayName}</strong> — {Math.round(candidate.distanceMetres)} m from pickup{' '}
+                  <strong>{candidate.displayName}</strong> — {Math.round(candidate.distanceMetres)} m from
+                  pickup{' '}
                   <button
                     type="button"
                     aria-label={`Direct assign ${candidate.displayName}`}

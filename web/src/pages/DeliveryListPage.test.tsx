@@ -1,12 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, screen } from '@testing-library/react'
 import { DeliveryListPage } from './DeliveryListPage'
-import {
-  jsonResponse,
-  problemResponse,
-  renderWithProviders,
-  respondWith,
-} from '../testing/support'
+import { jsonResponse, problemResponse, renderWithProviders, respondWith } from '../testing/support'
 
 const summary = {
   id: '5f2d0b1e-3f6e-4a1f-9f1a-9a2b3c4d5e6f',

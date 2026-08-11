@@ -2,12 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, screen, waitFor } from '@testing-library/react'
 import { Route, Routes } from 'react-router'
 import { RequireRole } from './RequireRole'
-import {
-  jsonResponse,
-  problemResponse,
-  renderWithProviders,
-  respondWith,
-} from '../testing/support'
+import { jsonResponse, problemResponse, renderWithProviders, respondWith } from '../testing/support'
 
 function renderGuardedPage() {
   renderWithProviders(
@@ -49,9 +44,7 @@ describe('RequireRole', () => {
 
     renderGuardedPage()
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'This page is only available to a Dispatcher.',
-    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('This page is only available to a Dispatcher.')
     expect(screen.queryByText('Dispatcher workspace')).not.toBeInTheDocument()
   })
 

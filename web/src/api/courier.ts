@@ -3,11 +3,7 @@ import { apiRequest } from './http'
 export type LocationFreshness = 'LIVE' | 'DELAYED' | 'UNAVAILABLE'
 
 export type ReportOutcome =
-  | 'ACCEPTED'
-  | 'REJECTED_LOW_ACCURACY'
-  | 'REJECTED_FUTURE_DATED'
-  | 'REJECTED_STALE'
-  | 'REJECTED_NOT_NEWER'
+  'ACCEPTED' | 'REJECTED_LOW_ACCURACY' | 'REJECTED_FUTURE_DATED' | 'REJECTED_STALE' | 'REJECTED_NOT_NEWER'
 
 /** Never carries coordinates: the browser already knows where it is. */
 export interface CourierLocation {
@@ -94,11 +90,7 @@ export function describeFreshness(recordedAt: string | null, now: number): Fresh
   }
   const ageSeconds = Math.max(0, Math.floor((now - Date.parse(recordedAt)) / 1000))
   const label =
-    ageSeconds <= LIVE_LIMIT_SECONDS
-      ? 'Live'
-      : ageSeconds <= USABLE_LIMIT_SECONDS
-        ? 'Delayed'
-        : 'Unavailable'
+    ageSeconds <= LIVE_LIMIT_SECONDS ? 'Live' : ageSeconds <= USABLE_LIMIT_SECONDS ? 'Delayed' : 'Unavailable'
   return {
     label,
     ageSeconds,
