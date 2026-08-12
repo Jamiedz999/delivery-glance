@@ -4,6 +4,7 @@ Two homes, one rule: **the repo says why the work is shaped this way; GitHub say
 
 ```
 CONTEXT.md                        domain glossary — the vocabulary to write in
+docs/testing.md                   the risk matrix: every claim, the command proving it, the limits
 docs/adr/                         resolved product and architecture decisions (02–11)
 docs/planning/
 ├── map.md                        scope + readiness index over everything below

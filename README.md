@@ -238,7 +238,7 @@ exists to be watched leaving the map. Starting the image without it fails the ru
 above rather than with a confusing assertion.
 
 The degradation journey restarts the application on purpose — that is how a live stream is severed —
-so it takes about half a minute on its own.
+so it is the slowest of them by some way.
 
 **[`docs/testing.md`](docs/testing.md) is the risk matrix**: every claim this project makes, the
 command that proves it, and the limits it deliberately does not claim.

@@ -39,30 +39,34 @@ export class TeamClient {
     return client
   }
 
-  async get<T>(path: string): Promise<T> {
-    const response = await this.context.get(path)
-    expect(response.ok(), `GET ${path} answered ${response.status()}`).toBe(true)
-    return response.status() === 204 ? (undefined as T) : ((await response.json()) as T)
+  get<T>(path: string): Promise<T> {
+    return this.send('get', path)
   }
 
-  async post<T>(path: string, data?: unknown): Promise<T> {
-    const response = await this.context.post(path, {
+  post<T>(path: string, data?: unknown): Promise<T> {
+    return this.send('post', path, data)
+  }
+
+  put<T>(path: string, data: unknown): Promise<T> {
+    return this.send('put', path, data)
+  }
+
+  delete(path: string): Promise<void> {
+    return this.send('delete', path)
+  }
+
+  /**
+   * Every call this client makes. A refusal fails here, naming the method, the path and the status,
+   * because a setup step that quietly returned `undefined` would fail several assertions later as
+   * something that looks like a product bug.
+   */
+  private async send<T>(method: 'get' | 'post' | 'put' | 'delete', path: string, data?: unknown): Promise<T> {
+    const response = await this.context[method](path, {
       headers: await this.csrfHeader(),
       ...(data === undefined ? {} : { data }),
     })
-    expect(response.ok(), `POST ${path} answered ${response.status()}`).toBe(true)
+    expect(response.ok(), `${method.toUpperCase()} ${path} answered ${response.status()}`).toBe(true)
     return response.status() === 204 ? (undefined as T) : ((await response.json()) as T)
-  }
-
-  async put<T>(path: string, data: unknown): Promise<T> {
-    const response = await this.context.put(path, { headers: await this.csrfHeader(), data })
-    expect(response.ok(), `PUT ${path} answered ${response.status()}`).toBe(true)
-    return response.status() === 204 ? (undefined as T) : ((await response.json()) as T)
-  }
-
-  async delete(path: string): Promise<void> {
-    const response = await this.context.delete(path, { headers: await this.csrfHeader() })
-    expect(response.ok(), `DELETE ${path} answered ${response.status()}`).toBe(true)
   }
 
   async dispose(): Promise<void> {

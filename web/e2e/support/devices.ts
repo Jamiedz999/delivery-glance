@@ -1,4 +1,11 @@
-import { type Browser, type BrowserContext, type Page, devices, expect } from '@playwright/test'
+import {
+  type Browser,
+  type BrowserContext,
+  type BrowserContextOptions,
+  type Page,
+  devices,
+  expect,
+} from '@playwright/test'
 import { type Account, type Position, REPORTED_ACCURACY_METRES } from './team'
 
 /**
@@ -36,8 +43,11 @@ export async function openCourierPhone(browser: Browser, standing: Position): Pr
 }
 
 /** The Recipient's phone. It holds no account, no permission and nothing but the link. */
-export async function openRecipientPhone(browser: Browser): Promise<Device> {
-  const context = await browser.newContext(PHONE)
+export async function openRecipientPhone(
+  browser: Browser,
+  options: BrowserContextOptions = {},
+): Promise<Device> {
+  const context = await browser.newContext({ ...PHONE, ...options })
   return { context, page: await context.newPage() }
 }
 

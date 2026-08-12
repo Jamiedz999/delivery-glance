@@ -38,22 +38,6 @@ Issue introduce.
 Fix: give `currentCourierDelivery` a modest `refetchInterval` while a Courier is On Duty, and
 nothing while they are not — an off-duty Courier has no Delivery to hear about.
 
-### One refusal is announced two different ways depending on which script is showing it
-
-The Recipient's "this tracking link is no longer available" sentence is rendered by the /track
-bootstrap into `#tracking-status`, which is `role="status"`, when the token exchange fails, and by
-`web/src/track/TrackingPage.tsx` into `role="alert"` when the snapshot read is refused. Same
-sentence, same dead end, two politeness levels — and the bootstrap's is the polite one, which is the
-wrong way round for a message that ends the visit.
-
-Found while writing DG-027's degradation journey, which had to stop asserting on the role because
-the two paths disagree. Not fixed there because `#tracking-status` is also where the bootstrap
-writes "Opening your tracking link…", and a placeholder that is an alert while it carries progress
-would interrupt every ordinary visit.
-
-Fix: give the bootstrap a second element for its failures, or have it switch the role when it
-writes a final message. Either way the two paths should agree on how a refusal is announced.
-
 ### ADR 04's Core scope callout describes assignment that Core does not implement
 
 `docs/adr/04-define-courier-recommendation-and-assignment.md:13` says Core "uses atomic Direct

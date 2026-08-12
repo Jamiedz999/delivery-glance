@@ -64,7 +64,7 @@ export function DeliveryDetailPage() {
         ))}
       </ol>
 
-      {delivery.state === 'AWAITING_COURIER' && <RecommendationPanel delivery={delivery} />}
+      <DirectAssignment delivery={delivery} />
 
       {(delivery.state === 'AWAITING_COURIER' || delivery.state === 'ASSIGNED') && (
         <CancelDeliveryForm delivery={delivery} />
@@ -79,8 +79,17 @@ export function DeliveryDetailPage() {
   )
 }
 
-function RecommendationPanel({ delivery }: { delivery: DeliveryDetail }) {
-  const recommendation = useCourierRecommendation(delivery.id)
+/**
+ * Direct Assignment, and — outliving it — whatever it has to say about a press that was refused.
+ *
+ * The two are separated because the shortlist is only meaningful while a Delivery is still Awaiting
+ * a Courier, and a refusal is most meaningful exactly when it is not. Losing a race refuses the
+ * command *and* means the next read finds somebody else's Assignment, so a message rendered inside
+ * the shortlist would be destroyed by the refetch its own failure triggered — leaving the page
+ * redrawn as an assigned Delivery, with the winner's Courier sitting where a success would have put
+ * one and nothing at all to say the press did not do it.
+ */
+function DirectAssignment({ delivery }: { delivery: DeliveryDetail }) {
   const assign = useAssignCourier(delivery.id)
   const commandIds = useRef(new Map<string, string>())
 
@@ -92,6 +101,29 @@ function RecommendationPanel({ delivery }: { delivery: DeliveryDetail }) {
     }
     assign.mutate({ courierId, expectedVersion: delivery.version, commandId })
   }
+
+  return (
+    <>
+      {assign.isError && (
+        <p role="alert" className="error">
+          {assignmentMessageFor(assign.error)}
+        </p>
+      )}
+      {delivery.state === 'AWAITING_COURIER' && (
+        <RecommendationPanel delivery={delivery} assigning={assign.isPending} onAssign={directAssign} />
+      )}
+    </>
+  )
+}
+
+interface RecommendationPanelProps {
+  delivery: DeliveryDetail
+  assigning: boolean
+  onAssign: (courierId: string) => void
+}
+
+function RecommendationPanel({ delivery, assigning, onAssign }: RecommendationPanelProps) {
+  const recommendation = useCourierRecommendation(delivery.id)
 
   return (
     <section aria-labelledby="recommendation-heading">
@@ -109,7 +141,7 @@ function RecommendationPanel({ delivery }: { delivery: DeliveryDetail }) {
             <button
               type="button"
               onClick={() => void recommendation.refetch()}
-              disabled={recommendation.isFetching || assign.isPending}
+              disabled={recommendation.isFetching || assigning}
               aria-busy={recommendation.isFetching}
             >
               Refresh recommendation
@@ -126,9 +158,9 @@ function RecommendationPanel({ delivery }: { delivery: DeliveryDetail }) {
                   <button
                     type="button"
                     aria-label={`Direct assign ${candidate.displayName}`}
-                    onClick={() => directAssign(candidate.courierId)}
-                    disabled={assign.isPending}
-                    aria-busy={assign.isPending}
+                    onClick={() => onAssign(candidate.courierId)}
+                    disabled={assigning}
+                    aria-busy={assigning}
                   >
                     Direct assign
                   </button>
@@ -137,11 +169,6 @@ function RecommendationPanel({ delivery }: { delivery: DeliveryDetail }) {
             </ol>
           )}
         </>
-      )}
-      {assign.isError && (
-        <p role="alert" className="error">
-          {assignmentMessageFor(assign.error)}
-        </p>
       )}
     </section>
   )

@@ -2,9 +2,10 @@ import AxeBuilder from '@axe-core/playwright'
 import type { Result } from 'axe-core'
 import type { Page } from '@playwright/test'
 import { assignNearestCourier, copyTrackingLink, createDelivery, expect, test } from './support/journey'
-import { openCourierPhone, openRecipientPhone, signIn } from './support/devices'
+import { openCourierPhone, openRecipientPhone } from './support/devices'
 import { COURIER, COURIER_AT_PICKUP, DISPATCHER, HANDOFF, PICKUP, reference } from './support/team'
-import { confirmPickup, goOnDuty, returnToWorkspace, startSharing } from './support/workspace'
+import { confirmPickup, goOnDutyAndShare, returnToWorkspace, startSharing } from './support/workspace'
+import { signIn } from './support/devices'
 
 /**
  * The three surfaces a person actually uses, checked where they are used: the Dispatcher at a desk,
@@ -36,20 +37,18 @@ function describeViolations(surface: string, violations: Result[]): string {
 test('the three main surfaces carry no serious or critical automated violations', async ({
   page,
   browser,
-  baseURL,
   dispatcher,
 }) => {
   const deliveryReference = reference('a11y')
   const courierPhone = await openCourierPhone(browser, COURIER_AT_PICKUP)
-  const recipientPhone = await openRecipientPhone(browser)
+  // The Recipient's phone asks for reduced motion, because that is the setting a vestibular
+  // disorder puts on it and because this is the one journey that reaches a drawn map.
+  const recipientPhone = await openRecipientPhone(browser, { reducedMotion: 'reduce' })
   const found: string[] = []
 
   try {
     const delivery = await createDelivery(dispatcher, deliveryReference)
-
-    await signIn(courierPhone.page, COURIER)
-    await goOnDuty(courierPhone.page)
-    await startSharing(courierPhone.page)
+    await goOnDutyAndShare(courierPhone.page, COURIER)
 
     await test.step('the Dispatcher at a desk, on the list and on one Delivery', async () => {
       await signIn(page, DISPATCHER)
@@ -82,14 +81,33 @@ test('the three main surfaces carry no serious or critical automated violations'
       found.push(describeViolations('Recipient tracking', await violationsOn(recipientPhone.page)))
     })
 
+    await test.step('and nothing on it moves', async () => {
+      // Asserted on this document rather than on the stylesheet, and asserted here rather than on a
+      // simpler state, because this is the only page in the product that has a map on it — and a
+      // map is the thing most likely to acquire an eased camera later. Nothing is behind a media
+      // query today because nothing animates at all: the map is framed on its markers at load and
+      // deliberately never moved afterwards.
+      await expect(recipientPhone.page.getByRole('img', { name: /Map of the handoff/ })).toBeVisible()
+      const moving = await recipientPhone.page.evaluate(() =>
+        [...document.querySelectorAll('*')]
+          .filter((element) => {
+            const style = getComputedStyle(element)
+            return (
+              parseFloat(style.animationDuration) > 0 ||
+              parseFloat(style.transitionDuration) > 0 ||
+              style.animationName !== 'none'
+            )
+          })
+          .map((element) => `${element.tagName.toLowerCase()}.${element.className}`),
+      )
+      expect(moving, 'elements that animate or transition').toEqual([])
+    })
+
     expect(found.filter((report) => report !== '').join('\n'), 'automated accessibility violations').toBe('')
   } finally {
     await courierPhone.context.close()
     await recipientPhone.context.close()
   }
-
-  // `baseURL` is read so a misconfigured target fails here rather than somewhere less obvious.
-  expect(baseURL).toBeTruthy()
 })
 
 test('a Dispatcher can create a Delivery with the keyboard alone', async ({ page }) => {
@@ -144,43 +162,6 @@ test('a Dispatcher can create a Delivery with the keyboard alone', async ({ page
   await expect(page.getByRole('heading', { name: deliveryReference })).toBeVisible()
   await expect(page.getByText(PICKUP.addressLabel)).toBeVisible()
   await expect(page.getByText(HANDOFF.addressLabel)).toBeVisible()
-})
-
-test('nothing on the Recipient page moves when the reader asks for less motion', async ({
-  browser,
-  dispatcher,
-}) => {
-  const deliveryReference = reference('motion')
-  // A phone that asks for reduced motion, which is the setting a vestibular disorder puts on it.
-  const context = await browser.newContext({ reducedMotion: 'reduce', locale: 'en-GB', timezoneId: 'UTC' })
-  const page = await context.newPage()
-
-  try {
-    const delivery = await createDelivery(dispatcher, deliveryReference)
-    const link = await copyTrackingLink(dispatcher, delivery.id)
-    await page.goto(link.url)
-    await expect(page.getByRole('heading', { name: 'We’re preparing your delivery' })).toBeVisible()
-
-    // Nothing here is opt-in behind a media query, because nothing animates in the first place: the
-    // page never eases, and the map is framed on its markers at load and deliberately never moved
-    // afterwards. This asserts that on the rendered document rather than on the stylesheet, so a
-    // transition added later has somewhere to fail.
-    const moving = await page.evaluate(() =>
-      [...document.querySelectorAll('*')]
-        .filter((element) => {
-          const style = getComputedStyle(element)
-          return (
-            parseFloat(style.animationDuration) > 0 ||
-            parseFloat(style.transitionDuration) > 0 ||
-            style.animationName !== 'none'
-          )
-        })
-        .map((element) => element.tagName.toLowerCase() + '.' + element.className),
-    )
-    expect(moving, 'elements that animate or transition').toEqual([])
-  } finally {
-    await context.close()
-  }
 })
 
 async function expectFocused(page: Page, label: string): Promise<void> {

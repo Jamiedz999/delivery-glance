@@ -1,5 +1,6 @@
 import { type Page, expect } from '@playwright/test'
-import { HANDOFF, PICKUP } from './team'
+import { type Account, HANDOFF, PICKUP } from './team'
+import { signIn } from './devices'
 
 /**
  * The steps a journey performs by pressing things, expressed once.
@@ -7,10 +8,14 @@ import { HANDOFF, PICKUP } from './team'
  * Everything here goes through the control a human would use, and asserts the state the workspace
  * actually reports afterwards rather than assuming the click worked. A helper that clicks and
  * returns immediately would push its failures into whichever later assertion happened to be first.
+ *
+ * Its counterpart is `journey.ts`, which does the same things over HTTP. The two are named apart on
+ * purpose — `createDeliveryThroughTheForm` here, `createDelivery` there — so a reader can tell at
+ * the call site whether a step is the subject of the test or the ground it stands on.
  */
 
 /** Fills the Dispatcher's form and returns the identifier of the Delivery it created. */
-export async function createDelivery(page: Page, reference: string): Promise<string> {
+export async function createDeliveryThroughTheForm(page: Page, reference: string): Promise<string> {
   await page.goto('/deliveries/new')
   await page.getByLabel('Delivery reference').fill(reference)
 
@@ -36,6 +41,19 @@ export async function goOnDuty(page: Page): Promise<void> {
   await page.goto('/courier')
   await page.getByRole('button', { name: 'Go on duty' }).click()
   await expect(page.getByText('On duty', { exact: true })).toBeVisible()
+}
+
+/**
+ * How every journey's Courier begins: signed in, on duty, and sharing a position the server holds.
+ *
+ * The two halves stay separate calls inside it because the product keeps them separate — going on
+ * duty asks the browser for nothing — and a journey that folded them into one step would stop being
+ * able to say which of them did what.
+ */
+export async function goOnDutyAndShare(page: Page, account: Account): Promise<void> {
+  await signIn(page, account)
+  await goOnDuty(page)
+  await startSharing(page)
 }
 
 /**
