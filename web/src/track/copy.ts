@@ -1,3 +1,4 @@
+import type { TrackingConnection } from './updates'
 import type { RecipientState } from './tracking'
 
 /**
@@ -33,6 +34,23 @@ export const STATE_COPY: Record<RecipientState, StateCopy> = {
     headline: 'This delivery was cancelled',
     nextStep: 'Nothing further is scheduled for it.',
   },
+}
+
+/**
+ * CONTEXT's **Tracking Connection**: whether this page is still hearing about changes.
+ *
+ * It is a different question from how old the courier's position is, and is said in different words
+ * for that reason. A reader who cannot tell the two apart will read a stale marker as a lost
+ * connection, or worse, read a live connection as a promise that the marker is current.
+ *
+ * None of these name a cause. A Recipient can do nothing about any of them except reload, so the
+ * only line that asks for anything is the one where reloading is the answer.
+ */
+export const TRACKING_CONNECTION_COPY: Record<TrackingConnection, string> = {
+  connecting: 'Connecting for updates…',
+  live: 'Updating automatically',
+  reconnecting: 'Reconnecting for updates…',
+  off: 'Not updating automatically — reload to check for changes.',
 }
 
 export const UNAVAILABLE_LINK =

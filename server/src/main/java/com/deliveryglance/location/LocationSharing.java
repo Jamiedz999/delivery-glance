@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.deliveryglance.recipientview.RecipientViewUpdates;
 import com.deliveryglance.shared.Secrets;
 
 import org.springframework.stereotype.Service;
@@ -25,11 +26,15 @@ class LocationSharing implements LocationFacts {
 
 	private final LatestLocationStore store;
 
+	private final RecipientViewUpdates recipientViews;
+
 	private final Clock clock;
 
-	LocationSharing(LocationSharingRepository repository, LatestLocationStore store, Clock clock) {
+	LocationSharing(LocationSharingRepository repository, LatestLocationStore store,
+			RecipientViewUpdates recipientViews, Clock clock) {
 		this.repository = repository;
 		this.store = store;
+		this.recipientViews = recipientViews;
 		this.clock = clock;
 	}
 
@@ -43,6 +48,9 @@ class LocationSharing implements LocationFacts {
 		// After the new generation is stored, not before: a report that was validated against the
 		// old one is then already speaking for a session the database no longer knows.
 		this.store.forget(courierAccountId);
+		// A new session starts with no position, so a Recipient watching this Courier is looking at
+		// one that no longer exists until the first report of the new session arrives.
+		this.recipientViews.courierPositionChanged(courierAccountId);
 
 		return new LocationViews.StartedSession(generation, reportingSecret, startedAt);
 	}
@@ -52,6 +60,11 @@ class LocationSharing implements LocationFacts {
 	void stop(UUID courierAccountId) {
 		this.repository.delete(courierAccountId);
 		this.store.forget(courierAccountId);
+		// Reported for the same reason Stop removes the coordinates immediately rather than letting
+		// them age out: a Recipient page ages its own marker on the two-minute rule, so without this
+		// a Courier who has stopped sharing stays on somebody's map for up to two more minutes. That
+		// is the one location change a page cannot work out for itself.
+		this.recipientViews.courierPositionChanged(courierAccountId);
 	}
 
 	@Transactional(readOnly = true)
@@ -66,6 +79,19 @@ class LocationSharing implements LocationFacts {
 
 		ReportOutcome outcome = this.store.record(new LocationReport(courierAccountId, session.generation(),
 				request.longitude(), request.latitude(), request.accuracyMetres(), request.recordedAt()));
+
+		// Only an accepted reading moved Current Location. A duplicate, a late arrival or a poor fix
+		// left the snapshot exactly as it was, so there is nothing for a Recipient page to refetch —
+		// and telling it otherwise would describe a Courier still reporting, which is a fact about
+		// them rather than about the Delivery. Which Delivery this is, if any, is not asked here:
+		// this module knows about Couriers, and joining one to a Delivery is somebody else's read.
+		//
+		// A reading that simply ages past the usable limit is not reported either, and that is not
+		// an omission: the page holds the same two-minute rule and reaches Unavailable on its own
+		// timer at the same moment, which is what lets a page nobody is refreshing still be honest.
+		if (outcome == ReportOutcome.ACCEPTED) {
+			this.recipientViews.courierPositionChanged(courierAccountId);
+		}
 
 		return new LocationViews.Report(outcome, status(courierAccountId));
 	}

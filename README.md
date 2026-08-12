@@ -152,18 +152,22 @@ Sprint 3 gate, and it is best followed on a phone on the same network.
    short-lived cookie and removes it from the address bar and from history before showing anything.
    Pressing Back does not walk into a URL that still carries the token. You see the Reference, the
    Handoff Address and that a courier is being arranged — no Courier name, and no map, because
-   there is nothing true to say about either yet.
-4. Direct assign the Courier (Sprint 2 step 4) and reload the Recipient page. A limited Courier
-   Display Name appears. There is still no map: a Courier heading to a pickup is not information
-   about this Delivery's journey, and showing it would put the pickup address on screen by
-   inference.
-5. Have the Courier confirm pickup. Reload the Recipient page. It now shows the map, the Courier's
-   last reported position with its accuracy, and `Live location`. Leave the page alone and watch it
-   age by itself — `Delayed` after thirty seconds, and at two minutes the marker disappears and the
-   page says `Location unavailable`. Nothing arrived from the server to cause that; the page will not
-   claim to know where somebody is on the strength of a two-minute-old reading.
-6. Press **Stop sharing** in the Courier workspace and reload the Recipient page: the marker is gone
-   immediately, and the handoff marker remains.
+   there is nothing true to say about either yet. At the foot of the page it says
+   `Updating automatically`. **Leave this page open for the rest of the walkthrough**; nothing below
+   asks you to reload it.
+4. Direct assign the Courier (Sprint 2 step 4). The Recipient page updates itself: a limited Courier
+   Display Name appears. There is still no map, because a Courier heading to a pickup is not
+   information about this Delivery's journey, and showing it would put the pickup address on screen
+   by inference — so the position reports the Courier is already sending change nothing here.
+5. Have the Courier confirm pickup. The Recipient page now shows the map, the Courier's last
+   reported position with its accuracy, and `Live location`, and follows the Courier as they move.
+   Now stop the Courier's reports — close the Courier tab, or turn its device location off — and
+   leave the Recipient page alone. It ages the reading by itself: `Delayed` after thirty seconds,
+   and at two minutes the marker disappears and the page says `Location unavailable`. Nothing
+   arrived from the server to cause that; the page will not claim to know where somebody is on the
+   strength of a two-minute-old reading, and it says so while still saying it is connected.
+6. Press **Stop sharing** in the Courier workspace: the marker goes immediately and the handoff
+   marker remains.
 7. Have the Courier confirm handoff. The Recipient page keeps the Reference, the Handoff Address and
    the actual handoff time, and loses the Courier's name and every trace of location.
 8. Cancel a different Delivery before pickup and open its link. It shows its Reference, that it was
@@ -172,6 +176,24 @@ Sprint 3 gate, and it is best followed on a phone on the same network.
 
 Tampering with the fragment, or opening a link more than seven days old, produces one identical
 response in every case, which is what stops the page becoming a way to ask whether a Delivery exists.
+
+### What the live updates are, and are not
+
+The page holds one same-origin `EventSource` on `/api/tracking/events`, and what comes down it is a
+refresh hint carrying a version number — never a state, a name or a coordinate. Every fact on screen
+still arrives through the same authorised snapshot read the page does on load, so the stream is a
+saving on polling rather than a second source of truth.
+
+That is also why nothing is replayed. Kill the connection mid-walkthrough — turn the phone's network
+off after step 4 and back on after step 5 — and the page says `Reconnecting for updates…` while
+keeping everything it was already showing, then reconnects and fetches the current snapshot in one
+read. The changes it slept through are simply part of that answer.
+
+The line at the foot of the page answers a different question from Location Freshness above it: it
+says whether the page is still hearing about changes, not how old the Courier's last reading is. A
+connected page showing `Location unavailable` is the normal picture when a Courier stops sharing.
+Restarting the application drops every connection and every hint version; the pages reconnect and
+reread, which is the whole recovery procedure.
 
 ### The map is optional
 
