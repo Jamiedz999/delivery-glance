@@ -91,6 +91,40 @@ how every Dispatcher and Courier page is delivered.
 Fix: `spring.web.resources.cache.cachecontrol` for the hashed asset path plus an explicit `no-cache`
 on the SPA shell, and confirm the Compose image serves both.
 
+### Expired Tracking grants are never deleted
+
+`tracking_grant` is only ever inserted into. `TrackingLinkRepository` has an insert and a lookup by
+verifier and nothing else, and no sweeper anywhere touches the table — so every /track open a
+Recipient ever performs leaves a row that outlives its own `expires_at`, the link, and the Delivery.
+Nothing serves a stale row: `TrackingLinks.authorizedDeliveryForVerifier` rechecks the expiry on
+every read. What accumulates is storage, and a permanent record of how often each link was opened,
+which is a fact ADR 06 keeps out of the copy table on purpose.
+
+Found while adding DG-026's stream recheck, which reads the same table on a heartbeat and made the
+insert-only lifecycle obvious. Not fixed there because a retention rule for security-adjacent rows is
+a decision rather than an implementation detail — ADR 06 defers security-event retention to Future
+Work — and DG-026 had no business making it.
+
+Fix: decide the retention rule, then either sweep `tracking_grant` rows past their `expires_at` on
+the schedule `ExpiredLocationSweeper` already establishes, or record in ADR 06 that grants are kept
+and say what for.
+
+### A unit test names the collaborators of a service it is not testing
+
+`server/src/test/java/com/deliveryglance/location/LocationSharingDispatchPositionTest.java:32`
+constructs `LocationSharing` with `null` in the two positions the read under test does not reach.
+It is honest about that in a comment, but it means every collaborator ever added to the service
+breaks a test about a coordinate read — DG-022 wrote it with one `null`, DG-026 made it two, and the
+edit is pure noise in both diffs.
+
+Found when DG-026 added a fourth constructor argument and this test stopped compiling. Not fixed
+there because the real fix is a seam decision — the freshness-filtered read is arguably its own
+object — and inventing one from inside an SSE Issue is how speculative abstractions get in.
+
+Fix: either give the dispatch/tracking position read a home that can be constructed on its own, or
+accept the coupling and drive the test through the module's public interface with the whole context,
+as `LocationPrivacyTest` already does.
+
 ### One type-aware lint warning predates the rule that reports it
 
 `web/src/pages/DeliveryDetailPage.test.tsx:119` trips `typescript(no-base-to-string)`: a
