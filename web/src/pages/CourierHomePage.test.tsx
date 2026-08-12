@@ -39,7 +39,7 @@ const assignedDelivery = {
   state: 'ASSIGNED',
   version: 1,
   pickupAddressLabel: 'Warehouse 4',
-  handoffAddressLabel: 'Flat 2, 14 Elm Row',
+  handoffAddressLabel: 'Flat 2, 14 Notional Row',
 }
 
 let watchPosition = vi.fn()

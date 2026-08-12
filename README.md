@@ -1,244 +1,280 @@
 # Delivery Glance
 
-A recipient-first delivery tracking product. The current Sprint 3 increment lets a Dispatcher
-create a Delivery, see the nearest three Eligible Couriers and make one atomic Direct Assignment.
-The assigned Courier explicitly confirms pickup and handoff while foreground Location Sharing keeps
-only the newest usable position. Every Delivery also carries a Tracking Link, which gives whoever
-holds it a privacy-reduced view of that one Delivery — and nothing else — until it expires. See the
-[implementation queue](https://github.com/Jamiedz999/delivery-glance/issues) on GitHub.
+**A recipient-first last-mile delivery tracker.** A Dispatcher creates a Delivery and atomically
+assigns a nearby available Courier; the Courier shares only a foreground current location and
+confirms pickup and handoff; a Recipient with no account follows the whole thing through a secure,
+expiring Tracking Link that updates itself.
 
-## Prerequisites
+The interesting part is not that it tracks a delivery. It is what it refuses to do: keep a location
+history, tell a Recipient more than their own Delivery, let two Dispatchers assign the same Courier,
+or claim to know where somebody is on the strength of a two-minute-old reading.
 
-- Java 25
-- Node 24
-- Docker (with Compose)
+| | |
+|---|---|
+| **Live demo** | _(release input — the owner's HTTPS deployment; see [`docs/deployment.md`](docs/deployment.md))_ |
+| **Stack** | Java 25 · Spring Boot 4.1 · PostgreSQL 18 · React 19 · TypeScript · MapLibre · Docker |
+| **Status** | Portfolio Core, complete. Everything below is built and tested; [Future Work 13–19](docs/planning/map.md#future-work) is designed and deliberately not built. |
 
-## Demo accounts
+---
 
-Two fictional Internal Accounts are seeded by the first Flyway migration. There is no
-registration, invitation or password reset; these are the only two accounts.
+## What it looks like
+
+| Dispatcher · desktop | Courier · phone | Recipient · phone, no account |
+|---|---|---|
+| [![The Dispatcher's Delivery detail, showing the nearest eligible Couriers with distances](docs/screenshots/dispatcher-delivery-detail.png)](docs/screenshots/dispatcher-delivery-detail.png) | [![The Courier's workspace, on duty and sharing a position](docs/screenshots/courier-workspace.png)](docs/screenshots/courier-workspace.png) | [![The Recipient's tracking page, following an In Transit Delivery](docs/screenshots/recipient-tracking.png)](docs/screenshots/recipient-tracking.png) |
+| The recommendation is a **distance**. The Courier's coordinates never reach this page. | On Duty and Location Sharing are two separate decisions, and the page says so. | The map is grey because these are taken with an empty map style — a deployment with a tile provider draws real tiles here. |
+
+All three are produced by driving the running application, not taken by hand:
+
+```bash
+npm --prefix web run screenshots
+```
+
+## Run it
+
+You need Docker. Nothing else.
+
+```bash
+git clone https://github.com/Jamiedz999/delivery-glance.git
+cd delivery-glance
+docker compose up --build --wait
+```
+
+Then open <http://localhost:8080> and sign in.
 
 | Role | Email | Password |
 |---|---|---|
 | Dispatcher | `dispatcher@delivery-glance.example` | `Dispatcher-Demo-2026!` |
 | Courier | `courier@delivery-glance.example` | `Courier-Demo-2026!` |
 
-They are configurable through the `DEMO_*` variables in `.env.example` (emails, display names and
-bcrypt password hashes). Because Flyway seeds them, changed values only apply to a database that
-has not run the migration yet — remove the `postgres-data` volume to reseed.
-
-Each account only reaches its own workspace: the Dispatcher API refuses a Courier session with
-`403`, and the Courier API refuses a Dispatcher session the same way, even when the route is
+Two fictional accounts, seeded by the first Flyway migration. There is no registration, invitation or
+password reset; these are the only two. Sign in as each in **two different browser profiles** — one
+browser holds one session, and this is two people. Each account reaches only its own workspace: the
+Dispatcher API refuses a Courier session with `403` and the reverse holds too, even when the route is
 requested directly.
 
-## Local development
+**[`docs/demo-script.md`](docs/demo-script.md) is the six-minute walkthrough** — three roles, in
+order, with what to say at each step. Follow that rather than clicking around; the product's point is
+in the sequence.
 
-Start PostgreSQL only:
+To reset: `docker compose down -v` removes the database volume.
+
+<details>
+<summary>Developing on it, rather than running it</summary>
 
 ```bash
-docker compose up postgres --wait
+docker compose up postgres --wait      # PostgreSQL only
+(cd server && ./mvnw spring-boot:run)  # backend on :8080
+npm --prefix web install
+npm --prefix web run dev               # Vite on :5173, proxying /api and /actuator
 ```
 
-Run the backend (reads `server/src/main/resources/application.yml`, connects to the Postgres
-instance above using the same defaults as `.env.example`):
+The Recipient page is the exception: `/track` is generated by the backend and loads a build artefact
+rather than something Vite serves, so follow a Tracking Link against the Compose run above.
 
-```bash
-cd server
-./mvnw spring-boot:run
+</details>
+
+## How it is built
+
+One Spring Boot application, one PostgreSQL database, and the compiled React assets inside the same
+jar so everything a browser loads comes from one origin.
+
+```mermaid
+flowchart LR
+    D["Dispatcher"] --> A
+    C["Courier"] --> A
+    R["Recipient<br/><i>no account</i>"] -->|"Tracking Link"| A
+
+    subgraph A["one Spring Boot application"]
+        direction TB
+        modules["delivery · dispatch · courier<br/>location · trackinglink · recipientview"]
+        mem["<b>Current Location</b><br/><i>process memory, one per Courier,<br/>never written down</i>"]
+    end
+
+    A --> P[("PostgreSQL<br/>Deliveries, transitions, Assignments,<br/>Tracking Link metadata, sessions")]
+    A -.->|"SSE: a version number,<br/>never state or coordinates"| R
+
+    classDef memory fill:#fff4e5,stroke:#c47f00,color:#3a2600
+    class mem memory
 ```
 
-Run the frontend with hot reload; Vite proxies `/api` and `/actuator` to the backend on
-`http://localhost:8080`:
+Three choices carry most of the design, and each is a trade rather than a default:
+
+- **PostgreSQL decides the race.** Two Dispatchers can assign the same Courier at the same instant,
+  and an application-level eligibility check loses that race by construction — both readers see a
+  free Courier. Two partial unique indexes settle it: one caller gets `204`, the other `409`.
+  [`AssignmentConcurrencyTest`](server/src/test/java/com/deliveryglance/dispatch/AssignmentConcurrencyTest.java)
+  proves it against a real PostgreSQL container, released from a latch, three times per run.
+
+- **Current Location lives in process memory, and nowhere else.** The cheapest way to keep a
+  promise never to build a route history is to have nowhere to break it. One map, at most one
+  snapshot per Courier, never appended to; a read past two minutes deletes the snapshot rather than
+  hiding it. The visible consequence is deliberate: restart the app and the Courier is still On Duty
+  — that is durable — but their location is Unavailable until they report again.
+
+- **SSE carries a refresh hint, not the truth.** What comes down the stream is a version number
+  saying "read again". Every fact on the Recipient's screen still arrives through the same authorised
+  snapshot read the page does on load, so a reconnect needs no replay, and a bug in the stream cannot
+  leak anything because the stream carries nothing to leak.
+
+**[`docs/architecture.md`](docs/architecture.md)** has the full system diagram, the end-to-end
+sequence diagram, and why Redis, Kafka, PostGIS, WebFlux and a full Matching Round are Future Work
+rather than missing dependencies.
+
+## Privacy, and what is never stored
+
+This is the part the product is actually about.
+
+| Promise | How it is kept |
+|---|---|
+| No route history | Raw coordinates exist only in one in-memory snapshot per Courier. `LocationPrivacyTest` inspects **every column in the schema** and finds nowhere one could be written. |
+| No coordinate in a log | Asserted against the captured application log after a real report. |
+| Location Sharing is explicit and foreground-only | Going On Duty asks the browser for nothing. Reporting happens only while the page is visible, and pauses honestly rather than pretending to continue. Stop, sign-out or reload ends it — the reporting secret lives only in the page that started the session. |
+| The Dispatcher sees distance, not position | Derived server-side; the coordinate never leaves the `location` module. |
+| A Tracking Link is a capability, not an account | 256 bits, HMAC-derived, carried in the URL **fragment** so RFC 3986 keeps it out of every request. Only a SHA-256 verifier is stored, so a database copy cannot be turned back into a working link. The page exchanges it for a short-lived cookie and removes it from the address bar and from history before rendering anything. |
+| A bad link says nothing | Tampered, unknown and expired links get one identical response — which is what stops the route becoming a way to ask whether a Delivery exists. |
+| A Recipient sees one Delivery, reduced | No Pickup Address, no internal identifier, no cancellation reason. No map before pickup, because a Courier heading to a pickup would put the Pickup Address on screen by inference. Delivered removes the Courier's name and every trace of location. |
+| A grant confers nothing else | A Tracking grant reaches no internal route, and an Internal Account session reaches no Recipient route. |
+
+Both checks below are committed commands, not assertions about them:
 
 ```bash
-cd web
-npm install
-npm run dev
+scripts/scan-repository.sh                          # this repository
+scripts/check-deployment.sh https://your-host       # a running deployment
 ```
 
-Open `http://localhost:5173`.
+The repository scan searches every blob across every ref for private keys, cloud tokens, raw Tracking
+tokens and reporting secrets, and checks the working tree for addresses that do not read as invented
+and coordinates outside the one fictional area. It also asserts the *inverse* — that the only
+credentials present are the four documented development values — so a fifth one joining them fails
+the run. **Result at the current revision: all checks pass.**
 
-The Recipient tracking page is the exception. `/track` is generated by the backend, and the
-application it loads is a build artefact rather than something Vite serves in dev, so follow a
-Tracking Link against the production-like run below rather than the dev server.
+The address and coordinate halves read the working tree only, and that limit is deliberate rather
+than an oversight: git history cannot be rewritten without invalidating every merged pull request.
+It matters here, because this is a limit with a known instance — the UI prototypes under
+`docs/planning/prototypes/` carried real street addresses and coordinates as sample data until they
+were replaced, and those earlier revisions are still in any clone. Nothing about them was ever
+anybody's delivery, and no credential was involved; saying so is better than a scan that quietly
+implies otherwise.
 
-## Production-like run
+The four development credentials that are in this repository on purpose are the two demo passwords
+above, `development-only-tracking-key-do-not-deploy`, and the local Compose database password. All
+of them are documented as development values, and
+[`docs/deployment.md`](docs/deployment.md#3--real-tracking-link-key-material) says what to replace
+them with.
 
-Build and run the single application image plus PostgreSQL:
+## What it proves about itself
 
-```bash
-docker compose up --build --wait
-```
+**[`docs/testing.md`](docs/testing.md) is the risk matrix**: every claim this project makes, the
+command that proves it, and — beside each one — the limits it deliberately does not claim. Two rules
+hold throughout it, and throughout this README:
 
-Open `http://localhost:8080`, or check it directly:
+> **No number appears that a committed command did not produce.** There is no coverage percentage, no
+> throughput figure and no latency figure, because nothing in this repository measures one.
+>
+> **Each row names the risk, not the feature.** "Assignment works" is not a risk. "Two Dispatchers
+> assign the same Courier at the same moment and both succeed" is.
 
-```bash
-curl --fail --silent http://localhost:8080/actuator/health
-curl --fail --silent http://localhost:8080/api/system
-```
-
-Stop and remove the containers:
-
-```bash
-docker compose down
-```
-
-## Cumulative Sprint 2 demo path
-
-This walkthrough carries one fictional Delivery through the whole internal flow:
-
-1. `docker compose up --build --wait`
-2. Sign in as the Courier, press **Go on duty**, then **Start sharing** and allow browser location.
-   Leave this foreground page open so the latest position stays usable.
-3. In another browser profile, sign in as the Dispatcher and create Delivery `DG-1001`. Use a
-   pickup coordinate close to the Courier's current test location and any fictional handoff address.
-4. Open the Delivery. The fresh recommendation shows the Courier's derived distance but never their
-   coordinates. Press **Direct assign**. The Delivery moves from Awaiting Courier to Assigned once.
-5. Return to the Courier workspace. The current Delivery shows both readable addresses. Press
-   **Confirm pickup** to move it to In Transit, then **Confirm handoff** to move it to Delivered.
-6. Reopen the Dispatcher detail. Its history contains all four states and actors, and there is no
-   active Assignment left for either the Delivery or Courier.
-
-Before pickup, the Dispatcher may instead cancel an Awaiting or Assigned Delivery with a reason;
-that ends any active Assignment atomically. Cancellation is refused after pickup.
-
-`docker compose down -v` also removes the database volume, which resets the demo.
-
-## Courier demo path
-
-On Duty is durable; a shared position is not. That difference is the point of this part of the
-product, and a restart is the quickest way to see it:
-
-1. Sign in as the Courier at `http://localhost:8080` and press **Go on duty**. Nothing has asked
-   for your location yet, and nothing will until you ask it to.
-2. Press **Start sharing**. Only now does the browser ask for permission. The page reports the
-   newest position it has about every ten seconds, and only while it is in front of you — switch to
-   another tab and reporting pauses honestly rather than pretending to continue.
-3. Watch the position age: `Live` for thirty seconds, then `Delayed`, and at two minutes the server
-   deletes the coordinates and shows `Unavailable`. The countdown is that deletion.
-4. Restart only the application: `docker compose restart app`. You are still On Duty, but the
-   position is `Unavailable` — coordinates live in memory alone, so there is nothing to restore.
-5. Press **Stop sharing**, or simply sign out. Either removes the coordinates immediately rather
-   than letting them age out.
-
-Reloading the page always returns to Sharing off: the one-time reporting secret exists only in the
-page that started the session, so a new page load cannot resume it.
-
-## Recipient demo path
-
-A Tracking Link is a capability, not an account: anyone holding it sees one Delivery, and holding
-it grants nothing anywhere else in the application. This walkthrough is the Recipient's half of the
-Sprint 3 gate, and it is best followed on a phone on the same network.
-
-1. Run the Sprint 2 demo path above as far as step 3, so one Delivery exists and is still Awaiting
-   Courier.
-2. Ask the API for the link. There is no button for this yet — the endpoint is the whole of what
-   Core has, and the missing control is recorded in
-   `docs/planning/implementation/INCIDENTAL-FINDINGS.md`:
-
-   ```bash
-   curl -s -c jar http://localhost:8080/api/system > /dev/null
-   csrf() { awk '/XSRF-TOKEN/ {print $7}' jar; }
-   curl -s -b jar -c jar -H "X-XSRF-TOKEN: $(csrf)" \
-     -d email=dispatcher@delivery-glance.example -d 'password=Dispatcher-Demo-2026!' \
-     http://localhost:8080/api/session/login
-   curl -s -b jar -c jar -H "X-XSRF-TOKEN: $(csrf)" -X POST \
-     "http://localhost:8080/api/deliveries/<delivery-id>/tracking-link/copy"
-   ```
-
-   The URL it returns carries its capability in the fragment — the part after `#` — which RFC 3986
-   keeps out of every HTTP request.
-3. Open it in a private window, or send it to a phone. The page exchanges the fragment for a
-   short-lived cookie and removes it from the address bar and from history before showing anything.
-   Pressing Back does not walk into a URL that still carries the token. You see the Reference, the
-   Handoff Address and that a courier is being arranged — no Courier name, and no map, because
-   there is nothing true to say about either yet. At the foot of the page it says
-   `Updating automatically`. **Leave this page open for the rest of the walkthrough**; nothing below
-   asks you to reload it.
-4. Direct assign the Courier (Sprint 2 step 4). The Recipient page updates itself: a limited Courier
-   Display Name appears. There is still no map, because a Courier heading to a pickup is not
-   information about this Delivery's journey, and showing it would put the pickup address on screen
-   by inference — so the position reports the Courier is already sending change nothing here.
-5. Have the Courier confirm pickup. The Recipient page now shows the map, the Courier's last
-   reported position with its accuracy, and `Live location`, and follows the Courier as they move.
-   Now stop the Courier's reports — close the Courier tab, or turn its device location off — and
-   leave the Recipient page alone. It ages the reading by itself: `Delayed` after thirty seconds,
-   and at two minutes the marker disappears and the page says `Location unavailable`. Nothing
-   arrived from the server to cause that; the page will not claim to know where somebody is on the
-   strength of a two-minute-old reading, and it says so while still saying it is connected.
-6. Press **Stop sharing** in the Courier workspace: the marker goes immediately and the handoff
-   marker remains.
-7. Have the Courier confirm handoff. The Recipient page keeps the Reference, the Handoff Address and
-   the actual handoff time, and loses the Courier's name and every trace of location.
-8. Cancel a different Delivery before pickup and open its link. It shows its Reference, that it was
-   cancelled, when, and who to contact — but not the Handoff Address, and never the internal reason
-   the Dispatcher gave.
-
-Tampering with the fragment, or opening a link more than seven days old, produces one identical
-response in every case, which is what stops the page becoming a way to ask whether a Delivery exists.
-
-### What the live updates are, and are not
-
-The page holds one same-origin `EventSource` on `/api/tracking/events`, and what comes down it is a
-refresh hint carrying a version number — never a state, a name or a coordinate. Every fact on screen
-still arrives through the same authorised snapshot read the page does on load, so the stream is a
-saving on polling rather than a second source of truth.
-
-That is also why nothing is replayed. Kill the connection mid-walkthrough — turn the phone's network
-off after step 4 and back on after step 5 — and the page says `Reconnecting for updates…` while
-keeping everything it was already showing, then reconnects and fetches the current snapshot in one
-read. The changes it slept through are simply part of that answer.
-
-The line at the foot of the page answers a different question from Location Freshness above it: it
-says whether the page is still hearing about changes, not how old the Courier's last reading is. A
-connected page showing `Location unavailable` is the normal picture when a Courier stops sharing.
-Restarting the application drops every connection and every hint version; the pages reconnect and
-reread, which is the whole recovery procedure.
-
-### The map is optional
-
-`TRACKING_MAP_STYLE_URL` is a release input and is unset by default, so the demo above runs without
-a tile provider: step 5's status, freshness and accuracy text is all present, and the map itself is
-replaced by an honest unavailable state. Set it to any absolute MapLibre style URL to see the map —
-the page adds that URL's origin to its own Content-Security-Policy, which is why it must be absolute.
-`DELIVERY_TEAM_CONTACT` is the single contact step 8 offers, and is likewise empty by default.
-
-## Verification commands
-
-These are the checks CI runs on every push; run them locally before opening a PR:
+Everything CI runs on every push, from a clean checkout:
 
 ```bash
+# The repository itself: credentials and tokens across every blob on every ref
+scripts/scan-repository.sh
+
+# Backend: unit, module and real-PostgreSQL integration tests (Testcontainers)
 (cd server && ./mvnw verify)
+
+# Frontend: formatting, linting, type checking, component tests, production build
 npm --prefix web ci
 npm --prefix web run format:check
 npm --prefix web run lint
 npm --prefix web run check
-docker compose up --build --wait
+
+# The production-like target, configured with the map style the journeys serve
+npx --prefix web playwright install --with-deps chromium
+TRACKING_MAP_STYLE_URL=http://127.0.0.1:9099/style.json docker compose up --build --wait
 curl --fail --silent http://localhost:8080/actuator/health
 curl --fail --silent http://localhost:8080/api/system
-docker compose down
-```
 
-### The cross-role journeys
+# The headers, refusals and cookies of whatever is running at that URL
+scripts/check-deployment.sh http://localhost:8080
 
-Two Playwright walkthroughs — the happy path and the location/link degradation path — plus the
-accessibility checks, run against the built image rather than the dev server. They need a browser
-once, and a target started with the map style they serve:
-
-```bash
-npx --prefix web playwright install --with-deps chromium
-
-TRACKING_MAP_STYLE_URL=http://127.0.0.1:9099/style.json docker compose up --build --wait
+# Two cross-role journeys plus the accessibility checks
 npm --prefix web run e2e
 docker compose down
 ```
 
-The style is a release input, and the journeys serve their own empty one so the Courier's marker
-exists to be watched leaving the map. Starting the image without it fails the run with the command
-above rather than with a confusing assertion.
+The two journeys are the portfolio claim rendered as tests. **Happy path**: all three people, the
+Recipient's phone opened once and never reloaded, so every change it shows arrived on its own.
+**Degradation**: sharing stops, the application restarts underneath a live stream, and the reading
+ages Live → Delayed → Unavailable *on the phone's own clock* — the marker leaves the map while the
+page still says it is reconnecting. No retries, in CI or locally: a suite that passes on the second
+attempt is evidence of nothing.
 
-The degradation journey restarts the application on purpose — that is how a live stream is severed —
-so it is the slowest of them by some way.
+## Trade-offs, and what is deliberately absent
 
-**[`docs/testing.md`](docs/testing.md) is the risk matrix**: every claim this project makes, the
-command that proves it, and the limits it deliberately does not claim.
+| Chosen | Given up | Why that way round |
+|---|---|---|
+| foreground-only Location Sharing | reporting while backgrounded | the page can only promise what a browser will actually do |
+| one reusable seven-day Tracking Link | Rotation, Revocation, Reissue | recovery needs a reason catalog, a history UI and a retention rule; Core ships the properties that make a public bearer link safe at all |
+| Direct Assignment | invitations, Decline, Timeout, cooldown | keeps the concurrency invariant, drops the timers |
+| Current Location in memory only | any durable position | nothing to leak, and no migration that could turn it into a trail |
+| the Recipient's own timer for freshness | trusting the server to say | a disconnected page still tells the truth |
+| no ETA | travel-time estimates | an ETA needs a routing provider and an honest unavailable state; an invented one is worse than none |
+
+**Redis, Kafka, PostGIS, WebFlux and a sixty-second Matching Round are not missing — they have no job
+here.** Each has a written trigger and a designed increment waiting behind it, and adding one before
+its trigger fires would make this application harder to run and no better.
+[`docs/architecture.md`](docs/architecture.md#why-redis-kafka-postgis-webflux-and-full-matching-are-not-here)
+sets out each trigger.
+
+### Known limits
+
+Real, and listed rather than discovered:
+
+- **One instance.** Current Location and SSE subscribers are per-process. Two would need
+  [Future Work 18](docs/planning/future-work/18-run-measured-scale-and-resilience-experiment.md).
+- **No Reassignment, Courier Withdrawal, Dispatcher Revocation or Undeliverable outcome.** A Delivery
+  in trouble after pickup has no modelled way out.
+  [Future Work 15](docs/planning/future-work/15-add-delivery-exceptions-and-reassignment.md).
+- **The Dispatcher has no button to copy a Tracking Link.** The endpoint exists and is tested; the
+  control does not.
+- **A Courier watching their own workspace is not told they have been assigned** until they reload.
+- **Recipient-facing times render in the reader's own time zone**, not the Handoff Address's.
+- **One browser engine**, Chromium, at a desktop and a phone viewport.
+- **Accessibility is checked, not certified**: automated axe-core rules with no serious or critical
+  violations, plus a documented keyboard walkthrough. No screen-reader session, no WCAG audit.
+- **No performance, latency or scale figure exists**, anywhere, for the reason stated above.
+
+The three above that are defects rather than scope decisions — the missing Copy button, the Courier
+workspace not noticing an Assignment, and the time zone — are written up with several more in
+[`docs/planning/implementation/INCIDENTAL-FINDINGS.md`](docs/planning/implementation/INCIDENTAL-FINDINGS.md),
+each with how it was found and why it was not fixed on the spot. The rest are limits of what Core
+set out to build, and [`docs/testing.md`](docs/testing.md) is where those are stated.
+
+## Deploying it
+
+[`docs/deployment.md`](docs/deployment.md) is a provider-agnostic runbook: one image, one PostgreSQL,
+TLS in front, real Tracking Link key material, an optional restricted map style, and
+`scripts/check-deployment.sh` to prove the result. It deliberately names no hosting provider — there
+is nothing here that constrains the choice.
+
+## How this repository is organised
+
+The repository says **why** the work is shaped this way; GitHub says **what** to build and how far
+along it is.
+
+| Where | What |
+|---|---|
+| [`CONTEXT.md`](CONTEXT.md) | the domain glossary — the vocabulary everything else is written in |
+| [`docs/architecture.md`](docs/architecture.md) | diagrams, the three choices, the trade-offs, the limits |
+| [`docs/testing.md`](docs/testing.md) | the risk matrix: every claim, its command, and what it does not claim |
+| [`docs/deployment.md`](docs/deployment.md) · [`docs/demo-script.md`](docs/demo-script.md) | running it somewhere, and showing it to somebody |
+| [`docs/adr/`](docs/adr) | resolved product and architecture decisions, each with a callout naming what Core actually implements |
+| [`docs/planning/`](docs/planning) | the Sprint roadmap, research, prototypes and [Future Work 13–19](docs/planning/map.md#future-work) |
+| [GitHub Issues](https://github.com/Jamiedz999/delivery-glance/issues) | the implementation queue. Each Issue is its own full specification; nothing here duplicates one |
+
+Four one-week Sprints, about 38–46 focused hours: a walking skeleton, a dispatchable Delivery, the
+Recipient MVP, and then the evidence and presentation that make it a finished thing rather than a
+work in progress. [`docs/planning/12-rescope-to-resume-ready-core.md`](docs/planning/12-rescope-to-resume-ready-core.md)
+is where that was decided, and why.

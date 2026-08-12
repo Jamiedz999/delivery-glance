@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "test": "vitest run",
     "e2e": "playwright test",
+    "screenshots": "DG_SCREENSHOTS=1 playwright test screenshots.spec.ts",
     "check": "tsc -b && vitest run && vite build",
     "lint": "oxlint --type-aware",
     "format": "prettier --write \"src/**/*.{ts,tsx}\" \"e2e/**/*.ts\" playwright.config.ts \"public/**/*.css\"",
