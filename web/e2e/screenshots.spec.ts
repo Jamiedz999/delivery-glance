@@ -36,10 +36,11 @@ const OUTPUT = '../docs/screenshots'
  * A Reference a reader can believe, unlike the timestamped ones the journeys generate.
  *
  * It is fixed rather than unique, which means this runs against a database that has not taken it
- * yet — a fresh `docker compose up` after `down -v`, or a deployment that has just been reset. That
- * is the right constraint for a screenshot: a picture of the product should be a picture of it
- * doing the demo, not of one run's accumulated leftovers. `freshDatabase` below says so plainly
- * rather than letting the form fail with "reference taken".
+ * yet: an empty one, from `docker compose down -v` and back up. Not a demo reset — that creates
+ * `DEMO-1001` itself, and this would then be photographing the reset's Delivery rather than one it
+ * watched being made. A fixed Reference is the right constraint for a screenshot anyway: a picture
+ * of the product should be a picture of it doing the demo, not of one run's accumulated leftovers.
+ * `freshDatabase` below says so plainly rather than letting the form fail with "reference taken".
  */
 const REFERENCE = 'DEMO-1001'
 

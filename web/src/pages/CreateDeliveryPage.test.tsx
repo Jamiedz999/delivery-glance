@@ -19,7 +19,7 @@ async function fillInTheForm() {
   await userEvent.type(pickupLabel, 'Warehouse 4, Riverside Estate')
   await userEvent.type(pickupLatitude, '51.5074')
   await userEvent.type(pickupLongitude, '-0.1278')
-  await userEvent.type(handoffLabel, 'Flat 2, 14 Elm Row')
+  await userEvent.type(handoffLabel, 'Flat 2, 14 Notional Row')
   await userEvent.type(handoffLatitude, '51.5033')
   await userEvent.type(handoffLongitude, '-0.1195')
 }
@@ -50,7 +50,7 @@ describe('CreateDeliveryPage', () => {
         latitude: 51.5074,
         longitude: -0.1278,
       },
-      handoff: { addressLabel: 'Flat 2, 14 Elm Row', latitude: 51.5033, longitude: -0.1195 },
+      handoff: { addressLabel: 'Flat 2, 14 Notional Row', latitude: 51.5033, longitude: -0.1195 },
     })
   })
 

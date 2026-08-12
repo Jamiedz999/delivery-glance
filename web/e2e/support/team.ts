@@ -44,6 +44,12 @@ export interface Position {
  * change rather than a rounding difference. Nothing depends on the absolute values, only on the
  * distances between them.
  */
+/**
+ * `server/.../demo/DemoDelivery.java` seeds the demo with these same two labels and coordinates, so
+ * the journeys, the screenshots and the recorded walkthrough are all about one fictional place.
+ * Changing a value here does not break anything there — the demo has its own copy, because a Java
+ * module cannot import a TypeScript fixture — it just quietly moves the demo somewhere else.
+ */
 export const PICKUP = {
   addressLabel: 'Glance Depot, 1 Fictional Way',
   latitude: 51.5,

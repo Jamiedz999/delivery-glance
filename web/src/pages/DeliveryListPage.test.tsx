@@ -9,7 +9,7 @@ const summary = {
   state: 'AWAITING_COURIER',
   version: 0,
   pickupAddressLabel: 'Warehouse 4, Riverside Estate',
-  handoffAddressLabel: 'Flat 2, 14 Elm Row',
+  handoffAddressLabel: 'Flat 2, 14 Notional Row',
   createdAt: '2026-08-10T09:00:00Z',
   updatedAt: '2026-08-10T09:00:00Z',
 }
@@ -48,7 +48,7 @@ describe('DeliveryListPage', () => {
     const link = await screen.findByRole('link', { name: 'DG-1001' })
     expect(link).toHaveAttribute('href', `/deliveries/${summary.id}`)
     expect(screen.getByRole('cell', { name: 'Awaiting courier' })).toBeInTheDocument()
-    expect(screen.getByRole('cell', { name: 'Flat 2, 14 Elm Row' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'Flat 2, 14 Notional Row' })).toBeInTheDocument()
   })
 
   it('reports a failed load', async () => {

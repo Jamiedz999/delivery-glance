@@ -115,13 +115,20 @@ echo "Addresses and coordinates"
 # The rule is not "these exact labels are allowed" — a list like that rots the first time somebody
 # adds a fixture — but "every address here has to read as invented". A new address that says nothing
 # about being made up is flagged, which is the moment to notice a real one has been typed in.
-INVENTION_MARKERS='fictional|invented|imaginary|notional|glance|depot|warehouse|riverside|pickup|handoff|elm row|example|demo|test'
-unmarked="$(grep -ohE '"[0-9]{1,4}[A-Za-z]? [A-Z][A-Za-z]+ (Street|Road|Lane|Avenue|Drive|Close|Court|Terrace|Gardens|Way|Crescent|Row|Yard)[^"]*"' "$tree" |
+#
+# The street types are long and the house number is optional, both learned the hard way: the first
+# version of this check demanded a number and knew nothing of quays or squares, and passed a file
+# that still carried two real ones. A rule that only catches addresses in the shape you happened to
+# think of is worse than none, because it gets quoted as if it caught all of them. Note that it also
+# reads this file, so an example written out here would flag itself — which is why there is none.
+INVENTION_MARKERS='fictional|invented|imaginary|notional|glance|depot|warehouse|riverside|pickup|handoff|example|demo|test'
+STREET_TYPES='Street|Road|Lane|Avenue|Drive|Close|Court|Terrace|Gardens|Way|Crescent|Row|Yard|Quay|Square|Place|Park|Bridge|Hill|Green|Estate|Wharf|Dock|Mews|Grove|Rise|Walk|Parade'
+unmarked="$(grep -ohE "\\b([0-9]{1,4}[A-Za-z]?[[:space:]]+)?[A-Z][A-Za-z]+([[:space:]]+[A-Z][A-Za-z]+)?[[:space:]]+($STREET_TYPES)\\b" "$tree" |
 	sort -u |
 	grep -viE "$INVENTION_MARKERS")"
 if [[ -n "$unmarked" ]]; then
 	fail "an address that does not read as invented:"
-	printf '        %s\n' "$unmarked" | sed 's/^        $//'
+	while IFS= read -r line; do printf '        %s\n' "$line"; done <<< "$unmarked"
 else
 	pass "every address-shaped string in the tree reads as invented"
 fi

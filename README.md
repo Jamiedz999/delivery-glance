@@ -88,7 +88,7 @@ flowchart LR
     subgraph A["one Spring Boot application"]
         direction TB
         modules["delivery · dispatch · courier<br/>location · trackinglink · recipientview"]
-        mem["<b>latest location</b><br/><i>process memory, one per Courier,<br/>never written down</i>"]
+        mem["<b>Current Location</b><br/><i>process memory, one per Courier,<br/>never written down</i>"]
     end
 
     A --> P[("PostgreSQL<br/>Deliveries, transitions, Assignments,<br/>Tracking Link metadata, sessions")]
@@ -106,7 +106,7 @@ Three choices carry most of the design, and each is a trade rather than a defaul
   [`AssignmentConcurrencyTest`](server/src/test/java/com/deliveryglance/dispatch/AssignmentConcurrencyTest.java)
   proves it against a real PostgreSQL container, released from a latch, three times per run.
 
-- **The latest location lives in process memory, and nowhere else.** The cheapest way to keep a
+- **Current Location lives in process memory, and nowhere else.** The cheapest way to keep a
   promise never to build a route history is to have nowhere to break it. One map, at most one
   snapshot per Courier, never appended to; a read past two minutes deletes the snapshot rather than
   hiding it. The visible consequence is deliberate: restart the app and the Courier is still On Duty
@@ -149,9 +149,17 @@ and coordinates outside the one fictional area. It also asserts the *inverse* �
 credentials present are the four documented development values — so a fifth one joining them fails
 the run. **Result at the current revision: all checks pass.**
 
-The three development credentials that are in this repository on purpose are the demo passwords
+The address and coordinate halves read the working tree only, and that limit is deliberate rather
+than an oversight: git history cannot be rewritten without invalidating every merged pull request.
+It matters here, because this is a limit with a known instance — the UI prototypes under
+`docs/planning/prototypes/` carried real street addresses and coordinates as sample data until they
+were replaced, and those earlier revisions are still in any clone. Nothing about them was ever
+anybody's delivery, and no credential was involved; saying so is better than a scan that quietly
+implies otherwise.
+
+The four development credentials that are in this repository on purpose are the two demo passwords
 above, `development-only-tracking-key-do-not-deploy`, and the local Compose database password. All
-three are documented as development values, and
+of them are documented as development values, and
 [`docs/deployment.md`](docs/deployment.md#3--real-tracking-link-key-material) says what to replace
 them with.
 
@@ -170,6 +178,9 @@ hold throughout it, and throughout this README:
 Everything CI runs on every push, from a clean checkout:
 
 ```bash
+# The repository itself: credentials and tokens across every blob on every ref
+scripts/scan-repository.sh
+
 # Backend: unit, module and real-PostgreSQL integration tests (Testcontainers)
 (cd server && ./mvnw verify)
 
@@ -184,6 +195,9 @@ npx --prefix web playwright install --with-deps chromium
 TRACKING_MAP_STYLE_URL=http://127.0.0.1:9099/style.json docker compose up --build --wait
 curl --fail --silent http://localhost:8080/actuator/health
 curl --fail --silent http://localhost:8080/api/system
+
+# The headers, refusals and cookies of whatever is running at that URL
+scripts/check-deployment.sh http://localhost:8080
 
 # Two cross-role journeys plus the accessibility checks
 npm --prefix web run e2e
@@ -204,7 +218,7 @@ attempt is evidence of nothing.
 | foreground-only Location Sharing | reporting while backgrounded | the page can only promise what a browser will actually do |
 | one reusable seven-day Tracking Link | Rotation, Revocation, Reissue | recovery needs a reason catalog, a history UI and a retention rule; Core ships the properties that make a public bearer link safe at all |
 | Direct Assignment | invitations, Decline, Timeout, cooldown | keeps the concurrency invariant, drops the timers |
-| in-memory latest location | any durable position | nothing to leak, and no migration that could turn it into a trail |
+| Current Location in memory only | any durable position | nothing to leak, and no migration that could turn it into a trail |
 | the Recipient's own timer for freshness | trusting the server to say | a disconnected page still tells the truth |
 | no ETA | travel-time estimates | an ETA needs a routing provider and an honest unavailable state; an invented one is worse than none |
 
@@ -218,7 +232,7 @@ sets out each trigger.
 
 Real, and listed rather than discovered:
 
-- **One instance.** Latest location and SSE subscribers are per-process. Two would need
+- **One instance.** Current Location and SSE subscribers are per-process. Two would need
   [Future Work 18](docs/planning/future-work/18-run-measured-scale-and-resilience-experiment.md).
 - **No Reassignment, Courier Withdrawal, Dispatcher Revocation or Undeliverable outcome.** A Delivery
   in trouble after pickup has no modelled way out.
@@ -232,9 +246,11 @@ Real, and listed rather than discovered:
   violations, plus a documented keyboard walkthrough. No screen-reader session, no WCAG audit.
 - **No performance, latency or scale figure exists**, anywhere, for the reason stated above.
 
-The last four and several more are written up in
-[`docs/planning/implementation/INCIDENTAL-FINDINGS.md`](docs/planning/implementation/INCIDENTAL-FINDINGS.md)
-— things noticed while building something else, recorded with why they were not fixed on the spot.
+The three above that are defects rather than scope decisions — the missing Copy button, the Courier
+workspace not noticing an Assignment, and the time zone — are written up with several more in
+[`docs/planning/implementation/INCIDENTAL-FINDINGS.md`](docs/planning/implementation/INCIDENTAL-FINDINGS.md),
+each with how it was found and why it was not fixed on the spot. The rest are limits of what Core
+set out to build, and [`docs/testing.md`](docs/testing.md) is where those are stated.
 
 ## Deploying it
 

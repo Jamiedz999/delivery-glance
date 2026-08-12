@@ -39,7 +39,7 @@ SPRING_DATASOURCE_PASSWORD=<password>
 
 The user needs `CREATE` on its schema, because Flyway owns it.
 
-**Run exactly one instance.** The newest Courier location and the Recipient SSE subscribers live in
+**Run exactly one instance.** Current Location and the Recipient SSE subscribers live in
 process memory, so a second instance would hold its own copy of both and the two would disagree.
 This is a stated limit of Core rather than an oversight; sharing them is
 [Future Work 18](planning/future-work/18-run-measured-scale-and-resilience-experiment.md).
@@ -164,6 +164,13 @@ is the reason the switch exists: a hosted database usually cannot be dropped and
 `.env.example`, and with it off the route is refused by the security policy rather than merely
 unmapped.
 
+It does **not** touch the two Internal Accounts, and that is a deliberate narrowing of what a reset
+might be expected to do. They are seeded by `V1__internal_account.sql` and are already fictional;
+recreating them would mean the application carrying bcrypt hashes at runtime and becoming a second
+source of truth for credentials that Flyway already owns. So a reset restores the demo's *data* and
+leaves the way in alone — which is also what lets the Dispatcher who pressed it stay signed in to see
+the result.
+
 ### 9 · Nothing else
 
 There is no Redis to provision, no message broker, no object store, no separate frontend host and no
@@ -209,14 +216,14 @@ Then confirm the two properties that need a restart to see:
 
 The Delivery, its state and its history all survive. The Courier is still On Duty. Their location is
 `Unavailable` until a fresh report arrives, and the Recipient's page reconnects and says so. That is
-the design working, not a fault — [`architecture.md`](architecture.md#the-latest-location-in-process-memory)
+the design working, not a fault — [`architecture.md`](architecture.md#current-location-in-process-memory)
 explains why.
 
 ## Rolling back
 
 The image is stateless. Deploy the previous revision and it comes back as it was, because everything
-durable is in PostgreSQL and every migration so far has been additive. What does not come back is the
-latest location of any Courier, for the same reason a restart loses it.
+durable is in PostgreSQL and every migration so far has been additive. What does not come back is any
+Courier’s Current Location, for the same reason a restart loses it.
 
 Flyway has no `clean` and no `undo` here. A migration that has to be reversed needs a new forward
 migration.
