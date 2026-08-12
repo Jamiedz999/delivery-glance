@@ -15,6 +15,68 @@ Each entry says what is wrong, how it was found, and why it was not fixed on the
 
 ## Open
 
+### A Courier watching their own workspace is never told they have been assigned
+
+`web/src/pages/CourierHomePage.tsx` reads its current Delivery through `useCurrentCourierDelivery`,
+and nothing refetches it. There is no polling, and React Query's focus refetch needs a
+`visibilitychange` the browser only fires when the tab actually goes away — so a page that stays in
+front of the Courier never asks again. That is the page the product asks them to keep in front of
+them, because foreground Location Sharing stops the moment it is hidden.
+
+The README's walkthrough works because its human switches browser profiles between roles, and a
+reload works too — at the cost of ending sharing, which is the documented and correct consequence
+of reloading. Neither is something a Courier watching for work would think to do.
+
+Ticket 12 allows for it: "Dispatcher and Courier pages may refetch after their own commands and use
+modest polling for changes." The polling was never implemented.
+
+Found during DG-027, when the E2E journey's Courier stood waiting for an assignment that had already
+happened; `web/e2e/support/workspace.ts` reloads and says why. Not fixed there because adding a poll
+is new product behaviour, which `ISSUE-WORKFLOW.md` returns to refinement rather than letting a test
+Issue introduce.
+
+Fix: give `currentCourierDelivery` a modest `refetchInterval` while a Courier is On Duty, and
+nothing while they are not — an off-duty Courier has no Delivery to hear about.
+
+### The degradation journey can only run against the local Compose stack
+
+`web/e2e/support/application.ts` shells out to `docker compose restart app`, from a path resolved
+relative to the test file. It is there for a good reason — telling a browser it is offline gates new
+connections but leaves an established stream open, so restarting is the only way to actually sever
+one — but it means `E2E_BASE_URL` is a half-truth. Point the suite at a deployed environment and
+seven of the eight tests do what they say while the degradation journey restarts whatever container
+happens to be running on the machine holding the checkout.
+
+Found while writing DG-027, once the offline route turned out not to work. Not fixed there because
+the alternatives are all bigger than the Issue: a server-side "drop my stream" endpoint would be the
+production backdoor DG-027 rules out, and a proxy the journeys could cut is a new moving part in the
+harness.
+
+Fix: either make the restart step skip itself with a stated reason when the target is not local, or
+put the journeys behind a small proxy they control, so severing a connection is something the
+harness can do wherever it points. Whichever way, `E2E_BASE_URL` should stop implying more than it
+delivers.
+
+### The production image build compiles the test harness
+
+`web/tsconfig.json` references `tsconfig.e2e.json`, so `npm run build` — and therefore the
+`web-build` stage of the `Dockerfile` — type-checks the Playwright journeys, and the image build now
+fails if `@playwright/test` cannot be installed. That was a deliberate trade in DG-027: keeping
+`npm run check` as the one command that checks everything was judged worth more than keeping the
+image build free of the harness, and this repository's `npm ci` does not run install scripts, so no
+browser is downloaded during a build.
+
+It is still a coupling nobody chose on purpose, and it is the kind that is only noticed when a
+release is blocked by a test dependency.
+
+Found while adding the journeys, when the first image build failed on a type error in a test file.
+Not fixed on the spot because both ways out — dropping the reference and type-checking the journeys
+in their own script, or excluding `e2e/` from the image's build context — change what a documented
+build contract command covers, and TECHNICAL-BASELINE is where that is decided.
+
+Fix: decide whether `npm run check` or the image build is the one that should be narrow, then make
+`TECHNICAL-BASELINE.md`'s Core build contracts say so.
+
 ### ADR 04's Core scope callout describes assignment that Core does not implement
 
 `docs/adr/04-define-courier-recommendation-and-assignment.md:13` says Core "uses atomic Direct

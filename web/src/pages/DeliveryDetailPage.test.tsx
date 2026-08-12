@@ -125,6 +125,34 @@ describe('DeliveryDetailPage', () => {
     expect(await screen.findByText(/Assigned to/)).toHaveTextContent('Assigned to Cory the Courier')
   })
 
+  it('says so when another Dispatcher won the Delivery, rather than showing their result as ours', async () => {
+    // The losing half of the race that AssignmentConcurrencyTest proves on the server. What this
+    // page must not do is answer a refused press by quietly redrawing itself as an assigned
+    // Delivery: the Courier's name would appear exactly where it appears on a success, and the
+    // Dispatcher who pressed would have no way to tell that somebody else put it there.
+    let current: typeof awaitingCourier | typeof assigned = awaitingCourier
+    respondWith((url, method) => {
+      if (url.endsWith('/courier-recommendations')) {
+        return jsonResponse(recommendation)
+      }
+      if (url.endsWith('/assignment') && method === 'POST') {
+        // Refused *and* superseded, which is the real shape of losing: the read that follows finds
+        // the winner's Delivery.
+        current = assigned
+        return problemResponse('assignment-delivery-changed', 409)
+      }
+      return jsonResponse(current)
+    })
+    renderDetail()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Direct assign Cory the Courier' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Another assignment changed this Delivery. Reload it to see the winner.',
+    )
+    expect(screen.getByText(/Assigned to/)).toHaveTextContent('Assigned to Cory the Courier')
+  })
+
   it('cancels with the loaded version and a reason', async () => {
     let current: typeof awaitingCourier = awaitingCourier
     respondWith((url) => {

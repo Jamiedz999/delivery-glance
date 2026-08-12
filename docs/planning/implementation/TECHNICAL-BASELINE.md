@@ -18,7 +18,7 @@ This is the single implementation source for the Core stack, repository shape an
 | Frontend | Node 24 LTS, React 19.2 current patch, strict TypeScript, Vite 8.1, React Router, TanStack Query |
 | Realtime | Normal HTTP commands/queries plus same-origin `EventSource`; Spring MVC `SseEmitter` emits refresh hints, never authoritative state |
 | Map | Bundled `maplibre-gl`; production style/tile URL is an environment input and carries no Delivery or Tracking token |
-| Verification | JUnit, AssertJ, Testcontainers PostgreSQL, Vitest, Testing Library and Playwright, introduced by the Issue that first needs them |
+| Verification | JUnit, AssertJ, Testcontainers PostgreSQL, Vitest, Testing Library, Playwright and axe-core, introduced by the Issue that first needs them |
 | Packaging | Docker Compose for local PostgreSQL; one multi-stage application image containing the Boot app and compiled React assets |
 | Operations | Actuator health, request correlation and redacted logs; no monitoring platform is required for Core |
 
@@ -107,6 +107,16 @@ docker compose down
 ```
 
 `npm run check` must run TypeScript checking, unit tests once, and a production build. `mvnw verify` must include backend tests and architecture rules that have been introduced so far. CI runs the same contracts from a clean checkout.
+
+Issue 27 added one more, because the cross-role journeys need a running target rather than a build:
+
+```bash
+TRACKING_MAP_STYLE_URL=http://127.0.0.1:9099/style.json docker compose up --build --wait
+npm --prefix web run e2e
+docker compose down
+```
+
+The Playwright journeys live in `web/e2e/` inside the existing frontend project rather than in a third build, and `npm run check` type-checks them. What each of them is evidence for, and what none of them claims, is [`docs/testing.md`](../../testing.md).
 
 ## Explicitly absent from Core
 

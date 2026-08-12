@@ -23,7 +23,13 @@
 
   var status = document.getElementById('tracking-status');
 
+  // Both messages this can show end the visit, and the placeholder it writes into is role="status"
+  // because it opens carrying "Opening your tracking link…", which is progress and should wait its
+  // turn. A dead end should not. The Recipient application says the identical unavailable sentence
+  // through role="alert", so upgrading here is what stops one refusal being announced two different
+  // ways depending on which script happened to be running when it arrived.
   function show(message) {
+    status.setAttribute('role', 'alert');
     status.textContent = message;
   }
 
