@@ -10,6 +10,18 @@ on:
 # is evidence for is written down in docs/testing.md.
 
 jobs:
+  repository:
+    name: Repository scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The credential and token checks read every blob across every ref, so a shallow clone
+          # would let a secret through by simply not fetching the commit that carries it.
+          fetch-depth: 0
+      - name: Scan for credentials, tokens, real addresses and coordinates
+        run: scripts/scan-repository.sh
+
   backend:
     name: Backend (Maven)
     runs-on: ubuntu-latest
@@ -65,6 +77,12 @@ jobs:
         run: |
           curl --fail --silent http://localhost:8080/actuator/health
           curl --fail --silent http://localhost:8080/api/system
+      # The same check the deployment runbook tells an owner to run against their public URL. Run
+      # here as well, against the image this job just built, so the header and refusal claims in
+      # README.md are continuously true rather than true on the day somebody last deployed. The
+      # HTTPS and cookie assertions report themselves skipped over plain-HTTP localhost.
+      - name: Check the security headers and refusals
+        run: scripts/check-deployment.sh http://localhost:8080
       - name: Show the application log on failure
         if: failure()
         run: docker compose logs app

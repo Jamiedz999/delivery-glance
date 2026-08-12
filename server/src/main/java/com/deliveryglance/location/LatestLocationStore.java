@@ -78,6 +78,11 @@ class LatestLocationStore {
 		this.snapshots.remove(courierAccountId);
 	}
 
+	/** Drops every snapshot, expired or not. See {@link SharedPositionReset} for its one caller. */
+	void forgetEveryCourier() {
+		this.snapshots.clear();
+	}
+
 	/** Drops every expired snapshot, so unread coordinates do not outlive their two minutes. */
 	void forgetExpired() {
 		Instant now = this.clock.instant();

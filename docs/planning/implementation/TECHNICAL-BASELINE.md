@@ -118,6 +118,15 @@ docker compose down
 
 The Playwright journeys live in `web/e2e/` inside the existing frontend project rather than in a third build, and `npm run check` type-checks them. What each of them is evidence for, and what none of them claims, is [`docs/testing.md`](../../testing.md).
 
+Issue 28 added two shell checks in `scripts/`, because the claims they back are about the repository and the deployment rather than about the code:
+
+```bash
+scripts/scan-repository.sh                        # credentials, tokens, addresses, coordinates
+scripts/check-deployment.sh <base-url>            # headers, refusals and cookies of a running target
+```
+
+Both are in CI: the scan as its own job over an unshallowed clone, and the deployment check inside the packaging job against the image it has just started. Neither needs a credential, which is what lets the second one be pointed at a public deployment by anybody.
+
 ## Explicitly absent from Core
 
 - Redis, Kafka, PostGIS, WebFlux, WebSocket, microservices, Kubernetes, CQRS and event sourcing.

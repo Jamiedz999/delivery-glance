@@ -15,6 +15,23 @@ Each entry says what is wrong, how it was found, and why it was not fixed on the
 
 ## Open
 
+### The Courier's freshness line says "1 seconds ago"
+
+`web/src/pages/CourierHomePage.tsx:101` interpolates `{freshness.ageSeconds} seconds ago` with a
+fixed plural, so the first second of every Location Sharing Session reads *Live — measured 1 seconds
+ago*. It is the only place in the product that counts a unit in prose; the Recipient's page says
+"updated just now" instead and never meets the problem.
+
+Found while generating `docs/screenshots/courier-workspace.png` for DG-028 — the capture takes its
+picture immediately after the first accepted report, which is exactly when the count is 1, so the
+defect was going into the README. Not fixed there because DG-028 is packaging and a copy change in a
+Courier page is a product change; the screenshot was retaken a second later instead, which hides it
+rather than closing it.
+
+Fix: either an `Intl.PluralRules`-aware helper beside `web/src/freshness.ts`, or the Recipient's
+approach — "just now" under five seconds and a count after that. Whichever, `CourierHomePage.test.tsx`
+should pin the one-second case, which it currently does not.
+
 ### A Courier watching their own workspace is never told they have been assigned
 
 `web/src/pages/CourierHomePage.tsx` reads its current Delivery through `useCurrentCourierDelivery`,
