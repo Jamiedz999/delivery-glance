@@ -15,6 +15,45 @@ Each entry says what is wrong, how it was found, and why it was not fixed on the
 
 ## Open
 
+### A Courier watching their own workspace is never told they have been assigned
+
+`web/src/pages/CourierHomePage.tsx` reads its current Delivery through `useCurrentCourierDelivery`,
+and nothing refetches it. There is no polling, and React Query's focus refetch needs a
+`visibilitychange` the browser only fires when the tab actually goes away — so a page that stays in
+front of the Courier never asks again. That is the page the product asks them to keep in front of
+them, because foreground Location Sharing stops the moment it is hidden.
+
+The README's walkthrough works because its human switches browser profiles between roles, and a
+reload works too — at the cost of ending sharing, which is the documented and correct consequence
+of reloading. Neither is something a Courier watching for work would think to do.
+
+Ticket 12 allows for it: "Dispatcher and Courier pages may refetch after their own commands and use
+modest polling for changes." The polling was never implemented.
+
+Found during DG-027, when the E2E journey's Courier stood waiting for an assignment that had already
+happened; `web/e2e/support/workspace.ts` reloads and says why. Not fixed there because adding a poll
+is new product behaviour, which `ISSUE-WORKFLOW.md` returns to refinement rather than letting a test
+Issue introduce.
+
+Fix: give `currentCourierDelivery` a modest `refetchInterval` while a Courier is On Duty, and
+nothing while they are not — an off-duty Courier has no Delivery to hear about.
+
+### One refusal is announced two different ways depending on which script is showing it
+
+The Recipient's "this tracking link is no longer available" sentence is rendered by the /track
+bootstrap into `#tracking-status`, which is `role="status"`, when the token exchange fails, and by
+`web/src/track/TrackingPage.tsx` into `role="alert"` when the snapshot read is refused. Same
+sentence, same dead end, two politeness levels — and the bootstrap's is the polite one, which is the
+wrong way round for a message that ends the visit.
+
+Found while writing DG-027's degradation journey, which had to stop asserting on the role because
+the two paths disagree. Not fixed there because `#tracking-status` is also where the bootstrap
+writes "Opening your tracking link…", and a placeholder that is an alert while it carries progress
+would interrupt every ordinary visit.
+
+Fix: give the bootstrap a second element for its failures, or have it switch the role when it
+writes a final message. Either way the two paths should agree on how a refusal is announced.
+
 ### ADR 04's Core scope callout describes assignment that Core does not implement
 
 `docs/adr/04-define-courier-recommendation-and-assignment.md:13` says Core "uses atomic Direct

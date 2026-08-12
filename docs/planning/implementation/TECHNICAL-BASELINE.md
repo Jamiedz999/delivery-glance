@@ -108,6 +108,16 @@ docker compose down
 
 `npm run check` must run TypeScript checking, unit tests once, and a production build. `mvnw verify` must include backend tests and architecture rules that have been introduced so far. CI runs the same contracts from a clean checkout.
 
+Issue 27 added one more, because the cross-role journeys need a running target rather than a build:
+
+```bash
+TRACKING_MAP_STYLE_URL=http://127.0.0.1:9099/style.json docker compose up --build --wait
+npm --prefix web run e2e
+docker compose down
+```
+
+The Playwright journeys live in `web/e2e/` inside the existing frontend project rather than in a third build, and `npm run check` type-checks them. What each of them is evidence for, and what none of them claims, is [`docs/testing.md`](../../testing.md).
+
 ## Explicitly absent from Core
 
 - Redis, Kafka, PostGIS, WebFlux, WebSocket, microservices, Kubernetes, CQRS and event sourcing.

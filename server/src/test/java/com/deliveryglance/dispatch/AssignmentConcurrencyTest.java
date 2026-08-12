@@ -13,7 +13,7 @@ import com.deliveryglance.DemoAccounts;
 import com.deliveryglance.TestClockConfiguration;
 import com.deliveryglance.TimeControlledIntegrationTest;
 import com.jayway.jsonpath.JsonPath;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.RepeatedTest;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -30,6 +30,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 @TimeControlledIntegrationTest
 class AssignmentConcurrencyTest {
 
+	/**
+	 * Both races are repeated, because a race that is run once has not been observed losing — it has
+	 * been observed not happening to lose. Each repeat builds its own Couriers and Deliveries, so
+	 * they are independent races rather than one race asserted several times.
+	 */
+	private static final int RACES = 3;
+
 	private static final AtomicInteger SEQUENCE = new AtomicInteger();
 
 	@Autowired
@@ -38,7 +45,7 @@ class AssignmentConcurrencyTest {
 	@Autowired
 	private JdbcClient jdbcClient;
 
-	@Test
+	@RepeatedTest(RACES)
 	void simultaneousAssignmentsGiveOneCourierOnlyOneActiveDelivery() throws Exception {
 		UUID courier = createEligibleCourier(10.0);
 		String firstDelivery = createDelivery(signedInDispatcher(), 10.0);
@@ -58,7 +65,7 @@ class AssignmentConcurrencyTest {
 		assertCoherentDeliveryPair(firstDelivery, secondDelivery);
 	}
 
-	@Test
+	@RepeatedTest(RACES)
 	void simultaneousAssignmentsGiveOneDeliveryOnlyOneActiveCourier() throws Exception {
 		UUID firstCourier = createEligibleCourier(20.0);
 		UUID secondCourier = createEligibleCourier(20.00001);
