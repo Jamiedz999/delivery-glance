@@ -21,7 +21,7 @@ const awaitingCourier = {
   state: 'AWAITING_COURIER',
   version: 0,
   pickup: { addressLabel: 'Warehouse 4', latitude: 51.5074, longitude: -0.1278 },
-  handoff: { addressLabel: 'Flat 2, 14 Elm Row', latitude: 51.5033, longitude: -0.1195 },
+  handoff: { addressLabel: 'Flat 2, 14 Notional Row', latitude: 51.5033, longitude: -0.1195 },
   createdAt: '2026-08-10T09:00:00Z',
   updatedAt: '2026-08-10T09:00:00Z',
   transitions: [
@@ -94,7 +94,7 @@ describe('DeliveryDetailPage', () => {
     renderDetail()
 
     expect(await screen.findByRole('heading', { name: 'DG-1001' })).toBeInTheDocument()
-    expect(screen.getByText('Flat 2, 14 Elm Row (51.5033, -0.1195)')).toBeInTheDocument()
+    expect(screen.getByText('Flat 2, 14 Notional Row (51.5033, -0.1195)')).toBeInTheDocument()
     expect(screen.getByRole('listitem')).toHaveTextContent('Awaiting courier by Dana the Dispatcher')
   })
 

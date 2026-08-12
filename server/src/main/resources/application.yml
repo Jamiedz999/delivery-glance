@@ -57,6 +57,12 @@ delivery-glance:
     # Team, never anything derived from the Delivery. Blank is supported; the page then points back
     # at whoever shared the link.
     delivery-team-contact: ${DELIVERY_TEAM_CONTACT:}
+  demo:
+    # POST /api/demo/reset, which empties every Delivery, Assignment, Tracking Link and Courier fact
+    # and puts the fictional Deliveries back. Off unless a deployment says otherwise, and the
+    # security policy reads this same value: with it off the route is refused rather than merely
+    # unmapped. Turn it on only where every row is fictional and losing all of them is the point.
+    reset-enabled: ${DEMO_RESET_ENABLED:false}
 
 management:
   endpoints:

@@ -48,6 +48,7 @@ delivery-glance/
 │   ├── tsconfig*.json
 │   ├── vite.config.ts
 │   └── src/...
+├── scripts/
 ├── compose.yaml
 ├── Dockerfile
 ├── .env.example
@@ -57,7 +58,8 @@ delivery-glance/
 - Development uses Vite's same-origin-looking `/api` proxy to Boot.
 - Production builds the React assets first, places them in the Boot jar, and serves browser-history routes from the same application origin.
 - `server/target`, `web/node_modules`, `web/dist`, local environment files and secrets are ignored. Lockfiles and Maven Wrapper files are committed.
-- Root scripts are optional. If introduced, they only compose the canonical commands below; they do not create a second build system.
+- `scripts/` holds checks that have no build to belong to, because what they assert is not about the code: `scan-repository.sh` is about this repository's contents and history, and `check-deployment.sh` is about a running deployment neither Maven nor npm knows the address of. They are plain shell with no dependencies, so anybody can read one before running it against their own host.
+- Root scripts that would only compose the canonical commands below are still not wanted; they would create a second build system saying the same thing twice.
 
 ## Deep modules and seams
 
@@ -73,6 +75,7 @@ The backend is one executable with business modules, not a collection of technic
 | `dispatch` | 23 | eligibility, nearest-three recommendation and atomic Direct Assignment | recommend and assign use cases |
 | `trackinglink` | 24 | link derivation/verifier, Copy, Expiry and derived grants | Dispatcher link commands and link-holder authorization |
 | `recipientview` | 25 | privacy-reduced Recipient projection | one authorized snapshot query and subscription scope |
+| `demo` | 28 | putting the demo back to its starting state | one Dispatcher-only reset command, and only where the demo switch is on |
 
 Implementation details, SQL repositories, web DTOs and provider DTOs stay package-private where Java allows it. Controllers call module interfaces; they do not reach into another module's repository. Test behaviour through the module/API interface. A `shared` package may hold `Clock`, identifiers, error primitives and credential primitives — issuing a random secret, digesting it, comparing in constant time — but never generic business services or speculative repository abstractions. The test for a credential primitive is that it knows nothing about what the secret means: `Secrets` arrived only when a second module needed the same three operations, and the policy about what each secret authorizes and how long it lives stays in the module that owns it.
 
@@ -82,6 +85,10 @@ Create a new seam only when it hides real complexity or has a real second side. 
 - Map rendering is isolated behind one React component because tests use a local no-network substitute and production uses MapLibre.
 - Redis, Kafka, PostGIS, WebFlux, microservices and a generic event bus are not seams or dependencies yet.
 - ETA/geocoding provider ports are not created until Future Work 13 is actually pulled.
+
+`demo` is the one module allowed to write another module's tables, and the exception is written here rather than left as an argument inside the class that takes it. `DemoResetRepository` names and empties eight tables owned by `delivery`, `dispatch`, `trackinglink`, `courier` and `location`. The alternative was a `deleteEverything()` on each of those five — destructive methods living permanently in production code, reachable by any caller in the process, to serve one fixture. One class that exists only when the demo switch is on, and that names every table it empties, is the smaller hole. The exception is bounded three ways: it may only delete, never read or update; it must not touch `internal_account`, Spring Session or Flyway's own tables; and it creates its fictional Deliveries through `delivery`'s ordinary use case rather than by insert, so demo data cannot take a shape the product would refuse to make.
+
+`location.SharedPositionReset` is the seam that exception still needs. Coordinates are never in the database, so emptying `courier_location_sharing` would end every session and leave the positions those sessions produced — which is why forgetting them is a method on the module that owns them rather than another table in the list above.
 
 ## Runtime and data rules
 
@@ -117,6 +124,15 @@ docker compose down
 ```
 
 The Playwright journeys live in `web/e2e/` inside the existing frontend project rather than in a third build, and `npm run check` type-checks them. What each of them is evidence for, and what none of them claims, is [`docs/testing.md`](../../testing.md).
+
+Issue 28 added two shell checks in `scripts/`, because the claims they back are about the repository and the deployment rather than about the code:
+
+```bash
+scripts/scan-repository.sh                        # credentials, tokens, addresses, coordinates
+scripts/check-deployment.sh <base-url>            # headers, refusals and cookies of a running target
+```
+
+Both are in CI: the scan as its own job over an unshallowed clone, and the deployment check inside the packaging job against the image it has just started. Neither needs a credential, which is what lets the second one be pointed at a public deployment by anybody.
 
 ## Explicitly absent from Core
 

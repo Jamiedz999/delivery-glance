@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
  * together, and that composition is a service's job rather than a repository's.
  */
 @Service
-class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts {
+class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts, DeliveryProvisioning {
 
 	private final DeliveryRepository repository;
 
@@ -66,6 +66,23 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 		this.trackingLinks.createFor(id, now);
 
 		return requireDetail(id);
+	}
+
+	/**
+	 * The same creation, reached without a request body. It goes through {@link #create} rather than
+	 * alongside it so that a provisioned Delivery is indistinguishable from one a Dispatcher typed:
+	 * same validation of shape at the database, same first transition, same Tracking Link, same
+	 * transaction.
+	 */
+	@Override
+	@Transactional
+	public void createAwaitingCourier(NewDelivery delivery) {
+		create(new DeliveryRequests.Create(delivery.reference(), address(delivery.pickup()),
+				address(delivery.handoff())));
+	}
+
+	private static DeliveryRequests.Address address(NewAddress address) {
+		return new DeliveryRequests.Address(address.addressLabel(), address.latitude(), address.longitude());
 	}
 
 	@Transactional(readOnly = true)
