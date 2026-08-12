@@ -192,10 +192,18 @@ export function useLocationSharing(): LocationSharing {
     }
 
     attempted.current = false
-    startWatching()
     cadence.current = setInterval(() => void flush(), REPORT_INTERVAL_MS)
-    setBusy(false)
+    // Read back before anything is collected, not after. Starting a session tells the server to
+    // forget the position it was holding, so this read is what makes the page say Unavailable in
+    // the one moment that is true — and it leaves while that is still the answer. Asking the
+    // browser for a position first would let the first report be answered with a live position and
+    // then have this read land on top of it, replacing it with the emptiness it was sent to
+    // observe. Nothing corrects that: the next report only happens if the device produces another
+    // reading, so the Courier could be told for as long as they watched that nothing was being
+    // shared, while their position was on the Recipient's map.
     await queryClient.invalidateQueries({ queryKey: queryKeys.courier })
+    startWatching()
+    setBusy(false)
   }, [flush, queryClient, startWatching])
 
   useEffect(() => {

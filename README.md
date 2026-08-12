@@ -218,3 +218,27 @@ curl --fail --silent http://localhost:8080/actuator/health
 curl --fail --silent http://localhost:8080/api/system
 docker compose down
 ```
+
+### The cross-role journeys
+
+Two Playwright walkthroughs — the happy path and the location/link degradation path — plus the
+accessibility checks, run against the built image rather than the dev server. They need a browser
+once, and a target started with the map style they serve:
+
+```bash
+npx --prefix web playwright install --with-deps chromium
+
+TRACKING_MAP_STYLE_URL=http://127.0.0.1:9099/style.json docker compose up --build --wait
+npm --prefix web run e2e
+docker compose down
+```
+
+The style is a release input, and the journeys serve their own empty one so the Courier's marker
+exists to be watched leaving the map. Starting the image without it fails the run with the command
+above rather than with a confusing assertion.
+
+The degradation journey restarts the application on purpose — that is how a live stream is severed —
+so it takes about half a minute on its own.
+
+**[`docs/testing.md`](docs/testing.md) is the risk matrix**: every claim this project makes, the
+command that proves it, and the limits it deliberately does not claim.

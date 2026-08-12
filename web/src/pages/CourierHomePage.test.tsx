@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, screen } from '@testing-library/react'
+import { act, cleanup, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CourierHomePage } from './CourierHomePage'
 import {
@@ -210,6 +210,55 @@ describe('CourierHomePage', () => {
     expect(screen.getByRole('button', { name: 'Start sharing' })).toBeInTheDocument()
     // The earlier session is still the Courier's to end, even from a page that cannot report.
     expect(screen.getByRole('button', { name: 'Stop sharing' })).toBeInTheDocument()
+  })
+
+  it('reads the new session back before it collects anything', async () => {
+    // Starting a session tells the server to forget whatever position it was holding, so the page
+    // has to read itself back or it would keep showing a position that no longer exists. The order
+    // is what this is about: that read leaves while the server holds nothing, and if it is still in
+    // flight when the first report is answered, it lands afterwards and overwrites a live position
+    // with the emptiness it was sent to observe. Nothing corrects it — the next reading is only
+    // sent if the device produces one — so the Courier is told indefinitely that nothing is being
+    // shared while their position is on the Recipient's map.
+    let answerTheReadBack: (() => void) | null = null
+    let courierReads = 0
+    const acceptedNow = {
+      outcome: 'ACCEPTED',
+      // Relative, because the page ages this itself and a fixture instant would be hours stale.
+      location: { freshness: 'LIVE', recordedAt: new Date().toISOString(), accuracyMetres: 12 },
+    }
+
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = urlOf(input)
+      const method = (init?.method ?? 'GET').toUpperCase()
+      if (url.endsWith('/deliveries/current')) {
+        return Promise.resolve(noContentResponse())
+      }
+      if (url.endsWith('/location-sharing')) {
+        return Promise.resolve(method === 'POST' ? jsonResponse(startedSession, 201) : noContentResponse())
+      }
+      if (url.endsWith('/location-reports')) {
+        return Promise.resolve(jsonResponse(acceptedNow))
+      }
+      courierReads += 1
+      if (courierReads === 1) {
+        return Promise.resolve(jsonResponse(offDuty))
+      }
+      return new Promise<Response>((resolve) => {
+        answerTheReadBack = () => resolve(jsonResponse(offDuty))
+      })
+    })
+
+    renderWithProviders(<CourierHomePage />)
+    await startSharing()
+
+    expect(watchPosition).not.toHaveBeenCalled()
+
+    await act(async () => answerTheReadBack?.())
+    await waitFor(() => expect(watchPosition).toHaveBeenCalledTimes(1))
+    await fix(51.5074, Date.parse(acceptedNow.location.recordedAt))
+
+    expect(await screen.findByText(/^Live — measured/)).toBeInTheDocument()
   })
 
   it('stops sharing and asks the server to forget the position', async () => {
