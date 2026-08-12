@@ -138,11 +138,6 @@ class TrackingLinks implements NewDeliveryLinks {
 		return new GrantIssued(secret, now, expiry);
 	}
 
-	/** The one digest a caller needs to hold a grant without holding the secret that produced it. */
-	static String verifierOf(String grantSecret) {
-		return Secrets.verifierOf(grantSecret);
-	}
-
 	/**
 	 * Resolves a presented grant to the one Delivery it authorizes reading. What a Recipient may
 	 * then be told about that Delivery is recipientview's decision; this module's answer stops at

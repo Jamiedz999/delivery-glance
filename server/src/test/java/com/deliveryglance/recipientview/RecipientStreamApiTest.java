@@ -24,6 +24,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -107,7 +108,7 @@ class RecipientStreamApiTest {
 	}
 
 	@Test
-	void neverTellsOnePagesAboutAnotherDeliverysChange() throws Exception {
+	void neverTellsOnePageAboutAnotherDeliverysChange() throws Exception {
 		String changed = createDelivery();
 		String untouched = createDelivery();
 		TrackedPage changedPage = openPageFor(changed);
@@ -219,6 +220,29 @@ class RecipientStreamApiTest {
 		report(courier, USABLE_ACCURACY_METRES, "ACCEPTED");
 
 		assertThat(page.awaitHints(1)).contains(HINT);
+		page.close();
+	}
+
+	/**
+	 * Stop is the one location change a page cannot work out for itself. Ageing is: the browser holds
+	 * the same two-minute rule and reaches Unavailable at the same moment. Stop withdraws the
+	 * coordinates immediately, so without a hint the Courier would sit on somebody's map for up to
+	 * two more minutes after they said they had finished.
+	 */
+	@Test
+	void tellsAPageAtOnceWhenTheCourierStopsSharing() throws Exception {
+		String delivery = createDelivery();
+		Courier courier = onDutyCourierSharingLocation();
+		assign(delivery, courier);
+		progress(courier, delivery, "pickup", 1);
+		TrackedPage page = openPageFor(delivery);
+		assertThat(page.snapshot()).contains("\"courier\":{");
+
+		assertThat(courier.client().send(delete("/api/couriers/me/location-sharing")).getStatus()).isEqualTo(204);
+
+		assertThat(page.awaitHints(1)).contains(HINT);
+		// And the refetch the hint asks for finds the marker already gone.
+		assertThat(page.snapshot()).contains("\"courier\":null");
 		page.close();
 	}
 

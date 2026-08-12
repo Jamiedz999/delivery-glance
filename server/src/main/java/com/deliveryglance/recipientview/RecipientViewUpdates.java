@@ -22,9 +22,15 @@ public interface RecipientViewUpdates {
 	void deliveryChanged(UUID deliveryId);
 
 	/**
-	 * A Courier's Current Location was replaced by an accepted report. It names the Courier because
-	 * that is all location knows; which Delivery, if any, that is currently visible on is worked out
-	 * here. A rejected report is not a change and must not be reported as one.
+	 * A Courier's Current Location changed — replaced by an accepted report, or withdrawn by Stop,
+	 * by signing out, or by a new Location Sharing Session starting.
+	 *
+	 * <p>It names the Courier because that is all location knows; which Delivery, if any, that is
+	 * currently visible on is worked out here.
+	 *
+	 * <p>Two things are deliberately not changes. A rejected report left Current Location exactly as
+	 * it was. And a reading ageing past the usable limit is something the page works out for itself
+	 * on the same rule at the same moment, so reporting it would be a hint nobody needed.
 	 */
 	void courierPositionChanged(UUID courierAccountId);
 

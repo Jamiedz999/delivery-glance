@@ -56,13 +56,14 @@ class RecipientStreams {
 	static final Duration STREAM_LIFETIME = Duration.ofMinutes(10);
 
 	/**
-	 * The whole application's connection budget. Core's acceptance is a hundred Recipient pages;
-	 * this is that with room to spare and still a number, so an endpoint open to anyone holding a
-	 * link cannot be turned into unbounded server memory by opening connections.
+	 * The whole application's connection budget. `research/core-technical-architecture.md` §5 sizes
+	 * Core's acceptance at a hundred SSE connections; this is that with room to spare and still a
+	 * number, so an endpoint open to anyone holding a link cannot be turned into unbounded server
+	 * memory by opening connections.
 	 */
 	static final int MAX_STREAMS = 200;
 
-	private final ConcurrentMap<UUID, DeliveryStreams> byDelivery = new ConcurrentHashMap<>();
+	private final ConcurrentMap<UUID, DeliveryWatchers> byDelivery = new ConcurrentHashMap<>();
 
 	private final AtomicInteger openStreams = new AtomicInteger();
 
@@ -96,20 +97,20 @@ class RecipientStreams {
 		}
 
 		SseEmitter emitter = new SseEmitter(STREAM_LIFETIME.toMillis());
-		Stream stream = new Stream(emitter, grant);
-		register(stream);
+		Watcher watcher = new Watcher(emitter, grant);
+		register(watcher);
 
 		// All three endings are wired up because they are three different endings and only
 		// completion is guaranteed to follow the others. Unregistering is idempotent.
-		emitter.onCompletion(() -> unregister(stream));
-		emitter.onTimeout(() -> close(stream));
-		emitter.onError((error) -> close(stream));
+		emitter.onCompletion(() -> unregister(watcher));
+		emitter.onTimeout(() -> close(watcher));
+		emitter.onError((error) -> close(watcher));
 
 		try {
 			emitter.send(SseEmitter.event().comment("open"));
 		}
 		catch (IOException | RuntimeException ex) {
-			close(stream);
+			close(watcher);
 			return Optional.empty();
 		}
 		return Optional.of(emitter);
@@ -123,14 +124,14 @@ class RecipientStreams {
 	 * lifetime, and a page that reconnects starts again from whatever it is then told.
 	 */
 	void hintChanged(UUID deliveryId) {
-		DeliveryStreams watching = this.byDelivery.get(deliveryId);
+		DeliveryWatchers watching = this.byDelivery.get(deliveryId);
 		if (watching == null) {
 			return;
 		}
 		long version = watching.version.incrementAndGet();
 		String data = "{\"version\":" + version + "}";
-		for (Stream stream : watching.currentStreams()) {
-			submit(stream, () -> stream.emitter().send(SseEmitter.event().name(SNAPSHOT_CHANGED).data(data)));
+		for (Watcher watcher : watching.currentWatchers()) {
+			submit(watcher, () -> watcher.emitter().send(SseEmitter.event().name(SNAPSHOT_CHANGED).data(data)));
 		}
 	}
 
@@ -143,15 +144,15 @@ class RecipientStreams {
 	 */
 	@Scheduled(fixedDelayString = "PT15S")
 	void heartbeat() {
-		for (DeliveryStreams watching : this.byDelivery.values()) {
-			for (Stream stream : watching.currentStreams()) {
+		for (DeliveryWatchers watching : this.byDelivery.values()) {
+			for (Watcher watcher : watching.currentWatchers()) {
 				// Closed with no reason given and no distinguishable one: an expired link, an
 				// unknown grant and a Delivery whose grace period ran out all end the same silence.
-				if (!stream.grant().stillAuthorizes()) {
-					close(stream);
+				if (!watcher.grant().stillAuthorizes()) {
+					close(watcher);
 					continue;
 				}
-				submit(stream, () -> stream.emitter().send(SseEmitter.event().comment("keep-alive")));
+				submit(watcher, () -> watcher.emitter().send(SseEmitter.event().comment("keep-alive")));
 			}
 		}
 	}
@@ -169,7 +170,7 @@ class RecipientStreams {
 	@PreDestroy
 	void shutDown() {
 		this.byDelivery.values()
-			.forEach((watching) -> watching.currentStreams().forEach((stream) -> stream.emitter().complete()));
+			.forEach((watching) -> watching.currentWatchers().forEach((watcher) -> watcher.emitter().complete()));
 		this.sender.shutdownNow();
 	}
 
@@ -180,53 +181,53 @@ class RecipientStreams {
 	 * the queue is full; either way the page's next correct move is to reconnect and reread its
 	 * snapshot, and leaving the connection open would deny it that.
 	 */
-	private void submit(Stream stream, Write write) {
+	private void submit(Watcher watcher, Write write) {
 		try {
 			this.sender.execute(() -> {
 				try {
 					write.run();
 				}
 				catch (IOException | RuntimeException ex) {
-					close(stream);
+					close(watcher);
 				}
 			});
 		}
 		catch (RejectedExecutionException ex) {
-			close(stream);
+			close(watcher);
 		}
 	}
 
-	private void close(Stream stream) {
+	private void close(Watcher watcher) {
 		// complete() fires the completion callback, which is what normally unregisters. Calling it
 		// on an emitter that has already finished is harmless, and unregistering twice is a no-op.
 		try {
-			stream.emitter().complete();
+			watcher.emitter().complete();
 		}
 		finally {
-			unregister(stream);
+			unregister(watcher);
 		}
 	}
 
-	private void register(Stream stream) {
-		this.byDelivery.compute(stream.grant().deliveryId(), (deliveryId, watching) -> {
-			DeliveryStreams existing = (watching != null) ? watching : new DeliveryStreams();
-			existing.streams.add(stream);
+	private void register(Watcher watcher) {
+		this.byDelivery.compute(watcher.grant().deliveryId(), (deliveryId, watching) -> {
+			DeliveryWatchers existing = (watching != null) ? watching : new DeliveryWatchers();
+			existing.watchers.add(watcher);
 			return existing;
 		});
 	}
 
 	/**
-	 * Removes the stream and, with the last one for a Delivery, the entry itself. Dropping the entry
+	 * Removes the page and, with the last one for a Delivery, the entry itself. Dropping the entry
 	 * is what stops a long-running process accumulating one counter per Delivery ever tracked.
 	 *
 	 * <p>Adding and removing both happen inside the registry map's per-key lock, so "this was the
-	 * last stream, drop the entry" cannot race with a connection arriving for the same Delivery.
+	 * last one, drop the entry" cannot race with a connection arriving for the same Delivery.
 	 */
-	private void unregister(Stream stream) {
+	private void unregister(Watcher watcher) {
 		boolean[] removed = { false };
-		this.byDelivery.computeIfPresent(stream.grant().deliveryId(), (deliveryId, watching) -> {
-			removed[0] = watching.streams.remove(stream);
-			return watching.streams.isEmpty() ? null : watching;
+		this.byDelivery.computeIfPresent(watcher.grant().deliveryId(), (deliveryId, watching) -> {
+			removed[0] = watching.watchers.remove(watcher);
+			return watching.watchers.isEmpty() ? null : watching;
 		});
 		if (removed[0]) {
 			this.openStreams.decrementAndGet();
@@ -240,20 +241,24 @@ class RecipientStreams {
 
 	}
 
-	/** One Recipient page: the connection it reads, and the grant that has to keep authorizing it. */
-	private record Stream(SseEmitter emitter, HeldGrant grant) {
+	/**
+	 * One Recipient page: the connection it reads, and the grant that has to keep authorizing it.
+	 * Named for the page rather than the connection so it does not shadow {@code java.util.stream}
+	 * inside a class that says "stream" about a dozen different things.
+	 */
+	private record Watcher(SseEmitter emitter, HeldGrant grant) {
 	}
 
-	/** The connections watching one Delivery, and the version counter they share. */
-	private static final class DeliveryStreams {
+	/** The pages watching one Delivery, and the version counter they share. */
+	private static final class DeliveryWatchers {
 
 		private final AtomicLong version = new AtomicLong();
 
-		private final Set<Stream> streams = ConcurrentHashMap.newKeySet();
+		private final Set<Watcher> watchers = ConcurrentHashMap.newKeySet();
 
-		/** A copy, so a fan-out that closes streams is not iterating the set it is mutating. */
-		private Set<Stream> currentStreams() {
-			return Set.copyOf(this.streams);
+		/** A copy, so a fan-out that closes connections is not iterating the set it is mutating. */
+		private Set<Watcher> currentWatchers() {
+			return Set.copyOf(this.watchers);
 		}
 
 	}

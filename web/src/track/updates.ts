@@ -1,5 +1,5 @@
 /**
- * The refresh stream, and the rule that it is never believed.
+ * The Tracking Connection: the refresh stream, and the rule that it is never believed.
  *
  * What arrives here is "something about your delivery changed, and this is the version it changed
  * to". Nothing else is on the wire, so there is nothing a page could render from it even if it
@@ -34,7 +34,7 @@ export interface UpdateHandlers {
 /** Opens a stream and returns the function that closes it. */
 export type OpenUpdates = (handlers: UpdateHandlers) => () => void
 
-export type Connection = 'connecting' | 'live' | 'reconnecting' | 'off'
+export type TrackingConnection = 'connecting' | 'live' | 'reconnecting' | 'off'
 
 export const UPDATES_PATH = '/api/tracking/events'
 
@@ -92,8 +92,8 @@ function versionOf(data: string): number {
  * Location Freshness: a page can be perfectly connected and showing a position nobody has updated
  * for two minutes, and conflating the two would let one of those hide the other.
  */
-export function useSnapshotUpdates(refresh: () => void, open: OpenUpdates = openUpdates): Connection {
-  const [connection, setConnection] = useState<Connection>('connecting')
+export function useSnapshotUpdates(refresh: () => void, open: OpenUpdates = openUpdates): TrackingConnection {
+  const [connection, setConnection] = useState<TrackingConnection>('connecting')
 
   useEffect(() => {
     // Per connection, and reset with it: the server's counter starts again whenever a Delivery
