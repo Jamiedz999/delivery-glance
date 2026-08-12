@@ -12,6 +12,10 @@ const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:8080'
 
 export default defineConfig({
   testDir: './e2e',
+  // The screenshot capture lives beside the journeys because it drives the product the same way and
+  // reuses their fixtures, but it is a different errand: it writes files into `docs/` that get
+  // committed. `npm run screenshots` sets DG_SCREENSHOTS and names the file; nothing else runs it.
+  testIgnore: process.env.DG_SCREENSHOTS === undefined ? ['**/screenshots.spec.ts'] : [],
   // The Delivery Team is two pre-provisioned accounts, and the one Courier may hold one Active
   // Delivery at a time. Journeys in parallel would queue behind that single account and fail on a
   // race in the harness rather than in the product — and the product's real race is already proved

@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
  * into a working reporting credential.
  */
 @Service
-class LocationSharing implements LocationFacts {
+class LocationSharing implements LocationFacts, SharedPositionReset {
 
 	private final LocationSharingRepository repository;
 
@@ -94,6 +94,15 @@ class LocationSharing implements LocationFacts {
 		}
 
 		return new LocationViews.Report(outcome, status(courierAccountId));
+	}
+
+	/**
+	 * No Recipient view is told about this. The one caller has just emptied the Deliveries those
+	 * views are of, so there is no page left holding a marker to remove.
+	 */
+	@Override
+	public void forgetEveryPosition() {
+		this.store.forgetEveryCourier();
 	}
 
 	@Override

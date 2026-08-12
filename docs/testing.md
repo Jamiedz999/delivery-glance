@@ -18,6 +18,10 @@ Two rules hold everywhere below:
 ## Running everything
 
 ```bash
+# The repository itself: credentials and tokens across every blob on every ref, and addresses and
+# coordinates in the working tree
+scripts/scan-repository.sh
+
 # Backend: unit tests, module tests and real-PostgreSQL integration tests (Testcontainers)
 (cd server && ./mvnw verify)
 
@@ -31,6 +35,10 @@ npm --prefix web run check
 TRACKING_MAP_STYLE_URL=http://127.0.0.1:9099/style.json docker compose up --build --wait
 curl --fail --silent http://localhost:8080/actuator/health
 curl --fail --silent http://localhost:8080/api/system
+
+# The headers, refusals and cookies of whatever is running at that URL. The same command the
+# deployment runbook points at a public host; over plain HTTP it says which checks it skipped.
+scripts/check-deployment.sh http://localhost:8080
 
 # The two cross-role journeys and the accessibility checks
 npm --prefix web run e2e
@@ -102,6 +110,24 @@ in Future Work 18 for exactly this reason.
 | The tracking responses are cached, indexed or referrer-leaking | `trackinglink/TrackingLinkApiTest.sendsTheAgreedCacheReferrerIndexingAndContentHeadersOnEveryTrackingResponse`, `sendsTheHeadersEvenOnResponsesTheSecurityChainWritesWithoutReachingAHandler` |
 | The bootstrap page's CSP drifts from the script it serves | `trackinglink/TrackingBootstrapPageTest.pinsTheScriptAndStyleItActuallyServesRatherThanAHashWrittenDownBesideThem` |
 
+### The demo reset
+
+A route that deletes every Delivery, Assignment, Tracking Link and Courier fact is the most dangerous
+thing in this application, and the risk it carries is not "does it work" but "can it exist somewhere
+nobody asked for it".
+
+| Risk | Proved by | What it actually asserts |
+|---|---|---|
+| A deployment that never asked for the demo has a data-wiping route | `demo/DemoResetDisabledTest.refusesTheResetForTheDispatcherWhoWouldOtherwiseBeAllowedIt`, `refusesTheResetForAnAnonymousCaller` | With the switch at its default, the exact caller who would otherwise be allowed it gets `403 access-denied`, and an anonymous one gets `401`. Refused by the security policy rather than merely unmapped — an unmapped `/api/**` path falls through to the frontend catch-all, which would answer a POST with the React shell. |
+| The reset leaves data from the run before | `demo/DemoResetTest.replacesEveryDeliveryWithTheFictionalOnesAndSaysWhichItMade`, `endsTheCouriersDutyAndForgetsTheirSharedPosition`, `makesEveryTrackingLinkIssuedBeforeItUnusable` | A stray Delivery is `404` afterwards; the Courier is Off Duty with no sharing session; the in-memory position is `UNAVAILABLE` rather than surviving the database delete; and a link copied before the reset no longer exchanges. |
+| The reset takes the accounts with it and locks the demo out | `demo/DemoResetTest.leavesTheTwoInternalAccountsAlone` | Both sign in again afterwards. |
+| Demo data is written in a shape the product would never create | `demo/DemoResetTest.makesEachFictionalDeliveryTheSameWayTheDispatcherWouldHave` | Each fictional Delivery is `AWAITING_COURIER` at version 0 with exactly one transition attributed to a real actor, and has the Tracking Link that only the real creation path produces. Nothing is inserted straight into a later state. |
+| A Courier can reset the demo mid-walkthrough | `demo/DemoResetTest.isRefusedForACourier`, `isRefusedWithoutTheCsrfHeaderEvenForTheDispatcher` | Dispatcher-only, and CSRF-protected like every other unsafe route. |
+
+**Not proved:** that the endpoint is off in any particular deployment. That is a deployment input,
+and `scripts/check-deployment.sh` reports only that it is unreachable without authentication — which
+is all an outside caller can honestly establish.
+
 ### Recipient projection and stream
 
 | Risk | Proved by | What it actually asserts |
@@ -135,8 +161,16 @@ fictional coordinates, and the Delivery References are generated per run because
 unique for the life of the database.
 
 **How the journeys reset:** through the API, as a signed-in Courier. `web/e2e/support/journey.ts`
-finishes whatever Delivery the Courier is still holding and ends duty and sharing. There is no reset
-endpoint and no test-only route.
+finishes whatever Delivery the Courier is still holding and ends duty and sharing. It does not use
+the demo reset and could not: that endpoint is off in the default deployment the journeys run
+against, and a suite that needed it switched on would be evidence about a configuration nobody else
+runs. There is no test-only route.
+
+**`web/e2e/screenshots.spec.ts` is not part of this suite.** It drives the product the same way and
+reuses the same fixtures, but it writes the pictures in `docs/screenshots/` rather than asserting
+anything, so `playwright.config.ts` excludes it and `npm --prefix web run screenshots` is what runs
+it. Its one assertion is a refusal: it stops if the database already holds `DEMO-1001`, so a
+screenshot is never a picture of an earlier run's leftovers.
 
 ### States that must not claim success or leak
 

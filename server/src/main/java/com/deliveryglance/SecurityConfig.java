@@ -33,8 +33,12 @@ public class SecurityConfig {
 
 	private final boolean secureCookies;
 
-	SecurityConfig(@Value("${server.servlet.session.cookie.secure:false}") boolean secureCookies) {
+	private final boolean demoResetEnabled;
+
+	SecurityConfig(@Value("${server.servlet.session.cookie.secure:false}") boolean secureCookies,
+			@Value("${delivery-glance.demo.reset-enabled:false}") boolean demoResetEnabled) {
 		this.secureCookies = secureCookies;
+		this.demoResetEnabled = demoResetEnabled;
 	}
 
 	/**
@@ -45,7 +49,8 @@ public class SecurityConfig {
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectProvider<LogoutHandler> logoutHandlers)
 			throws Exception {
-		http.authorizeHttpRequests(authorize -> authorize
+		http.authorizeHttpRequests(authorize -> {
+			authorize
 				.requestMatchers(HttpMethod.GET, "/api/system").permitAll()
 				.requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/session/login").permitAll()
@@ -67,11 +72,23 @@ public class SecurityConfig {
 				// travels through message apps and mail filters that issue HEAD before any person
 				// clicks, and answering those with 401 would make a working link look broken to the
 				// software carrying it. It is safe to allow because /track reads no token.
-				.requestMatchers(HttpMethod.HEAD, "/track", "/track/**").permitAll()
+				.requestMatchers(HttpMethod.HEAD, "/track", "/track/**").permitAll();
+
+			// Named only when the demo switch is on. Left unnamed it falls to the /api/** denyAll
+			// below, which is the point: a route that merely had no controller would fall through to
+			// the frontend catch-all and answer a POST with the React shell, so "the demo is off" has
+			// to be a decision this policy makes rather than a bean that happens not to exist.
+			if (this.demoResetEnabled) {
+				authorize.requestMatchers(HttpMethod.POST, "/api/demo/reset")
+					.hasRole(InternalAccountRole.DISPATCHER.name());
+			}
+
+			authorize
 				.requestMatchers("/api/**").denyAll()
 				.requestMatchers("/actuator/**").denyAll()
 				.requestMatchers(HttpMethod.GET, "/**").permitAll()
-				.anyRequest().denyAll());
+				.anyRequest().denyAll();
+		});
 
 		http.csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository())
 				.csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
