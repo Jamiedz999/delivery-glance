@@ -150,7 +150,7 @@ class DemoResetTest {
 		return this.dispatcher.send(post("/api/deliveries").contentType(MediaType.APPLICATION_JSON).content("""
 				{"reference":"%s",
 				 "pickup":{"addressLabel":"Warehouse 4, Riverside Estate","latitude":51.5074,"longitude":-0.1278},
-				 "handoff":{"addressLabel":"Flat 2, 14 Elm Row","latitude":51.5033,"longitude":-0.1195}}
+				 "handoff":{"addressLabel":"Flat 2, 14 Notional Row","latitude":51.5033,"longitude":-0.1195}}
 				""".formatted(reference)));
 	}
 

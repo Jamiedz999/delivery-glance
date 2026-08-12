@@ -957,7 +957,7 @@
         function deliveryRows() {
           return [
             { reference: "DG-2048", address: "14 Invented Crescent", state: "Selected scenario", selected: true },
-            { reference: "DG-2043", address: "8 Hanover Quay", state: "In Transit" },
+            { reference: "DG-2043", address: "8 Notional Wharf", state: "In Transit" },
             { reference: "DG-2039", address: "16 Fictional Way", state: "Assigned" },
             { reference: "DG-2034", address: "71 Notional Yard", state: "Delivered" }
           ];
@@ -1054,7 +1054,7 @@
           if (state.delivery.state === "ASSIGNED") return { eyebrow: "Current Delivery", title: "Collect from Notional Yard", copy: "You have the Assignment. Confirm pickup only after the item is in your care.", content: courierPrimaryActions(state) };
           if (state.delivery.state === "IN_TRANSIT" && state.courier.sharing === "OFF") return { eyebrow: "Current Delivery · Location unavailable", title: "The Delivery is still In Transit", copy: "Stopping sharing did not change the Delivery. Restart it to restore Recipient location and ETA.", content: courierPrimaryActions(state) };
           if (state.delivery.state === "IN_TRANSIT" && state.courier.sharing === "INTERRUPTED") return { eyebrow: "Reporting interrupted", title: "Keep this page open", copy: "NETWORK_UNAVAILABLE · only the newest fix will be sent after recovery. No offline route is queued.", content: courierPrimaryActions(state) };
-          if (state.delivery.state === "IN_TRANSIT") return { eyebrow: "Current Delivery", title: "Handoff at Mount Street", copy: "Location is reporting. Record the real handoff outcome; proximity does not finish the Delivery.", content: courierPrimaryActions(state) };
+          if (state.delivery.state === "IN_TRANSIT") return { eyebrow: "Current Delivery", title: "Handoff at Invented Crescent", copy: "Location is reporting. Record the real handoff outcome; proximity does not finish the Delivery.", content: courierPrimaryActions(state) };
           if (state.delivery.state === "DELIVERED") return { eyebrow: "Outcome recorded", title: "Delivery completed", copy: "Handoff was confirmed at 14:31 IST. You remain available for other Deliveries.", content: courierPrimaryActions(state) };
           if (state.delivery.state === "UNDELIVERABLE") return { eyebrow: "Outcome recorded", title: "Delivery ended", copy: "Recipient unavailable was recorded. A later attempt is a new Delivery.", content: courierPrimaryActions(state) };
           if (state.key === "reassigned") return { eyebrow: "Assignment ended", title: "You are ready for other Deliveries", copy: "This Delivery returned to Awaiting Courier. Your On Duty setting did not change.", content: courierPrimaryActions(state) };
@@ -1094,9 +1094,9 @@
           var selectedTransit = selectedBoardColumn(state, "IN_TRANSIT");
           var isOutcome = ["DELIVERED", "CANCELLED", "UNDELIVERABLE"].indexOf(state.delivery.state) !== -1;
           return '<main class="b-dispatch"><header class="b-topbar"><div><div class="brand"><span class="brand-mark">DG</span>Delivery board</div><p style="margin:6px 0 0;color:#746e64;font-size:10px">Glance Delivery Team · current operational state</p></div><div class="b-topbar-actions"><input class="search-input" aria-label="Search Delivery Reference" placeholder="Search reference" />' + button("New Delivery", "show_create", "") + '</div></header><section class="b-board">' +
-            boardColumn("Awaiting Courier", selectedAwaiting ? 4 : 3, selectedAwaiting + boardCard("DG-2046", "9 Fitzwilliam Square", "Recommendation ready", false) + boardCard("DG-2041", "33 Imaginary Row", "No eligible Courier", false)) +
+            boardColumn("Awaiting Courier", selectedAwaiting ? 4 : 3, selectedAwaiting + boardCard("DG-2046", "9 Imaginary Square", "Recommendation ready", false) + boardCard("DG-2041", "33 Imaginary Row", "No eligible Courier", false)) +
             boardColumn("Assigned", selectedAssigned ? 3 : 2, selectedAssigned + boardCard("DG-2039", "16 Fictional Way", "Courier collecting", false)) +
-            boardColumn("In Transit", selectedTransit ? 5 : 4, selectedTransit + boardCard("DG-2043", "8 Hanover Quay", "Location live", false) + boardCard("DG-2038", "29 Invented Crescent", "Reporting delayed", false)) +
+            boardColumn("In Transit", selectedTransit ? 5 : 4, selectedTransit + boardCard("DG-2043", "8 Notional Wharf", "Location live", false) + boardCard("DG-2038", "29 Invented Crescent", "Reporting delayed", false)) +
             boardColumn("Outcomes", isOutcome ? 12 : 11, (isOutcome ? boardCard(state.delivery.reference, state.delivery.handoff, titleCase(state.delivery.state), true) : '') + boardCard("DG-2034", "71 Notional Yard", "Delivered 13:51", false)) + renderBoardDrawer(state) + '</section></main>';
         }
 

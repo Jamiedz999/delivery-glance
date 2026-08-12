@@ -22,8 +22,14 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 class DemoConfig {
 
 	/**
-	 * The switch, named once. {@link DemoResetController} carries the same condition, because a
+	 * The switch. {@link DemoResetController} carries the same condition, because a
 	 * {@code @RestController} is component-scanned and would otherwise exist regardless of this class.
+	 *
+	 * <p>{@code SecurityConfig} spells the property out again rather than reading this constant: it
+	 * lives outside this package, and widening the constant to reach it would mean publishing the
+	 * demo module's switch to the whole application. Two spellings of one property name is the
+	 * smaller cost, and {@code DemoResetDisabledTest} is what notices if they ever disagree — with
+	 * the switch off it asserts the route is refused, which only holds while both halves say off.
 	 */
 	static final String RESET_ENABLED = "delivery-glance.demo.reset-enabled";
 

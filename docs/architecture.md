@@ -27,7 +27,7 @@ flowchart TB
         delivery["<b>delivery</b><br/>Delivery, lifecycle, transitions"]
         dispatchmod["<b>dispatch</b><br/>eligibility, nearest three,<br/>Direct Assignment"]
         couriermod["<b>courier</b><br/>On Duty"]
-        location["<b>location</b><br/>sharing intent +<br/><i>the only coordinates,<br/>in memory, one per Courier</i>"]
+        location["<b>location</b><br/>sharing intent +<br/><i>Current Location: the only<br/>coordinates, in memory,<br/>one per Courier</i>"]
         trackinglink["<b>trackinglink</b><br/>HMAC derivation, Copy,<br/>Expiry, grants"]
         recipientview["<b>recipientview</b><br/>privacy-reduced projection,<br/>SSE refresh hints"]
     end
@@ -90,7 +90,7 @@ sequenceDiagram
     actor C as Courier
     participant A as Delivery Glance
     participant P as PostgreSQL
-    participant M as latest location<br/>(process memory)
+    participant M as Current Location<br/>(process memory)
     actor R as Recipient
 
     Note over D,A: Direct Assignment
@@ -179,7 +179,7 @@ explaining it are written together, and so is its Tracking Link, so no Delivery 
 history or without being trackable. Flyway owns every table, including Spring Session's; there is no
 runtime DDL and no JPA, so what the schema is, is what the migrations say.
 
-### The latest location in process memory
+### Current Location in process memory
 
 This is the choice that looks like a shortcut and is not.
 
@@ -218,7 +218,7 @@ would make this application harder to run and no better.
 
 | Not in Core | What it would do here | What has to be true first | Where it is designed |
 |---|---|---|---|
-| **Redis** | share latest-location and SSE fan-out across instances | more than one application instance, which means a measured reason to run more than one | [Future Work 18](planning/future-work/18-run-measured-scale-and-resilience-experiment.md) |
+| **Redis** | share Current Location and SSE fan-out across instances | more than one application instance, which means a measured reason to run more than one | [Future Work 18](planning/future-work/18-run-measured-scale-and-resilience-experiment.md) |
 | **Kafka** | durable domain-event log with replay | a second consumer of non-location events that actually benefits from replay, plus an outbox. Raw Courier coordinates never belong in it | [Future Work 19](planning/future-work/19-evaluate-durable-domain-event-backbone.md) |
 | **PostGIS** | spatial indexing and Service Zone polygons | evidence that in-memory Haversine over a handful of on-duty Couriers is a bottleneck, or a product need for zone polygons | [Future Work 16](planning/future-work/16-add-service-zones-and-explainable-overrides.md), [18](planning/future-work/18-run-measured-scale-and-resilience-experiment.md) |
 | **WebFlux** | non-blocking IO for many idle connections | a measured connection count that Servlet threads cannot hold. Spring MVC's `SseEmitter` is already asynchronous | [Future Work 18](planning/future-work/18-run-measured-scale-and-resilience-experiment.md) |
@@ -234,7 +234,7 @@ settles it — and leaves the part that is mostly timers.
 | foreground-only Location Sharing | reporting while the app is backgrounded | the page can only promise what a browser will actually do. Reporting pauses honestly instead of pretending to continue |
 | one reusable seven-day Tracking Link | Rotation, Revocation, Reissue | a link that can be recovered needs a reason catalog, a history UI and a retention rule. Core ships the properties that make a public bearer link safe at all: high entropy, HMAC derivation with only a verifier stored, fragment-to-cookie exchange, one generic refusal, no raw token in any log |
 | Direct Assignment | invitations and Decline | keeps the concurrency invariant and drops the timers |
-| in-memory latest location | any durable position | there is nothing to leak, and no migration that could turn it into a trail |
+| Current Location in memory only | any durable position | there is nothing to leak, and no migration that could turn it into a trail |
 | the Recipient's own timer for freshness | trusting the server to say | a disconnected page still tells the truth |
 | no ETA | travel-time estimates | an ETA needs a routing provider and an honest unavailable state. An invented one is worse than none |
 
@@ -243,7 +243,7 @@ settles it — and leaves the part that is mostly timers.
 These are real, they are not defects of the implementation, and they are listed here rather than
 discovered:
 
-- **One instance.** Latest location and SSE subscribers are per-process. Running two would need
+- **One instance.** Current Location and SSE subscribers are per-process. Running two would need
   Future Work 18 first.
 - **No Reassignment, Courier Withdrawal, Dispatcher Revocation or Undeliverable outcome.** A Delivery
   in trouble after pickup has no modelled way out. Future Work 15.
