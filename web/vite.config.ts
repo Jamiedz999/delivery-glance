@@ -43,5 +43,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.ts'],
+    // The journeys under e2e/ are Playwright's, and they need a running application rather than a
+    // jsdom. Vitest's default pattern would otherwise collect them and fail on the first import.
+    exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
   },
 })

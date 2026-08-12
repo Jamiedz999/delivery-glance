@@ -7,10 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "test": "vitest run",
+    "e2e": "playwright test",
     "check": "tsc -b && vitest run && vite build",
     "lint": "oxlint --type-aware",
-    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"public/**/*.css\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"public/**/*.css\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"e2e/**/*.ts\" playwright.config.ts \"public/**/*.css\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"e2e/**/*.ts\" playwright.config.ts \"public/**/*.css\"",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -21,6 +22,8 @@
     "react-router": "^8.3.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.3",

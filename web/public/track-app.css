@@ -75,6 +75,19 @@ body {
   outline-offset: 2px;
 }
 
+/*
+ * MapLibre fades a marker in and out over two hundred milliseconds, and its own reduced-motion
+ * block covers only the user-location dot it draws for a browser's own position — which this page
+ * never asks for. The marker that does appear and disappear here is the Courier's, and it
+ * disappears at the moment the page has decided it no longer knows where they are. Fading that at
+ * somebody who asked for less motion animates the one change they most need to simply notice.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .map .maplibregl-marker {
+    transition: none;
+  }
+}
+
 .map-unavailable,
 .notice {
   margin-block-start: 0.75rem;
