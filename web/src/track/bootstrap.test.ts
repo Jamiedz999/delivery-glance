@@ -238,4 +238,18 @@ describe('the /track bootstrap', () => {
     expect(status()).toBe(UNAVAILABLE)
     expect(applicationScript()).toBeNull()
   })
+
+  it('announces a dead end as one, in the same words and the same way the application would', async () => {
+    // The placeholder opens as role="status" because it opens carrying "Opening your tracking
+    // link…", which is progress and should wait its turn. Neither message this can replace it with
+    // is progress: both end the visit. The Recipient application says the identical sentence
+    // through role="alert" when a snapshot read is refused, and one refusal announced two ways
+    // depending on which script happened to be running is a difference nobody could justify.
+    vi.mocked(fetch).mockResolvedValue(problemResponse('tracking-link-unavailable', 404))
+
+    openTrackPageAt(`#t=${TOKEN}`)
+    await settle()
+
+    expect(document.getElementById('tracking-status')).toHaveAttribute('role', 'alert')
+  })
 })

@@ -15,19 +15,20 @@ export interface Account {
 }
 
 /**
- * The seeded defaults, overridable for a deployment whose first Flyway run used different `DEMO_*`
- * values. A journey never invents an account: these two are the whole of the Delivery Team.
+ * What the first Flyway migration seeds, written out rather than read from the environment. A
+ * deployment whose `DEMO_*` values differ is a different demo, and a journey that adapted to
+ * whatever it found would stop being able to say which accounts it proved anything about.
  */
 export const DISPATCHER: Account = {
-  email: process.env.E2E_DISPATCHER_EMAIL ?? 'dispatcher@delivery-glance.example',
-  password: process.env.E2E_DISPATCHER_PASSWORD ?? 'Dispatcher-Demo-2026!',
-  displayName: process.env.E2E_DISPATCHER_DISPLAY_NAME ?? 'Dana the Dispatcher',
+  email: 'dispatcher@delivery-glance.example',
+  password: 'Dispatcher-Demo-2026!',
+  displayName: 'Dana the Dispatcher',
 }
 
 export const COURIER: Account = {
-  email: process.env.E2E_COURIER_EMAIL ?? 'courier@delivery-glance.example',
-  password: process.env.E2E_COURIER_PASSWORD ?? 'Courier-Demo-2026!',
-  displayName: process.env.E2E_COURIER_DISPLAY_NAME ?? 'Cory the Courier',
+  email: 'courier@delivery-glance.example',
+  password: 'Courier-Demo-2026!',
+  displayName: 'Cory the Courier',
 }
 
 export interface Position {

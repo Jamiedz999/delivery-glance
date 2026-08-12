@@ -18,7 +18,7 @@ This is the single implementation source for the Core stack, repository shape an
 | Frontend | Node 24 LTS, React 19.2 current patch, strict TypeScript, Vite 8.1, React Router, TanStack Query |
 | Realtime | Normal HTTP commands/queries plus same-origin `EventSource`; Spring MVC `SseEmitter` emits refresh hints, never authoritative state |
 | Map | Bundled `maplibre-gl`; production style/tile URL is an environment input and carries no Delivery or Tracking token |
-| Verification | JUnit, AssertJ, Testcontainers PostgreSQL, Vitest, Testing Library and Playwright, introduced by the Issue that first needs them |
+| Verification | JUnit, AssertJ, Testcontainers PostgreSQL, Vitest, Testing Library, Playwright and axe-core, introduced by the Issue that first needs them |
 | Packaging | Docker Compose for local PostgreSQL; one multi-stage application image containing the Boot app and compiled React assets |
 | Operations | Actuator health, request correlation and redacted logs; no monitoring platform is required for Core |
 

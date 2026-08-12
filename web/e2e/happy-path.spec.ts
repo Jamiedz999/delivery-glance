@@ -5,9 +5,9 @@ import { COURIER, COURIER_AT_PICKUP, COURIER_EN_ROUTE, DISPATCHER, HANDOFF, refe
 import {
   confirmHandoff,
   confirmPickup,
-  createDelivery,
+  createDeliveryThroughTheForm,
   directAssign,
-  goOnDuty,
+  goOnDutyAndShare,
   returnToWorkspace,
   startSharing,
 } from './support/workspace'
@@ -35,16 +35,14 @@ test('a Delivery is created, assigned, carried and followed to handoff', async (
     await signIn(page, DISPATCHER)
   })
 
-  const deliveryId = await createDelivery(page, deliveryReference)
+  const deliveryId = await createDeliveryThroughTheForm(page, deliveryReference)
 
   const courierPhone = await openCourierPhone(browser, COURIER_AT_PICKUP)
   const recipientPhone = await openRecipientPhone(browser)
 
   try {
     await test.step('the Courier goes on duty and starts sharing', async () => {
-      await signIn(courierPhone.page, COURIER)
-      await goOnDuty(courierPhone.page)
-      await startSharing(courierPhone.page)
+      await goOnDutyAndShare(courierPhone.page, COURIER)
     })
 
     await test.step('the Recipient opens the link before anyone is assigned', async () => {

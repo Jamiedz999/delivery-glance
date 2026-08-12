@@ -76,6 +76,7 @@ in Future Work 18 for exactly this reason.
 | Live/Delayed/Unavailable drift apart between roles | `location/LocationFreshnessTest` and `web/src/freshness.ts` used by both the Courier page and the Recipient page | One set of boundaries on the server, one in the browser, and the browser's is a single module both roles import. |
 | Someone else's page reports a position for a Courier | `courier/CourierApiTest.refusesAReportFromAnEarlierSession`, `refusesAReportThatCannotProveTheSessionSecret`, `refusesAReportForAnUnknownGeneration` | Generation and secret are both required, and a wrong one of either is answered identically. |
 | A reporting secret can be read back | `courier/CourierApiTest.issuesAReportingSecretOnceAndNeverReturnsItAgain` | Issued once; only a verifier is stored. |
+| A Courier is told nothing is being shared while their position is on a Recipient's map | `pages/CourierHomePage.test.tsx` — "reads the new session back before it collects anything" | Starting a session clears the server's position, so the workspace reads itself back; that read must complete **before** the first report, or it lands on top of it and replaces a live position with the emptiness it was sent to observe. Nothing corrects it afterwards, because the next report only happens if the device produces another reading. Fixed by this Issue; the test fails without the fix. |
 
 ### Tracking Link
 
@@ -118,7 +119,9 @@ in Future Work 18 for exactly this reason.
 
 Both run in Chromium against the built Compose image, at the viewports the roles actually use — a
 desktop Dispatcher and two phones — with `workers: 1` and **no retries**, because a suite that
-passes on the second attempt is not evidence.
+passes on the second attempt is not evidence. `workers: 1` is not incidental: the Delivery Team is
+two pre-provisioned accounts and its one Courier may hold one Active Delivery at a time, so parallel
+journeys would race each other rather than the product.
 
 | Journey | File | What it walks through |
 |---|---|---|
@@ -135,15 +138,31 @@ unique for the life of the database.
 finishes whatever Delivery the Courier is still holding and ends duty and sharing. There is no reset
 endpoint and no test-only route.
 
+### States that must not claim success or leak
+
+`web/e2e/honest-states.spec.ts`, plus the component tests named beside each row. These are the
+states nobody demos, and each has the same two ways to be wrong: showing a finished-looking answer
+before there is one, or refusing a question in words that answer it.
+
+| Risk | Proved by | What it actually asserts |
+|---|---|---|
+| A Dispatcher who lost a Direct Assignment is shown the winner's result as if it were theirs | "the Dispatcher who loses a Direct Assignment is told, not congratulated", and `pages/DeliveryDetailPage.test.tsx` — "says so when another Dispatcher won the Delivery…" | Two Dispatcher windows on one Delivery; the loser is told the Delivery changed. The refusal used to be rendered inside the shortlist panel, which the refetch triggered by that same failure unmounted — so the page silently redrew as an assigned Delivery with the winner's Courier where a success would have put one. Fixed by this Issue. |
+| A page still loading looks like an answer | "a page that is still loading does not look like an answer" | The Deliveries read is held open; the page shows its loading status and neither a table nor "No deliveries yet." |
+| A refusal describes what it is refusing | "a Delivery that does not exist is refused without describing anything" | A well-formed identifier for nothing gets the generic sentence, no heading, and no echo of the identifier. |
+| An empty workspace shows somebody else's work | "a Courier with nothing assigned is told so, and shown nobody else's Delivery" | A Delivery exists and belongs to no one; the Courier's page says nothing is assigned and does not name it. |
+| A reconnecting page claims to be current, or throws away what it had | `web/e2e/degradation.spec.ts` | Covered in the journey above. |
+| A refused Tracking Link says which kind of refusal it was | `web/e2e/degradation.spec.ts` and `trackinglink/TrackingLinkApiTest` | One sentence for every cause, announced as an alert by both the bootstrap and the application. |
+| A deployment with no map style shows a blank box where a map was promised | `src/track/TrackingPage.test.tsx` — "says the map is unavailable rather than leaving a blank box when the style fails to load" and the empty-style case beside it | Component tests rather than a journey, because the E2E target is deliberately run *with* a style so marker removal can be observed at all. |
+
 ### Accessibility
 
 `web/e2e/accessibility.spec.ts`, against the same running image.
 
 | Risk | Proved by |
 |---|---|
-| A surface has machine-detectable accessibility violations | axe-core over the Dispatcher list, one Dispatcher Delivery with its recommendation panel, the Courier workspace holding a Delivery and sharing, and the Recipient page In Transit. The suite fails on any **serious or critical** violation, and at the time of writing every surface reports none at any impact level. The rules axe applies to these pages include `color-contrast`, `button-name`, `link-name`, `heading-order`, `region`, `landmark-one-main` and `page-has-heading-one`. |
+| A surface has machine-detectable accessibility violations | axe-core over the Dispatcher list, one Dispatcher Delivery with its recommendation panel, the Courier workspace holding a Delivery and sharing, and the Recipient page In Transit. The suite fails on any **serious or critical** violation, which is what "no violations" means here and is the whole of the claim. The rules axe applies to these pages include `color-contrast`, `button-name`, `link-name`, `heading-order`, `region`, `landmark-one-main` and `page-has-heading-one`. |
 | A keyboard user cannot complete the Dispatcher's core task | A walkthrough that signs in, reaches the form from the list and fills every field in tab order, typing only — asserting at each stop that the focused element is still drawn as focused. If reading order and tab order ever disagree, it puts an address into a latitude field and fails. |
-| Motion is forced on a reader who asked for less | A context with `reducedMotion: 'reduce'` opens the Recipient page, and every element in the rendered document is checked for a non-zero animation or transition. Nothing animates today — the map is framed on its markers at load and deliberately never eased afterwards — so this asserts a property rather than a media query. |
+| Motion is forced on a reader who asked for less | The Recipient's phone in the scan above asks for `reducedMotion: 'reduce'`, and every element in the rendered document is checked for a non-zero animation or transition. It is asserted on the In Transit page specifically, because that is the only state in the product that draws a map. It caught one: MapLibre fades a marker in and out over two hundred milliseconds and its own reduced-motion rule covers only the user-location dot, so the Courier's marker faded away at the moment the page had decided it no longer knew where they were. `web/public/track-app.css` now turns that off under `prefers-reduced-motion`. |
 
 ## What is not tested, and is not claimed
 

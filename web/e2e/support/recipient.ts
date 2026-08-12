@@ -23,6 +23,15 @@ export const mapShowingCourier = (page: Page): Locator =>
 export const mapWithoutCourier = (page: Page): Locator =>
   page.getByRole('img', { name: 'Map of the handoff address', exact: true })
 
+/*
+ * The two sentences below are found by class rather than by role, which is the exception in this
+ * file and is deliberate. Both are ordinary prose paragraphs with no accessible name, and both are
+ * deliberately not live regions — the freshness sentence ticks every second, and a phone moving
+ * between cells can flap the connection sentence several times a minute, so announcing either would
+ * talk over the page for as long as it is open. There is nothing to address them by except where
+ * they are, and a test id would be a third name for the same thing.
+ */
+
 /** The sentence that qualifies the map, and the whole of what the page claims about the reading. */
 export const freshnessSentence = (page: Page): Locator => page.locator('p.freshness')
 

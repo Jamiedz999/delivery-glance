@@ -24,7 +24,7 @@ const STYLE = {
 }
 
 /** Where the journeys expect the style to be, and what Compose must be told to load. */
-export const MAP_STYLE_URL = process.env.E2E_MAP_STYLE_URL ?? 'http://127.0.0.1:9099/style.json'
+export const MAP_STYLE_URL = 'http://127.0.0.1:9099/style.json'
 
 export function startStyleServer(styleUrl: string): Promise<Server> {
   const url = new URL(styleUrl)

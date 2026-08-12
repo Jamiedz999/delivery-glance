@@ -19,7 +19,7 @@ const REPOSITORY_ROOT = resolve(import.meta.dirname, '../../..')
  * product working, not the test cheating around it.
  */
 export async function restartApplication(baseURL: string): Promise<void> {
-  await run(process.env.E2E_DOCKER ?? 'docker', ['compose', 'restart', 'app'], { cwd: REPOSITORY_ROOT })
+  await run('docker', ['compose', 'restart', 'app'], { cwd: REPOSITORY_ROOT })
   await waitUntilHealthy(baseURL)
 }
 

@@ -1,6 +1,6 @@
 import { assignNearestCourier, copyTrackingLink, createDelivery, expect, test } from './support/journey'
 import { restartApplication } from './support/application'
-import { openCourierPhone, openRecipientPhone, signIn } from './support/devices'
+import { openCourierPhone, openRecipientPhone } from './support/devices'
 import {
   connectionSentence,
   courierMarker,
@@ -9,7 +9,13 @@ import {
   mapWithoutCourier,
 } from './support/recipient'
 import { COURIER, COURIER_AT_PICKUP, HANDOFF, reference } from './support/team'
-import { confirmPickup, goOnDuty, returnToWorkspace, startSharing, stopSharing } from './support/workspace'
+import {
+  confirmPickup,
+  goOnDutyAndShare,
+  returnToWorkspace,
+  startSharing,
+  stopSharing,
+} from './support/workspace'
 
 /**
  * Everything that goes wrong, and what the Recipient is told while it does.
@@ -37,9 +43,7 @@ test('the Recipient page stays honest as sharing stops, the stream drops and the
     const delivery = await createDelivery(dispatcher, deliveryReference)
 
     await test.step('a Delivery is in transit with a live position', async () => {
-      await signIn(courierPhone.page, COURIER)
-      await goOnDuty(courierPhone.page)
-      await startSharing(courierPhone.page)
+      await goOnDutyAndShare(courierPhone.page, COURIER)
       await assignNearestCourier(dispatcher, delivery)
       await returnToWorkspace(courierPhone.page)
       await startSharing(courierPhone.page)
@@ -149,11 +153,11 @@ test('the Recipient page stays honest as sharing stops, the stream drops and the
         const link = await copyTrackingLink(dispatcher, delivery.id)
         await stranger.page.goto(tamperWith(link.url))
 
-        await expect(
-          stranger.page.getByText(
-            'This tracking link is no longer available. Contact the delivery team that shared it.',
-          ),
-        ).toBeVisible()
+        // By role as well as by wording: the bootstrap and the Recipient application both end a
+        // refused visit with this sentence, and both announce it the same way.
+        await expect(stranger.page.getByRole('alert')).toHaveText(
+          'This tracking link is no longer available. Contact the delivery team that shared it.',
+        )
         expect(requested).not.toContain('/track-app.js')
         expect(requested).not.toContain('/api/tracking/snapshot')
         // Unknown, malformed and expired all arrive as that one sentence, which is what stops the
