@@ -35,11 +35,11 @@ class RecipientViewChanges implements RecipientViewUpdates {
 
 	private final RecipientStreams streams;
 
-	private final CarriedDeliveries assignments;
+	private final CarriedDeliveries carriedDeliveries;
 
-	RecipientViewChanges(RecipientStreams streams, CarriedDeliveries assignments) {
+	RecipientViewChanges(RecipientStreams streams, CarriedDeliveries carriedDeliveries) {
 		this.streams = streams;
-		this.assignments = assignments;
+		this.carriedDeliveries = carriedDeliveries;
 	}
 
 	@Override
@@ -49,7 +49,7 @@ class RecipientViewChanges implements RecipientViewUpdates {
 
 	@Override
 	public void courierPositionChanged(UUID courierAccountId) {
-		afterCommit(() -> this.assignments.carriedBy(courierAccountId)
+		afterCommit(() -> this.carriedDeliveries.carriedBy(courierAccountId)
 			.filter((carried) -> carried.state() == DeliveryState.IN_TRANSIT)
 			.ifPresent((carried) -> this.streams.hintChanged(carried.deliveryId())));
 	}

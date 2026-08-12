@@ -5,6 +5,8 @@ import java.util.UUID;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import com.deliveryglance.shared.Secrets;
+
 import org.springframework.stereotype.Component;
 
 /**
@@ -41,7 +43,7 @@ class TrackingAccess implements LinkHolderAuthorization {
 		// The verifier, not the secret. It is what the grant table already stores and what the
 		// recheck below looks up by, so a connection that lives for minutes holds a value that
 		// could not be presented as a cookie even if it escaped.
-		String verifier = TrackingLinks.verifierOf(secret);
+		String verifier = Secrets.verifierOf(secret);
 		try {
 			return new StoredGrantHeld(verifier, this.links.authorizedDeliveryForVerifier(verifier));
 		}

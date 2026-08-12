@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type FreshnessDescription, describeFreshness } from '../freshness'
 import { DeliveryMap } from './DeliveryMap'
 import {
-  CONNECTION_COPY,
+  TRACKING_CONNECTION_COPY,
   NO_POSITION,
   STATE_COPY,
   UNAVAILABLE_LINK,
@@ -12,7 +12,7 @@ import {
 } from './copy'
 import type { MapEngine, MapMarker } from './mapEngine'
 import { type TrackingMap, type TrackingResult, type TrackingSnapshot, fetchSnapshot } from './tracking'
-import { type Connection, type OpenUpdates, openUpdates, useSnapshotUpdates } from './updates'
+import { type OpenUpdates, type TrackingConnection, openUpdates, useSnapshotUpdates } from './updates'
 
 /** Everything about the map that comes from deployment rather than from the Delivery. */
 export interface MapConfiguration {
@@ -110,7 +110,11 @@ function Delivery({
   snapshot,
   map,
   connection,
-}: { snapshot: TrackingSnapshot; connection: Connection } & TrackingPageProps) {
+}: {
+  snapshot: TrackingSnapshot
+  map: MapConfiguration
+  connection: TrackingConnection
+}) {
   const copy = STATE_COPY[snapshot.state]
 
   return (
@@ -161,7 +165,7 @@ function Delivery({
         minute, and announcing each one would talk over everything else on the page. It is on screen
         for a reader who wonders why nothing is changing, and silent for one who does not.
       */}
-      <p className="connection">{CONNECTION_COPY[connection]}</p>
+      <p className="connection">{TRACKING_CONNECTION_COPY[connection]}</p>
     </section>
   )
 }

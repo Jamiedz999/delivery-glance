@@ -1,4 +1,4 @@
-import type { Connection } from './updates'
+import type { TrackingConnection } from './updates'
 import type { RecipientState } from './tracking'
 
 /**
@@ -37,15 +37,16 @@ export const STATE_COPY: Record<RecipientState, StateCopy> = {
 }
 
 /**
- * Whether this page is still hearing about changes — which is a different question from how old the
- * courier's position is, and is said in different words for that reason. A reader who cannot tell
- * them apart will read a stale marker as a lost connection, or worse, read a live connection as a
- * promise that the marker is current.
+ * CONTEXT's **Tracking Connection**: whether this page is still hearing about changes.
+ *
+ * It is a different question from how old the courier's position is, and is said in different words
+ * for that reason. A reader who cannot tell the two apart will read a stale marker as a lost
+ * connection, or worse, read a live connection as a promise that the marker is current.
  *
  * None of these name a cause. A Recipient can do nothing about any of them except reload, so the
  * only line that asks for anything is the one where reloading is the answer.
  */
-export const CONNECTION_COPY: Record<Connection, string> = {
+export const TRACKING_CONNECTION_COPY: Record<TrackingConnection, string> = {
   connecting: 'Connecting for updates…',
   live: 'Updating automatically',
   reconnecting: 'Reconnecting for updates…',
