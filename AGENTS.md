@@ -41,7 +41,9 @@ Each ADR is a Question/Answer record and keeps a `Portfolio Core scope update` c
 
 ### Commit and PR conventions
 
-Do not add the "🤖 Generated with [Claude Code]" line to commit messages or PR bodies. A plain `Co-Authored-By: Claude ...` trailer is fine if used elsewhere, but skip the emoji/link footer.
+Do not put AI attribution in a commit message or a PR body. This bans two things: the `Co-Authored-By: Claude ...` trailer, and the "🤖 Generated with [Claude Code]" footer. A commit records one author, and that author is the repository owner.
+
+The trailer is not cheap to remove later. It is public text on every commit page, and GitHub keeps a copy on `refs/pull/*` that a force-push cannot reach. Keep it out in the first place.
 
 ### Output Files
 Keep project-related files, including code, ADRs, and planning docs, in the project directory. Put any extra generated artifacts for demonstration or explanation (e.g. test scripts, HTML demos) in `../document/`, never `/tmp`.
