@@ -218,11 +218,11 @@ would make this application harder to run and no better.
 
 | Not in Core | What it would do here | What has to be true first | Where it is designed |
 |---|---|---|---|
-| **Redis** | share Current Location and SSE fan-out across instances | more than one application instance, which means a measured reason to run more than one | [Future Work 18](planning/future-work/18-run-measured-scale-and-resilience-experiment.md) |
-| **Kafka** | durable domain-event log with replay | a second consumer of non-location events that actually benefits from replay, plus an outbox. Raw Courier coordinates never belong in it | [Future Work 19](planning/future-work/19-evaluate-durable-domain-event-backbone.md) |
-| **PostGIS** | spatial indexing and Service Zone polygons | evidence that in-memory Haversine over a handful of on-duty Couriers is a bottleneck, or a product need for zone polygons | [Future Work 16](planning/future-work/16-add-service-zones-and-explainable-overrides.md), [18](planning/future-work/18-run-measured-scale-and-resilience-experiment.md) |
-| **WebFlux** | non-blocking IO for many idle connections | a measured connection count that Servlet threads cannot hold. Spring MVC's `SseEmitter` is already asynchronous | [Future Work 18](planning/future-work/18-run-measured-scale-and-resilience-experiment.md) |
-| **Full Matching Round** | sixty-second rounds, invitations, Interest, Decline, Timeout, cooldown, ranking at close | a Courier population where offering work beats assigning it. With one Courier it is timers with nobody to wait for | [Future Work 17](planning/future-work/17-add-ranked-multi-courier-matching-round.md) |
+| **Redis** | share Current Location and SSE fan-out across instances | more than one application instance, which means a measured reason to run more than one | #32 |
+| **Kafka** | durable domain-event log with replay | a second consumer of non-location events that actually benefits from replay, plus an outbox. Raw Courier coordinates never belong in it | #33 |
+| **PostGIS** | spatial indexing and Service Zone polygons | evidence that in-memory Haversine over a handful of on-duty Couriers is a bottleneck, or a product need for zone polygons | #30, #32 |
+| **WebFlux** | non-blocking IO for many idle connections | a measured connection count that Servlet threads cannot hold. Spring MVC's `SseEmitter` is already asynchronous | #32 |
+| **Full Matching Round** | sixty-second rounds, invitations, Interest, Decline, Timeout, cooldown, ranking at close | a Courier population where offering work beats assigning it. With one Courier it is timers with nobody to wait for | #31 |
 
 Core keeps the part of the matching story that is actually hard — the race, and the database that
 settles it — and leaves the part that is mostly timers.
@@ -244,9 +244,9 @@ These are real, they are not defects of the implementation, and they are listed 
 discovered:
 
 - **One instance.** Current Location and SSE subscribers are per-process. Running two would need
-  Future Work 18 first.
+  #32 first.
 - **No Reassignment, Courier Withdrawal, Dispatcher Revocation or Undeliverable outcome.** A Delivery
-  in trouble after pickup has no modelled way out. Future Work 15.
+  in trouble after pickup has no modelled way out. #29.
 - **Recipient-facing times render in the reader's own time zone**, not the Handoff Address's, which is
   what `CONTEXT.md` specifies. Closing it needs a coordinate-to-time-zone dataset; recorded in
   [`INCIDENTAL-FINDINGS.md`](planning/implementation/INCIDENTAL-FINDINGS.md).

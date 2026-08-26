@@ -10,7 +10,7 @@ How should Courier eligibility, ranking, Dispatcher confirmation, Courier acknow
 
 ## Answer
 
-> **Portfolio Core scope update:** [Ticket 12](../planning/12-rescope-to-resume-ready-core.md) uses atomic Direct Assignment from the nearest-three recommendation. Service Zones/overrides and the full consent-based Matching Round remain preserved here for [Future Work 16](../planning/future-work/16-add-service-zones-and-explainable-overrides.md) and [Future Work 17](../planning/future-work/17-add-ranked-multi-courier-matching-round.md).
+> **Portfolio Core scope update:** [Ticket 12](12-rescope-to-resume-ready-core.md) uses atomic Direct Assignment from the nearest-three recommendation. Service Zones/overrides and the full consent-based Matching Round remain preserved here for #30 and #31.
 
 ### Eligibility
 

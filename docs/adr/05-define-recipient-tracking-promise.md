@@ -10,7 +10,7 @@ Exactly what status, current-location freshness, ETA, next-step, and completion 
 
 ## Answer
 
-> **Portfolio Core scope update:** [Ticket 12](../planning/12-rescope-to-resume-ready-core.md) retains state, Current Location, freshness and terminal privacy, but defers ETA/Running Late to [Future Work 13](../planning/future-work/13-add-travel-time-eta.md) and the detailed Recipient Timeline to Later Backlog.
+> **Portfolio Core scope update:** [Ticket 12](12-rescope-to-resume-ready-core.md) retains state, Current Location, freshness and terminal privacy, but defers ETA/Running Late to #27 and the detailed Recipient Timeline to Later Backlog.
 
 ### Public information by Delivery state
 

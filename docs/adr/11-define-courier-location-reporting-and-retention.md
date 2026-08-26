@@ -10,7 +10,7 @@ When does a Courier explicitly start and stop Location Sharing; how do On Duty, 
 
 ## Answer
 
-> **Portfolio Core scope update:** [Ticket 12](../planning/12-rescope-to-resume-ready-core.md) keeps explicit foreground sharing, newest-only memory, freshness and deletion. The complete interruption vocabulary and thirty-day sharing audit remain preserved here as Later Backlog detail.
+> **Portfolio Core scope update:** [Ticket 12](12-rescope-to-resume-ready-core.md) keeps explicit foreground sharing, newest-only memory, freshness and deletion. The complete interruption vocabulary and thirty-day sharing audit remain preserved here as Later Backlog detail.
 
 ### Product boundary
 

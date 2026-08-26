@@ -9,7 +9,7 @@ Produce a build-ready, collision-checked recipient-first delivery tracker and a 
 ## Notes
 
 - Domain language lives in [CONTEXT.md](../../CONTEXT.md); every session should use the `grilling` and `domain-modeling` skills for human decisions.
-- This map is the authoritative scope index across `docs/adr/` and `docs/planning/future-work/`. Product decisions are resolved; the implementation queue lives entirely in GitHub Issues.
+- This map is the authoritative scope index across `docs/adr/` and the [Later Backlog milestone](https://github.com/Jamiedz999/delivery-glance/milestone/5). Product decisions are resolved; the implementation queue lives entirely in GitHub Issues.
 - Readiness lives on GitHub, not here. This map records dependency order; the `ready`/`blocked` labels and open/closed state on the Issues are what say where execution actually is.
 - The user has delegated all remaining ticket decisions to the agent's recommended option; proceed without asking choice questions unless completion requires genuinely new authority or unavailable input.
 - Core answers a Recipient's questions: what stage is my Delivery in, where is it, and what happens next? “When should it arrive?” returns only with Future Work 13.
@@ -23,18 +23,15 @@ Produce a build-ready, collision-checked recipient-first delivery tracker and a 
 
 These are resolved records in [`docs/adr/`](../adr/), plus the research and prototype work that fed them. None of them is a ticket; do not open them as GitHub Issues.
 
-- [Research clear, unclaimed project names](research/01-research-clear-unclaimed-project-names.md) — Six candidates passed a bounded collision screen; Delivery Glance, Delivery Ahead, and Delivery Peek are the strongest human-decision set.
 - [Choose the public project name](../adr/02-choose-public-project-name.md) — Delivery Glance is the shared name, paired with “Real-time delivery tracking for the last mile.”
 - [Define the Delivery lifecycle](../adr/03-define-delivery-lifecycle.md) — Preserves the full six-state design; Core implements only Awaiting Courier, Assigned, In Transit, Delivered, and pre-pickup Cancelled.
 - [Define Courier recommendation and assignment](../adr/04-define-courier-recommendation-and-assignment.md) — Preserves the complete consent-based matching design; Core keeps nearest-three eligibility and atomic Direct Assignment, while Matching Round behaviour is Future Work 17.
 - [Define the Recipient tracking promise](../adr/05-define-recipient-tracking-promise.md) — Preserves the full public promise; Core keeps state, next step, current-location privacy and freshness, while ETA and detailed timeline behaviour are deferred.
 - [Define the Tracking Link lifecycle](../adr/06-define-tracking-link-lifecycle.md) — Preserves the complete link lifecycle; Core implements secure creation, repeatable Copy and automatic Expiry, while recovery controls are Future Work 14.
 - [Set the original Core and expansion-stage boundaries](../adr/07-set-core-and-expansion-boundaries.md) — Preserved as the complete-product baseline; its six-week bundle is superseded for implementation sequencing by the resume-ready rescope.
-- [Prototype the Recipient tracking experience](prototypes/08-prototype-recipient-tracking-experience.md) — Preserves the complete-product Status Story visual; Core uses its state/next-step/map/freshness hierarchy without ETA, Running Late, or a detailed timeline.
-- [Prototype the Dispatcher and Courier workflows](prototypes/09-prototype-dispatcher-and-courier-workflows.md) — Preserves the complete-product workspace visual; Core uses the focused desktop/mobile surfaces with Direct Assignment and without matching or exception branches.
 - [Choose the Core technical architecture](../adr/10-choose-core-technical-architecture.md) — Locks the same-origin Java/Spring/PostgreSQL/React modular monolith; Ticket 12 retains the simple foundation, latest-only location and Recipient SSE while deferring provider and scale substitutions.
 - [Define Courier location reporting and retention](../adr/11-define-courier-location-reporting-and-retention.md) — Courier-authorized foreground sessions report about every ten seconds, preserve only one ephemeral usable position, degrade honestly through interruption, and never create durable raw Route History.
-- [Rescope Delivery Glance to a resume-ready Core](12-rescope-to-resume-ready-core.md) — Four independently deployable Sprints retain atomic Direct Assignment, latest-only location, secure Tracking Links and Recipient SSE, deliver MVP in Sprint 3 and Core in Sprint 4, and move the rest into explicit Future Work.
+- [Rescope Delivery Glance to a resume-ready Core](../adr/12-rescope-to-resume-ready-core.md) — Four independently deployable Sprints retain atomic Direct Assignment, latest-only location, secure Tracking Links and Recipient SSE, deliver MVP in Sprint 3 and Core in Sprint 4, and move the rest into explicit Future Work.
 
 ## Core implementation queue
 
@@ -53,15 +50,15 @@ The queue lives entirely in [GitHub Issues](https://github.com/Jamiedz999/delive
 - *after #11* — [#12 · Package the portfolio release](https://github.com/Jamiedz999/delivery-glance/issues/12) — make the Sprint 4 Core reproducible and resume-ready.
 ## Future work
 
-In [`docs/planning/future-work/`](future-work/). These are intentionally not Core commitments. They preserve the fuller product reasoning so it is not lost, and they may migrate into a GitHub backlog after Core Acceptance — not before. Opening them now would leave the repository showing a row of tickets nobody intends to work on.
+These are intentionally not Core commitments. They live in [GitHub Issues](https://github.com/Jamiedz999/delivery-glance/milestone/5) under the Later Backlog milestone.
 
-- [Add external travel-time ETA](future-work/13-add-travel-time-eta.md) — restore rounded ETA Windows, stale fallback and late handling behind a provider contract.
-- [Add Tracking Link recovery and audit controls](future-work/14-add-tracking-link-recovery.md) — add Rotation, Revocation, Reissue, immediate invalidation and reasoned history.
-- [Add Delivery exceptions and pre-pickup Reassignment](future-work/15-add-delivery-exceptions-and-reassignment.md) — add Withdrawal, Revocation and Undeliverable without post-pickup transfer.
-- [Add Service Zones and explainable recommendation overrides](future-work/16-add-service-zones-and-explainable-overrides.md) — add polygon eligibility and reasoned shortlist changes.
-- [Add the ranked multi-Courier Matching Round](future-work/17-add-ranked-multi-courier-matching-round.md) — replace Direct Assignment with the designed consent-based top-three, sixty-second selection flow.
-- [Run a measured scale and resilience experiment](future-work/18-run-measured-scale-and-resilience-experiment.md) — profile the simple Core before considering Redis, PostGIS, WebFlux or tracing infrastructure.
-- [Evaluate a durable domain-event backbone only when a consumer exists](future-work/19-evaluate-durable-domain-event-backbone.md) — keep Kafka unscheduled until a real non-coordinate replay consumer and outbox design exist.
+- #27 — Add external travel-time ETA: restore rounded ETA Windows, stale fallback and late handling behind a provider contract.
+- #28 — Add Tracking Link recovery and audit controls: add Rotation, Revocation, Reissue, immediate invalidation and reasoned history.
+- #29 — Add Delivery exceptions and pre-pickup Reassignment: add Withdrawal, Revocation and Undeliverable without post-pickup transfer.
+- #30 — Add Service Zones and explainable recommendation overrides: add polygon eligibility and reasoned shortlist changes.
+- #31 — Add the ranked multi-Courier Matching Round: replace Direct Assignment with the designed consent-based top-three, sixty-second selection flow.
+- #32 — Run a measured scale and resilience experiment: profile the simple Core before considering Redis, PostGIS, WebFlux or tracing infrastructure.
+- #33 — Evaluate a durable domain-event backbone only when a consumer exists: keep Kafka unscheduled until a real non-coordinate replay consumer and outbox design exist.
 
 ## Not yet specified
 

@@ -151,9 +151,9 @@ the run. **Result at the current revision: all checks pass.**
 
 The address and coordinate halves read the working tree only, and that limit is deliberate rather
 than an oversight: git history cannot be rewritten without invalidating every merged pull request.
-It matters here, because this is a limit with a known instance — the UI prototypes under
-`docs/planning/prototypes/` carried real street addresses and coordinates as sample data until they
-were replaced, and those earlier revisions are still in any clone. Nothing about them was ever
+It matters here, because this is a limit with a known instance — the UI prototypes (since removed)
+carried real street addresses and coordinates as sample data until they were replaced, and those
+earlier revisions are still in any clone. Nothing about them was ever
 anybody's delivery, and no credential was involved; saying so is better than a scan that quietly
 implies otherwise.
 
@@ -233,10 +233,10 @@ sets out each trigger.
 Real, and listed rather than discovered:
 
 - **One instance.** Current Location and SSE subscribers are per-process. Two would need
-  [Future Work 18](docs/planning/future-work/18-run-measured-scale-and-resilience-experiment.md).
+  [#32](https://github.com/Jamiedz999/delivery-glance/issues/32).
 - **No Reassignment, Courier Withdrawal, Dispatcher Revocation or Undeliverable outcome.** A Delivery
   in trouble after pickup has no modelled way out.
-  [Future Work 15](docs/planning/future-work/15-add-delivery-exceptions-and-reassignment.md).
+  [#29](https://github.com/Jamiedz999/delivery-glance/issues/29).
 - **The Dispatcher has no button to copy a Tracking Link.** The endpoint exists and is tested; the
   control does not.
 - **A Courier watching their own workspace is not told they have been assigned** until they reload.
@@ -271,10 +271,10 @@ along it is.
 | [`docs/testing.md`](docs/testing.md) | the risk matrix: every claim, its command, and what it does not claim |
 | [`docs/deployment.md`](docs/deployment.md) · [`docs/demo-script.md`](docs/demo-script.md) | running it somewhere, and showing it to somebody |
 | [`docs/adr/`](docs/adr) | resolved product and architecture decisions, each with a callout naming what Core actually implements |
-| [`docs/planning/`](docs/planning) | the Sprint roadmap, research, prototypes and [Future Work 13–19](docs/planning/map.md#future-work) |
+| [`docs/planning/`](docs/planning) | the Sprint roadmap and implementation guides; [Later Backlog](https://github.com/Jamiedz999/delivery-glance/milestone/5) lives in GitHub Issues |
 | [GitHub Issues](https://github.com/Jamiedz999/delivery-glance/issues) | the implementation queue. Each Issue is its own full specification; nothing here duplicates one |
 
 Four one-week Sprints, about 38–46 focused hours: a walking skeleton, a dispatchable Delivery, the
 Recipient MVP, and then the evidence and presentation that make it a finished thing rather than a
-work in progress. [`docs/planning/12-rescope-to-resume-ready-core.md`](docs/planning/12-rescope-to-resume-ready-core.md)
+work in progress. [`docs/adr/12-rescope-to-resume-ready-core.md`](docs/adr/12-rescope-to-resume-ready-core.md)
 is where that was decided, and why.

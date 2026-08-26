@@ -2,7 +2,7 @@
 
 Delivery Glance is a recipient-first product for following an active last-mile delivery. Dispatch and courier operations support that recipient experience but do not define the product's primary identity.
 
-This glossary names both the implemented Core language and intentionally preserved Later Backlog language. Defining a term here does not put it into Core; [Ticket 12](docs/planning/12-rescope-to-resume-ready-core.md) is the current scope boundary.
+This glossary names both the implemented Core language and intentionally preserved Later Backlog language. Defining a term here does not put it into Core; [Ticket 12](docs/adr/12-rescope-to-resume-ready-core.md) is the current scope boundary.
 
 ## Language
 

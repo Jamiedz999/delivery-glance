@@ -6,7 +6,7 @@ Execution state for this repo lives in GitHub issues. Use the `gh` CLI for all o
 
 - **GitHub Issues** — the nine implementation specs. The queue is fixed and takes no additions.
 - **`docs/adr/`** — resolved product and architecture decisions. Read these; never open them as issues.
-- **`docs/planning/future-work/`** — designed-but-deferred increments. Not commitments, not issues.
+- **Later Backlog Issues** (#27–#33) — designed-but-deferred increments, under the `Later Backlog` milestone.
 - **`docs/planning/map.md`** — the scope and readiness index over all of the above.
 
 See `docs/planning/implementation/ISSUE-WORKFLOW.md` for the handoff pattern and the Definition of Ready.

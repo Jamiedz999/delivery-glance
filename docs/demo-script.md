@@ -190,7 +190,7 @@ curl -s -X POST https://<host>/api/tracking-session \
 
 ## What to say at the end
 
-The [resume checkpoint](planning/12-rescope-to-resume-ready-core.md#resume-checkpoint) sentence, and
+The [resume checkpoint](adr/12-rescope-to-resume-ready-core.md#resume-checkpoint) sentence, and
 then the limits: one instance, no ETA, no Reassignment or Undeliverable outcome, and no latency or
 throughput number anywhere because nothing in the repository measures one.
 [`docs/architecture.md`](architecture.md#known-limits) lists them; the demo is stronger for naming

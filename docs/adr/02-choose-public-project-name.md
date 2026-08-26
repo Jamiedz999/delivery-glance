@@ -10,7 +10,7 @@ Which candidate should become the shared product, repository, and portfolio name
 
 ## Comments
 
-- A same-day focused check found no complete end-to-end twin, but did find exact-name repositories that closely overlap either the Spring-based live-courier-location function or the Spring Boot + React/Vite full-stack skeleton. See [“Delivery Tracker” focused name check](../planning/research/delivery-tracker-name-check.md).
+- A same-day focused check found no complete end-to-end twin, but did find exact-name repositories that closely overlap either the Spring-based live-courier-location function or the Spring Boot + React/Vite full-stack skeleton.
 
 ## Answer
 

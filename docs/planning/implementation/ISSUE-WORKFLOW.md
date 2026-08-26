@@ -12,8 +12,7 @@ The planning tree holds four kinds of file, and only one of them is a queue:
 | --- | --- | --- |
 | GitHub Issues | the bounded implementation queue — outcome, scope, acceptance, non-goals | it already is one |
 | `docs/adr/` | resolved product and architecture decisions | never |
-| `docs/planning/research/`, `prototypes/` | evidence and visuals behind those decisions | never |
-| `docs/planning/future-work/` | designed but deliberately deferred increments | never, until after Core Acceptance |
+| [Later Backlog milestone](https://github.com/Jamiedz999/delivery-glance/milestone/5) | designed but deliberately deferred increments (#27–#33) | they already are Issues |
 
 Opening any of the other rows as an Issue turns a finished record into a permanently open ticket, which is noise for anyone reading the repository.
 
