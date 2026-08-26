@@ -54,6 +54,13 @@ describe('CreateDeliveryPage', () => {
     })
   })
 
+  it('marks the pickup address as internal', () => {
+    renderWithProviders(<CreateDeliveryPage />)
+
+    const pickup = screen.getByRole('group', { name: /Pickup address/ })
+    expect(pickup).toHaveTextContent('internal')
+  })
+
   it('shows the server validation message next to the field it belongs to', async () => {
     respondWith(() =>
       problemResponse('invalid-request', 400, {

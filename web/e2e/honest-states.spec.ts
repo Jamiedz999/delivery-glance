@@ -28,13 +28,13 @@ test('a page that is still loading does not look like an answer', async ({ page 
   await page.goto('/deliveries')
 
   await expect(page.getByText('Loading deliveries…')).toBeVisible()
-  // Not an empty list, and not a table with no rows: either would be a page saying "there are no
-  // Deliveries" about a question nobody has answered yet.
-  await expect(page.getByRole('table')).toBeHidden()
+  // Not the empty-state copy, and not the rendered list of rows: either would be a page saying
+  // "there are no Deliveries" about a question nobody has answered yet.
+  await expect(page.getByRole('list')).toBeHidden()
   await expect(page.getByText('No deliveries yet.')).toBeHidden()
 
   release!()
-  await expect(page.getByRole('table')).toBeVisible()
+  await expect(page.getByRole('list')).toBeVisible()
 })
 
 test('a Delivery that does not exist is refused without describing anything', async ({ page }) => {
