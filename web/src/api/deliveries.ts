@@ -115,6 +115,15 @@ export const DELIVERY_STATE_LABELS: Record<DeliveryState, string> = {
   CANCELLED: 'Cancelled',
 }
 
+/** The `.status-chip` modifier class each lifecycle state renders with. */
+export const DELIVERY_STATE_CHIP_CLASS: Record<DeliveryState, string> = {
+  AWAITING_COURIER: 'is-awaiting',
+  ASSIGNED: 'is-assigned',
+  IN_TRANSIT: 'is-transit',
+  DELIVERED: 'is-delivered',
+  CANCELLED: 'is-cancelled',
+}
+
 export function fetchDeliveries(): Promise<DeliverySummary[]> {
   return apiRequest<DeliverySummary[]>('/api/deliveries')
 }

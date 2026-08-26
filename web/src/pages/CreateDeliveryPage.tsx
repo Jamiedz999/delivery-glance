@@ -56,6 +56,7 @@ export function CreateDeliveryPage() {
 
         <AddressFieldset
           legend="Pickup address"
+          tag="internal"
           name="pickup"
           value={pickup}
           onChange={setPickup}
@@ -69,7 +70,12 @@ export function CreateDeliveryPage() {
           errors={fieldErrors}
         />
 
-        <button type="submit" disabled={create.isPending} aria-busy={create.isPending}>
+        <button
+          type="submit"
+          className="btn-primary"
+          disabled={create.isPending}
+          aria-busy={create.isPending}
+        >
           {create.isPending ? 'Creating…' : 'Create delivery'}
         </button>
       </form>
@@ -79,16 +85,20 @@ export function CreateDeliveryPage() {
 
 interface AddressFieldsetProps {
   legend: string
+  tag?: string
   name: 'pickup' | 'handoff'
   value: AddressFields
   onChange: (value: AddressFields) => void
   errors: Record<string, string>
 }
 
-function AddressFieldset({ legend, name, value, onChange, errors }: AddressFieldsetProps) {
+function AddressFieldset({ legend, tag, name, value, onChange, errors }: AddressFieldsetProps) {
   return (
     <fieldset>
-      <legend>{legend}</legend>
+      <legend>
+        {legend}
+        {tag !== undefined && <span className="tag">{tag}</span>}
+      </legend>
 
       <Field id={`${name}-label`} label="Address" error={errors[`${name}.addressLabel`]}>
         <input

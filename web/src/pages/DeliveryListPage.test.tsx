@@ -47,8 +47,8 @@ describe('DeliveryListPage', () => {
 
     const link = await screen.findByRole('link', { name: 'DG-1001' })
     expect(link).toHaveAttribute('href', `/deliveries/${summary.id}`)
-    expect(screen.getByRole('cell', { name: 'Awaiting courier' })).toBeInTheDocument()
-    expect(screen.getByRole('cell', { name: 'Flat 2, 14 Notional Row' })).toBeInTheDocument()
+    expect(screen.getByText('Awaiting courier')).toBeInTheDocument()
+    expect(screen.getByText('Flat 2, 14 Notional Row')).toBeInTheDocument()
   })
 
   it('reports a failed load', async () => {

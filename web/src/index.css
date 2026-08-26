@@ -411,6 +411,77 @@ fieldset {
   color: var(--text-muted);
 }
 
+/* -------------------------------------------- dispatcher: delivery list */
+
+.delivery-list {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.delivery-row {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.delivery-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.delivery-row-ref {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+
+.delivery-row-ref a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.delivery-row-ref a:hover {
+  text-decoration: underline;
+}
+
+.delivery-row-handoff {
+  margin: 0;
+  color: var(--text);
+}
+
+.delivery-row-meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.empty-state {
+  margin-block-start: var(--space-4);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+/* A small tag beside a field group's legend (e.g. pickup stays internal). */
+.tag {
+  margin-inline-start: var(--space-2);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--gray-bg);
+  color: var(--gray);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
 /* --------------------------------------------------------- legacy page bits */
 
 .page-heading {
