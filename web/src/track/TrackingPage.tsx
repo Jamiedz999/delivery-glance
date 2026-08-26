@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { type FreshnessDescription, describeFreshness } from '../freshness'
+import { type FreshnessDescription, type FreshnessLabel, describeFreshness } from '../freshness'
 import { DeliveryMap } from './DeliveryMap'
 import {
   TRACKING_CONNECTION_COPY,
@@ -11,7 +11,13 @@ import {
   formatTime,
 } from './copy'
 import type { MapEngine, MapMarker } from './mapEngine'
-import { type TrackingMap, type TrackingResult, type TrackingSnapshot, fetchSnapshot } from './tracking'
+import {
+  type RecipientState,
+  type TrackingMap,
+  type TrackingResult,
+  type TrackingSnapshot,
+  fetchSnapshot,
+} from './tracking'
 import { type OpenUpdates, type TrackingConnection, openUpdates, useSnapshotUpdates } from './updates'
 
 /** Everything about the map that comes from deployment rather than from the Delivery. */
@@ -88,14 +94,14 @@ export function TrackingPage({ map, updates = openUpdates }: TrackingPageProps) 
     // No retry offered. The server's refusal is final by design, and a button that re-asked would
     // suggest the link might come back.
     return (
-      <p className="notice" role="alert">
+      <p className="notice notice-alert" role="alert">
         {UNAVAILABLE_LINK}
       </p>
     )
   }
   if (result.status === 'unreachable') {
     return (
-      <div className="notice">
+      <div className="notice notice-alert">
         <p role="alert">{UNREACHABLE}</p>
         <button type="button" onClick={retry}>
           Try again
@@ -104,6 +110,23 @@ export function TrackingPage({ map, updates = openUpdates }: TrackingPageProps) 
     )
   }
   return <Delivery snapshot={result.snapshot} map={map} connection={connection} />
+}
+
+/** The ordered lifecycle a Recipient is shown, and the single word each milestone is named by. */
+const PROGRESS_STEPS: readonly { state: RecipientState; label: string }[] = [
+  { state: 'AWAITING_COURIER', label: 'Preparing' },
+  { state: 'ASSIGNED', label: 'Courier assigned' },
+  { state: 'IN_TRANSIT', label: 'On the way' },
+  { state: 'DELIVERED', label: 'Delivered' },
+]
+
+/**
+ * The states that are still moving, and the only ones that show a progress track. A terminal
+ * Delivery is reduced to its outcome instead: a finished track is a shape that invites the reader
+ * to wait for a next step that is not coming.
+ */
+function isInProgress(state: RecipientState): boolean {
+  return state === 'AWAITING_COURIER' || state === 'ASSIGNED' || state === 'IN_TRANSIT'
 }
 
 function Delivery({
@@ -119,36 +142,50 @@ function Delivery({
 
   return (
     <section className="delivery" aria-labelledby="tracking-headline">
-      <h2 id="tracking-headline">{copy.headline}</h2>
-      <p className="next-step">{copy.nextStep}</p>
+      <header className={`status-banner ${bannerToneClass(snapshot.state)}`}>
+        <span className="status-banner-dot" aria-hidden="true" />
+        <div className="status-banner-text">
+          <h2 id="tracking-headline">{copy.headline}</h2>
+          <p className="next-step">{copy.nextStep}</p>
+        </div>
+      </header>
 
-      {snapshot.reference !== null && (
-        <p className="reference">
-          Delivery <strong>{snapshot.reference}</strong>
-        </p>
-      )}
-
-      {snapshot.handoffAddressLabel !== null && (
-        <section aria-labelledby="handoff-heading">
-          <h3 id="handoff-heading">Handoff address</h3>
-          <p>{snapshot.handoffAddressLabel}</p>
-        </section>
-      )}
-
-      {snapshot.courierDisplayName !== null && (
-        <section aria-labelledby="courier-heading">
-          <h3 id="courier-heading">Courier</h3>
-          <p>{snapshot.courierDisplayName}</p>
-        </section>
-      )}
+      {isInProgress(snapshot.state) && <Progress state={snapshot.state} />}
 
       {snapshot.map !== null && <CourierLocation positions={snapshot.map} map={map} />}
 
-      {snapshot.completedAt !== null && (
-        <p className="completed">
-          {snapshot.state === 'DELIVERED' ? 'Handed over at ' : 'Cancelled at '}
-          <time dateTime={snapshot.completedAt}>{formatTime(snapshot.completedAt)}</time>
-        </p>
+      {(snapshot.reference !== null ||
+        snapshot.handoffAddressLabel !== null ||
+        snapshot.courierDisplayName !== null ||
+        snapshot.completedAt !== null) && (
+        <div className="card delivery-facts">
+          {snapshot.reference !== null && (
+            <p className="reference">
+              Delivery <strong>{snapshot.reference}</strong>
+            </p>
+          )}
+
+          {snapshot.handoffAddressLabel !== null && (
+            <section className="fact" aria-labelledby="handoff-heading">
+              <h3 id="handoff-heading">Handoff address</h3>
+              <p>{snapshot.handoffAddressLabel}</p>
+            </section>
+          )}
+
+          {snapshot.courierDisplayName !== null && (
+            <section className="fact" aria-labelledby="courier-heading">
+              <h3 id="courier-heading">Courier</h3>
+              <p>{snapshot.courierDisplayName}</p>
+            </section>
+          )}
+
+          {snapshot.completedAt !== null && (
+            <p className="completed">
+              {snapshot.state === 'DELIVERED' ? 'Handed over at ' : 'Cancelled at '}
+              <time dateTime={snapshot.completedAt}>{formatTime(snapshot.completedAt)}</time>
+            </p>
+          )}
+        </div>
       )}
 
       {snapshot.state === 'CANCELLED' && (
@@ -167,6 +204,30 @@ function Delivery({
       */}
       <p className="connection">{TRACKING_CONNECTION_COPY[connection]}</p>
     </section>
+  )
+}
+
+/**
+ * The lifecycle rendered as a stepper: what is done, where the Delivery is now, and what is still
+ * ahead. It carries no times — the snapshot holds only the current state, so this shows step
+ * completion and never a past timestamp it does not have.
+ */
+function Progress({ state }: { state: RecipientState }) {
+  const currentIndex = PROGRESS_STEPS.findIndex((step) => step.state === state)
+
+  return (
+    <ol className="progress" aria-label="Delivery progress">
+      {PROGRESS_STEPS.map((step, index) => {
+        const status =
+          index < currentIndex ? 'is-done' : index === currentIndex ? 'is-current' : 'is-upcoming'
+        return (
+          <li key={step.state} className={status} aria-current={index === currentIndex ? 'step' : undefined}>
+            <span className="progress-dot" aria-hidden="true" />
+            <span className="progress-label">{step.label}</span>
+          </li>
+        )
+      })}
+    </ol>
   )
 }
 
@@ -195,9 +256,17 @@ function CourierLocation({ positions, map }: { positions: TrackingMap; map: MapC
     return drawn
   }, [positions.handoff, courier, stillUsable])
 
+  // A reading the browser has aged out, and one the server never held, both read as Unavailable —
+  // the chip and the sentence below must agree, so the label is decided once here.
+  const label: FreshnessLabel = freshness?.label ?? 'Unavailable'
+
   return (
-    <section aria-labelledby="location-heading">
-      <h3 id="location-heading">Courier location</h3>
+    <section className="card location-card" aria-labelledby="location-heading">
+      <div className="card-head">
+        <h3 id="location-heading">Courier location</h3>
+        {/* The chip repeats the freshness label at a glance; the sentence below carries it in prose. */}
+        <span className={`freshness-chip ${freshnessChipClass(label)}`}>{label}</span>
+      </div>
       {/*
         The sentence ticks every second, so it is deliberately not the live region: announcing
         "32 seconds ago", then "33", would talk over everything else on the page for as long as it
@@ -236,6 +305,32 @@ function describeLocation(
   }
   const accuracy = `accurate to about ${Math.round(courier.accuracyMetres)} metres`
   return `${freshness.label} location — updated ${formatAge(freshness.ageSeconds)}, ${accuracy}.`
+}
+
+function bannerToneClass(state: RecipientState): string {
+  switch (state) {
+    case 'AWAITING_COURIER':
+      return 'is-awaiting'
+    case 'ASSIGNED':
+      return 'is-assigned'
+    case 'IN_TRANSIT':
+      return 'is-transit'
+    case 'DELIVERED':
+      return 'is-delivered'
+    case 'CANCELLED':
+      return 'is-cancelled'
+  }
+}
+
+function freshnessChipClass(label: FreshnessLabel): string {
+  switch (label) {
+    case 'Live':
+      return 'is-live'
+    case 'Delayed':
+      return 'is-delayed'
+    case 'Unavailable':
+      return 'is-unavailable'
+  }
 }
 
 /**
