@@ -341,12 +341,17 @@ describe('CourierHomePage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Current Delivery' })).toBeInTheDocument()
     expect(await screen.findByText('DG-1001')).toBeInTheDocument()
+    // The reskin shows the state as a status chip and both ends of the route as an address pair.
+    expect(screen.getByText('Assigned — pickup not yet confirmed')).toBeInTheDocument()
     expect(screen.getByText('Warehouse 4')).toBeInTheDocument()
+    expect(screen.getByText('Flat 2, 14 Notional Row')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Confirm pickup' }))
 
     const pickup = callsTo('/pickup')[0]
     expect(requestBodyOf(pickup)).toMatchObject({ expectedVersion: 1 })
     expect(await screen.findByRole('button', { name: 'Confirm handoff' })).toBeInTheDocument()
+    // Confirming pickup moves the chip to the In transit state.
+    expect(screen.getByText('In transit')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Confirm handoff' }))
 
     const handoff = callsTo('/handoff')[0]
