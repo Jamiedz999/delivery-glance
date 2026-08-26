@@ -10,7 +10,7 @@ Which Core architecture—and which optional expansion substitutions—should im
 
 ## Answer
 
-> **Portfolio Core scope update:** [Ticket 12](../planning/12-rescope-to-resume-ready-core.md) keeps the single-app/PostgreSQL/React foundation, atomic Assignment, latest-only location, secure Link bootstrap and Recipient SSE. ETA/provider work and every scale substitution below are Future Work rather than Core obligations.
+> **Portfolio Core scope update:** [Ticket 12](12-rescope-to-resume-ready-core.md) keeps the single-app/PostgreSQL/React foundation, atomic Assignment, latest-only location, secure Link bootstrap and Recipient SSE. ETA/provider work and every scale substitution below are Future Work rather than Core obligations.
 
 ### Architecture decision
 
@@ -38,7 +38,7 @@ Boot application ── minimal requests ──► geocoding / travel-time APIs
 
 The governing rule is: **PostgreSQL decides what happened; process memory holds only where a Courier is now; HTTP changes facts; SSE tells a browser to reread facts.** An in-memory event, browser cache, ETA provider response, or Current Location can never become an alternative source of Delivery or Assignment truth.
 
-This architecture deliberately does not begin with microservices, WebFlux, WebSocket, Redis, PostGIS, Kafka, CQRS, event sourcing, or a durable event bus. Core's measured load is approximately ten location requests per second and one hundred SSE sessions; those components would create more failure and privacy surfaces before a measured need exists. The supporting official-source review is [Core technical architecture research](../planning/research/core-technical-architecture.md).
+This architecture deliberately does not begin with microservices, WebFlux, WebSocket, Redis, PostGIS, Kafka, CQRS, event sourcing, or a durable event bus. Core's measured load is approximately ten location requests per second and one hundred SSE sessions; those components would create more failure and privacy surfaces before a measured need exists. The supporting official-source review was the Core technical architecture research (archived).
 
 ### Locked Core stack
 

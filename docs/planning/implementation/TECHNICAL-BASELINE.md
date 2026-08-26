@@ -2,7 +2,7 @@
 
 Status: current
 Supersedes for Core implementation: the heavier parts of [Ticket 10](../../adr/10-choose-core-technical-architecture.md)
-Scope authority: [Ticket 12](../12-rescope-to-resume-ready-core.md)
+Scope authority: [Ticket 12](../../adr/12-rescope-to-resume-ready-core.md)
 
 ## Purpose
 

@@ -218,6 +218,156 @@ DG-024 PR makes the diff harder to review than the warning is worth.
 
 Fix: route the value through the existing `urlOf` helper in `web/src/testing/support.tsx`.
 
+### A terminal view the product has not built yet is already mislabelled
+
+`web/src/track/TrackingPage.tsx:149` chooses the completion sentence with
+`snapshot.state === 'DELIVERED' ? 'Handed over at ' : 'Cancelled at '`, and `:154` gates the Delivery
+Team Contact on `snapshot.state === 'CANCELLED'`. Both are correct today, because
+`delivery/DeliveryState.java:4` records that Undeliverable is deferred and Core has exactly two
+terminal states.
+
+They stop being correct the moment it lands. `RecipientSnapshots.of`'s switch is exhaustive and
+`STATE_COPY` is a `Record<RecipientState, StateCopy>`, so the server projection and the headline copy
+both fail to compile on a new state — which is the point of writing them that way. The two lines
+above compile fine and are wrong: an Undeliverable outcome reads "Cancelled at", and the Delivery
+Team Contact that ADR 06 requires for exactly that outcome is withheld. The type system protects the
+two places that enumerate and not the two that guess.
+
+Found during an architecture review of the Recipient view, tracing which module decides a terminal
+privacy rule. Not fixed on the spot because the review changed no code, and because the honest fix is
+not a third `state ===` check — it is moving the completion label and the contact trigger onto the
+snapshot `RecipientSnapshots` already builds per state, which changes the Recipient response shape.
+
+Fix: give the snapshot a completion label, and let a non-null `deliveryTeamContact` be the only thing
+that shows the contact line. The page then renders fields rather than re-deciding ADR 06's terminal
+split, and a new terminal state becomes a compile error in one place instead of silence in two.
+
+### The server computes a Location Freshness label that nothing reads
+
+`location/LocationStatus.java:12` carries a `LocationFreshness` beside `recordedAt`, and
+`courier/CourierViews.java:22` puts it on the wire for every Courier read and every accepted report.
+No production browser code reads it. `CourierHomePage.tsx:12` and `TrackingPage.tsx:180` both call
+`describeFreshness(recordedAt, now)` and branch on the label they derive themselves; the only
+occurrences of `location.freshness` under `web/src` are test fixtures.
+
+So the thirty-second and two-minute boundaries exist twice — `LocationFreshness.java:22,25` and
+`freshness.ts:3-4` — and the vocabulary exists three times: as `LIVE`, as the `'LIVE'` string union
+re-exported through `api/courier.ts:11`, and as the `'Live'` label the pages actually show. The
+duplicate *derivation* is deliberate and ADR 11 sanctions it, because a page has to keep ageing
+between requests. The duplicate constants and the unread field are not.
+
+`docs/testing.md` names this risk — "Live/Delayed/Unavailable drift apart between roles" — and cites
+`LocationFreshnessTest` and `web/src/freshness.ts`. There is no `freshness.test.ts`. The browser half
+of that claim is exercised only through `TrackingPage.test.tsx` and `CourierHomePage.test.tsx`,
+neither of which asserts a boundary, so the row currently promises more than a command proves.
+
+Found during an architecture review, grepping for who consumes the field. Not fixed on the spot
+because removing a field from a response is a contract change, and because the `docs/testing.md` row
+has to move with it.
+
+Fix: drop `freshness` from `LocationStatus` and `CourierLocation`, keeping the server enum for the
+usable-limit check it still performs internally; give `freshness.ts` a test that pins thirty and one
+hundred and twenty; then make `docs/testing.md`'s row cite that test.
+
+### ADR 10's module verification test was never built, and three cycles exist
+
+`docs/adr/10-choose-core-technical-architecture.md:80` says "One Spring Modulith
+`ApplicationModules.verify()` architecture test enforces acyclic package access and internal-package
+boundaries." There is no Modulith dependency in `server/pom.xml` and no such test. ADR 10's Portfolio
+Core scope callout does not retract it, so a reader who trusts the callout — which `AGENTS.md` says
+names what Core actually implements — believes the boundary is mechanically enforced.
+
+Nothing enforces it, and three cycles are present: `delivery ↔ recipientview`, `delivery ↔
+trackinglink`, and `location ↔ recipientview`. Each is held open by a pair of narrow ports, and two
+of them say so in their own javadoc: `CarriedDeliveries.java:12` and `TrackedDeliveries.java:11` both
+explain that they exist as a *second* port between the same module pair because the single obvious
+one would close a constructor cycle.
+
+The same ADR line adds that new service boundaries "require an actual second implementation or
+deployment need rather than being added speculatively". Nine cross-module ports currently have
+exactly one implementation each; only `RecipientDeliveryFacts` and `LocationFacts` have a second
+adapter, both fakes in `RecipientSnapshotsTest`.
+
+Found during an architecture review, mapping cross-package imports. Not fixed on the spot because
+adding the test would fail the build on day one, and because deciding whether to break the cycles or
+amend the ADR is a decision rather than an implementation detail — the same shape as the ADR 04
+callout above.
+
+Fix: decide which of the two is true. Either add the Modulith test and remove the cycles it reports —
+starting with folding `carriedBy` onto `ActiveAssignments`, which its own stated reason does not
+block, since `AssignmentRepository` already implements both — or amend ADR 10's callout to say Core
+does not enforce module boundaries mechanically, so the ADR stops describing a test that is not there.
+
+### The Recipient responses' privacy headers are bound to a URI prefix that no test holds
+
+`trackinglink/TrackingHeadersFilter.java:44` decides which responses get `no-store`,
+`Referrer-Policy`, `X-Robots-Tag` and the tracking CSP by matching the request path against a
+hardcoded list — `/track`, `/api/tracking-session`, `/api/tracking/`, `.../tracking-link/copy`.
+`RecipientTrackingController` gets its headers entirely from that match, and the dependency is
+recorded only in a prose comment at `:26`. Move a Recipient route to a different prefix and every one
+of those headers disappears silently.
+
+`TrackingHeadersFilter` is named in no test file. `TrackingLinkApiTest` asserts the headers on the
+responses it exercises, which pins the behaviour and not the binding, so a route that moves out from
+under the prefix takes its own assertion with it and nothing else fails.
+
+The refusal has the same shape. `recipientview` throws `trackinglink`'s `UnavailableLinkException`,
+and `TrackingExceptionHandler.java:26` catches it by naming `com.deliveryglance.recipientview` as a
+string in `basePackages`, with a comment admitting it is dodging an import cycle. Renaming that
+package breaks the one-indistinguishable-response property with no compiler error.
+
+Found during an architecture review, checking what holds the Unavailable Link View's guarantees in
+place. Not fixed on the spot because binding the header policy to the handler instead of the path
+changes how every tracking response is produced, which is wider than a review should reach.
+
+Fix: bind the header policy to a marker on the handler rather than to a URI prefix, so a Recipient
+route declares its own privacy contract; and move the shared refusal into `shared` beside
+`ApiProblemResponses`, so neither module names the other and that cycle goes with it.
+
+### Every Recipient snapshot reads its Delivery row twice
+
+`TrackingLinks.authorizedDeliveryForVerifier` reads the Delivery through `TrackedDeliveries.find` to
+derive the terminal grace period, then returns `delivery.deliveryId()` at `TrackingLinks.java:177` —
+discarding the Delivery Reference and terminal instant it just fetched. `RecipientSnapshots.of` then
+reads the same row again through `RecipientDeliveryFacts.recipientFactsFor` for those same facts.
+Both queries compute the identical terminal-instant subquery in `DeliveryRepository`.
+
+That is two reads per `GET /api/tracking/snapshot`, and `RecipientStreams.heartbeat` at `:145`
+re-runs the whole authorization chain — grant lookup and Delivery row included — for every open
+connection every fifteen seconds. Nothing here is incorrect. The second read is the first one
+repeated, because the seam between them carries only an identifier.
+
+Found during an architecture review, tracing a Link Holder from the presented capability to a
+rendered snapshot. Not fixed on the spot because widening `HeldGrant` to carry Delivery facts changes
+what `LinkHolderAuthorization` promises, and that interface is deliberately narrow — ADR 06 makes
+"which Delivery" the only fact a grant produces, so widening it is a decision about the seam rather
+than a tidy-up.
+
+Fix: let the held grant carry the authorized Delivery facts it already read, so the projection asks
+for nothing the authorization did not already have. `TrackingAccess` can be absorbed into
+`TrackingLinks` at the same time; its two public methods are one method, and that method with
+`.deliveryId()` appended, over a thirteen-line body.
+
+### The `--text-faint` design token fails WCAG AA on its own surface
+
+`--text-faint` in `web/src/index.css` (and its mirror in `web/public/track-app.css`) is `#8b95a3`
+light / `#6b7480` dark, which is 3.03:1 on `--surface` in light and 3.65:1 in dark — below the 4.5:1
+that axe-core flags for normal-size text. The redesign prototypes lean on this token for small meta
+lines ("Priya N. · 4 min ago", per-candidate timestamps, list `Created` cells), so a later reskin
+ticket that renders such text in `--text-faint` will trip the e2e axe assertion (`no serious/critical`).
+
+Found while establishing the design system (issue #34): verifying token contrast turned up three
+sub-AA pairs. The two the ticket's own screens actually render — the primary button fill and the
+status-chip colours — were fixed by adding `--on-accent` and darkening light `--amber`/`--gray`. The
+faint token was left at the prototype value because the design-system and sign-in screens use it only
+for the account-role caption (`--text-muted` handles the body text), so nothing this ticket renders
+fails; darkening it would have changed the agreed neutral for every future screen without a rendered
+failure to justify it here.
+
+Fix: when a reskin ticket first needs `--text-faint` for real text, darken it to clear 4.5:1 on
+`--surface` in both themes (roughly `#6f7885` light / keep the dark value, which is close) — or route
+that text through `--text-muted` instead and keep `--text-faint` for non-text decoration only.
+
 ## Recently cleared
 
 *(Nothing. Entries move out of this file by being deleted, not by being marked done.)*

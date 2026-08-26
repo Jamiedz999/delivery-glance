@@ -149,13 +149,13 @@ Add a latency, concurrency or test figure only after the repository contains the
 
 After Portfolio Core, consider only one independently demoable increment at a time:
 
-1. [external travel-time ETA and honest unavailable/late presentation](future-work/13-add-travel-time-eta.md);
-2. [Tracking Link Rotation/Revocation/Reissue and recovery audit](future-work/14-add-tracking-link-recovery.md);
-3. [pre-pickup Reassignment and Undeliverable outcomes](future-work/15-add-delivery-exceptions-and-reassignment.md);
-4. [Service Zone polygons and explainable recommendation overrides](future-work/16-add-service-zones-and-explainable-overrides.md);
-5. [the full top-three, sixty-second Courier Matching Round](future-work/17-add-ranked-multi-courier-matching-round.md);
-6. [a measured scale and resilience experiment](future-work/18-run-measured-scale-and-resilience-experiment.md), introducing Redis, PostGIS, WebFlux or observability tooling only for the bottleneck it proves; and
-7. [a durable domain-event backbone](future-work/19-evaluate-durable-domain-event-backbone.md) only after a new non-location consumer makes replay valuable.
+1. #27 — external travel-time ETA and honest unavailable/late presentation;
+2. #28 — Tracking Link Rotation/Revocation/Reissue and recovery audit;
+3. #29 — pre-pickup Reassignment and Undeliverable outcomes;
+4. #30 — Service Zone polygons and explainable recommendation overrides;
+5. #31 — the full top-three, sixty-second Courier Matching Round;
+6. #32 — a measured scale and resilience experiment, introducing Redis, PostGIS, WebFlux or observability tooling only for the bottleneck it proves; and
+7. #33 — a durable domain-event backbone only after a new non-location consumer makes replay valuable.
 
 This order is a backlog, not a promise. A later item must state its user value, fit one short increment and leave the deployed Core working when omitted.
 
@@ -166,5 +166,3 @@ This order is a backlog, not a promise. A later item must state its user value, 
 - Backlog refinement may change the next Sprint; it does not silently enlarge the active Sprint.
 - If a Sprint exceeds twelve hours, first remove visual decoration, secondary filters and extra seed cases. Never cut atomic Assignment, location privacy, Tracking Link safety, the end-to-end Recipient path or the tests that justify a resume claim.
 - The complete detailed tickets remain reference material for Later work, not hidden obligations of Portfolio Core.
-
-The interactive primary-source plan is [Lean roadmap prototype](prototypes/delivery-glance-lean-roadmap-prototype.html).

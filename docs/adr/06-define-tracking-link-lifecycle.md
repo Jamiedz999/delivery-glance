@@ -10,7 +10,7 @@ When is a Tracking Link created, shared, activated, expired, or revoked; what da
 
 ## Answer
 
-> **Portfolio Core scope update:** [Ticket 12](../planning/12-rescope-to-resume-ready-core.md) retains secure creation, repeatable Copy, automatic Expiry, the fragment-to-Tracking-Grant exchange, the single Unavailable Link response and the cache/referrer/indexing headers. Core derives the capability rather than storing it, so Copy returns the same link without anything having kept one. Rotation, Revocation, Reissue, their structured reasons and their history remain preserved here for [Future Work 14](../planning/future-work/14-add-tracking-link-recovery.md); Core still records the link generation each Grant was established through, which is the hook those controls need.
+> **Portfolio Core scope update:** [Ticket 12](12-rescope-to-resume-ready-core.md) retains secure creation, repeatable Copy, automatic Expiry, the fragment-to-Tracking-Grant exchange, the single Unavailable Link response and the cache/referrer/indexing headers. Core derives the capability rather than storing it, so Copy returns the same link without anything having kept one. Rotation, Revocation, Reissue, their structured reasons and their history remain preserved here for #28; Core still records the link generation each Grant was established through, which is the hook those controls need.
 
 ### Capability and threat boundary
 
@@ -80,4 +80,4 @@ The Core acceptance boundary is the security outcome, not a prematurely selected
 
 The Dispatcher-visible Tracking Link History contains creation, copying, Rotation, Revocation, Reissue, and automatic Expiry, with actor, time, and applicable reason. Separate security-only evidence captures first successful access establishment, reuse attempts against unavailable links, and suspected bulk guessing using an internal link identity rather than the raw capability. Neither record stores Courier location or every page refresh, poll, or realtime update, so it does not become Recipient browsing history.
 
-The supporting primary-source review is [Tracking Link security research](../planning/research/tracking-link-security.md).
+The supporting primary-source review was the Tracking Link security research (archived).

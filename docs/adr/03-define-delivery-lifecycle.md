@@ -10,7 +10,7 @@ What are the canonical Delivery states, permitted transitions, responsible actor
 
 ## Answer
 
-> **Portfolio Core scope update:** [Ticket 12](../planning/12-rescope-to-resume-ready-core.md) implements only Awaiting Courier → Assigned → In Transit → Delivered plus pre-pickup Cancelled. Reassignment and Undeliverable remain preserved here for [Future Work 15](../planning/future-work/15-add-delivery-exceptions-and-reassignment.md).
+> **Portfolio Core scope update:** [Ticket 12](12-rescope-to-resume-ready-core.md) implements only Awaiting Courier → Assigned → In Transit → Delivered plus pre-pickup Cancelled. Reassignment and Undeliverable remain preserved here for #29.
 
 ### Canonical states
 

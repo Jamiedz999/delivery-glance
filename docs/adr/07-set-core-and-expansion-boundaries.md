@@ -10,7 +10,7 @@ Which behaviours and quality attributes must ship in the independently deployabl
 
 ## Answer
 
-> **Superseded implementation boundary:** The complete-product scope below is preserved as planning evidence, but [Ticket 12](../planning/12-rescope-to-resume-ready-core.md) replaces its six-week delivery bundle with a three-Sprint MVP, four-Sprint resume-ready Core and individually prioritised Future Work.
+> **Superseded implementation boundary:** The complete-product scope below is preserved as planning evidence, but [Ticket 12](12-rescope-to-resume-ready-core.md) replaces its six-week delivery bundle with a three-Sprint MVP, four-Sprint resume-ready Core and individually prioritised Future Work.
 
 ### Stage contract
 

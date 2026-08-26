@@ -42,7 +42,7 @@ The user needs `CREATE` on its schema, because Flyway owns it.
 **Run exactly one instance.** Current Location and the Recipient SSE subscribers live in
 process memory, so a second instance would hold its own copy of both and the two would disagree.
 This is a stated limit of Core rather than an oversight; sharing them is
-[Future Work 18](planning/future-work/18-run-measured-scale-and-resilience-experiment.md).
+#32.
 
 ### 2 · TLS in front of it, and the cookies told about it
 
