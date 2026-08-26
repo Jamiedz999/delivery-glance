@@ -1,5 +1,5 @@
 import { StrictMode } from 'react'
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { jsonResponse, problemResponse, urlOf } from '../testing/support'
@@ -243,6 +243,38 @@ describe('the Recipient tracking view', () => {
     expect(
       screen.getByText(/Live location — updated just now, accurate to about 14 metres/),
     ).toBeInTheDocument()
+  })
+
+  it('marks where the delivery is on a progress track that carries no times', async () => {
+    respondWithSnapshot(inTransit())
+
+    renderPage(recordingEngine().engine)
+    await screen.findByRole('heading', { name: 'Your delivery is on the way' })
+
+    const progress = screen.getByRole('list', { name: 'Delivery progress' })
+    // The state on screen is the current step, and the ones before it are done.
+    expect(within(progress).getByRole('listitem', { current: 'step' })).toHaveTextContent('On the way')
+    // Step completion only: no clock time is shown against any milestone.
+    expect(progress).not.toHaveTextContent(/\d{1,2}:\d{2}/)
+  })
+
+  /** A terminal delivery is reduced to its outcome; a finished track would invite a wait for nothing. */
+  it('drops the progress track once the delivery has reached a final state', async () => {
+    respondWithSnapshot(snapshotOf('DELIVERED', { completedAt: '2026-08-10T09:42:00.000Z' }))
+
+    renderPage(recordingEngine().engine)
+    await screen.findByRole('heading', { name: 'Delivered' })
+
+    expect(screen.queryByRole('list', { name: 'Delivery progress' })).not.toBeInTheDocument()
+  })
+
+  it('reads the freshness at a glance in a chip beside the location sentence', async () => {
+    respondWithSnapshot(inTransit())
+
+    renderPage(recordingEngine().engine)
+    await screen.findByText(/Live location — updated/)
+
+    expect(screen.getByText('Live', { selector: '.freshness-chip' })).toBeInTheDocument()
   })
 
   /**
