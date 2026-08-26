@@ -2,9 +2,15 @@ import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
 import type { Address, CancellationReason, DeliveryDetail, DeliveryState } from '../api/deliveries'
-import { CANCELLATION_REASONS, DELIVERY_STATE_LABELS } from '../api/deliveries'
+import { CANCELLATION_REASONS, DELIVERY_STATE_LABELS, isTerminalState } from '../api/deliveries'
 import { ApiError } from '../api/http'
-import { useAssignCourier, useCancelDelivery, useCourierRecommendation, useDelivery } from '../api/queries'
+import {
+  useAssignCourier,
+  useCancelDelivery,
+  useCopyTrackingLink,
+  useCourierRecommendation,
+  useDelivery,
+} from '../api/queries'
 
 export function DeliveryDetailPage() {
   const { id = '' } = useParams()
@@ -62,7 +68,7 @@ export function DeliveryDetailPage() {
           {(delivery.state === 'AWAITING_COURIER' || delivery.state === 'ASSIGNED') && (
             <CancelDeliveryForm delivery={delivery} />
           )}
-          {(delivery.state === 'DELIVERED' || delivery.state === 'CANCELLED') && (
+          {isTerminalState(delivery.state) && (
             <p className="card detail-note" role="status">
               This delivery has reached a final state and cannot be changed.
             </p>
@@ -76,7 +82,7 @@ export function DeliveryDetailPage() {
 
         <aside className="detail-col">
           <Timeline delivery={delivery} />
-          <TrackingLinkPanel />
+          <TrackingLinkPanel delivery={delivery} />
         </aside>
       </div>
     </section>
@@ -133,12 +139,21 @@ function Timeline({ delivery }: { delivery: DeliveryDetail }) {
 }
 
 /**
- * A display-only shell for the Recipient Tracking Link. Per its lifecycle the link is valid from
- * Delivery creation and independent of the Delivery's own state, and the contract carries no per-link
- * status or expiry timestamp — so this shows the documented policy rather than a fetched value, and
- * leaves the Copy control that hands the Dispatcher the link to its own issue.
+ * The Recipient Tracking Link, and the Dispatcher's one control over it: Copy.
+ *
+ * Per its lifecycle the link is valid from Delivery creation and independent of the Delivery's own
+ * state, and the contract carries no per-link status or expiry timestamp — so the status line shows
+ * the documented policy rather than a fetched value. Copy is the exception: it exchanges the Delivery
+ * for a raw capability URL, which `useCopyTrackingLink` writes straight to the clipboard and never
+ * hands back. Only the expiry the response carries reaches this component, and it is shown relative.
+ *
+ * The control is offered only while the Delivery is non-terminal; a completed or cancelled Delivery
+ * has nothing a Dispatcher would still be sharing, so the button is absent rather than disabled.
  */
-function TrackingLinkPanel() {
+function TrackingLinkPanel({ delivery }: { delivery: DeliveryDetail }) {
+  const copy = useCopyTrackingLink(delivery.id)
+  const isTerminal = isTerminalState(delivery.state)
+
   return (
     <section className="card" aria-labelledby="tracking-heading">
       <h2 id="tracking-heading" className="card-title">
@@ -152,8 +167,50 @@ function TrackingLinkPanel() {
         A private, read-only link the Recipient opens without an account. It expires 24 hours after the
         Delivery is completed.
       </p>
+      {!isTerminal && (
+        <div className="tracking-actions">
+          <button
+            type="button"
+            className="btn-secondary btn-sm"
+            onClick={() => copy.mutate()}
+            disabled={copy.isPending}
+            aria-busy={copy.isPending}
+          >
+            {copy.isPending ? 'Copying…' : 'Copy tracking link'}
+          </button>
+          {copy.isSuccess && (
+            <p className="tracking-copied" role="status">
+              Copied · expires {formatExpiry(copy.data.expiresAt)}
+            </p>
+          )}
+          {copy.isError && (
+            <p className="tracking-copied error" role="alert">
+              Could not copy the link. Try again.
+            </p>
+          )}
+        </div>
+      )}
     </section>
   )
+}
+
+/**
+ * The response's expiry as a relative phrase, e.g. `in 6 days`. Rounded to the coarsest unit that
+ * still reads truthfully, because the Dispatcher is being told roughly how long the link they just
+ * copied will keep working, not an exact instant.
+ */
+function formatExpiry(expiresAt: string): string {
+  const deltaMs = new Date(expiresAt).getTime() - Date.now()
+  const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+  const days = Math.round(deltaMs / 86_400_000)
+  if (Math.abs(days) >= 1) {
+    return relative.format(days, 'day')
+  }
+  const hours = Math.round(deltaMs / 3_600_000)
+  if (Math.abs(hours) >= 1) {
+    return relative.format(hours, 'hour')
+  }
+  return relative.format(Math.round(deltaMs / 60_000), 'minute')
 }
 
 function statusChipClass(state: DeliveryState): string {

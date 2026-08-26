@@ -84,6 +84,18 @@ export interface ProgressDeliveryInput {
 }
 
 /**
+ * What copying a Tracking Link hands back: the raw capability URL and when it stops working.
+ *
+ * The `url` is a live secret — the one place in the application that holds a usable capability. It is
+ * written to the clipboard and nowhere else; it must never be bound into rendered markup, React
+ * state or the browser history. Only `expiresAt` is safe to show.
+ */
+export interface CopiedTrackingLink {
+  url: string
+  expiresAt: string
+}
+
+/**
  * A coordinate the Dispatcher has not filled in yet is sent as null, so the server answers with the
  * same field-level message it gives any other invalid point.
  */
@@ -113,6 +125,15 @@ export const DELIVERY_STATE_LABELS: Record<DeliveryState, string> = {
   IN_TRANSIT: 'In transit',
   DELIVERED: 'Delivered',
   CANCELLED: 'Cancelled',
+}
+
+/**
+ * Whether a Delivery has reached a state it can no longer leave. Delivered and Cancelled are the two
+ * terminal states the frontend models, and several places gate on the same predicate — the final-state
+ * note, and whether a Tracking Link is still worth copying — so the concept lives here under one name.
+ */
+export function isTerminalState(state: DeliveryState): boolean {
+  return state === 'DELIVERED' || state === 'CANCELLED'
 }
 
 /** The `.status-chip` modifier class each lifecycle state renders with. */
@@ -162,6 +183,12 @@ export function assignCourier(id: string, input: AssignCourierInput): Promise<vo
 
 export async function fetchCurrentCourierDelivery(): Promise<CourierDelivery | null> {
   return (await apiRequest<CourierDelivery | undefined>('/api/couriers/me/deliveries/current')) ?? null
+}
+
+export function copyTrackingLink(id: string): Promise<CopiedTrackingLink> {
+  return apiRequest<CopiedTrackingLink>(`/api/deliveries/${id}/tracking-link/copy`, {
+    method: 'POST',
+  })
 }
 
 export function progressCourierDelivery(
