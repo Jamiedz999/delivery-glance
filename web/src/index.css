@@ -813,3 +813,131 @@ td {
 .auth [role='alert'] {
   margin-block-end: var(--space-4);
 }
+
+/* ------------------------------------------------------------------ courier */
+
+/*
+ * The Courier workspace is a single hand-held column: an identity header, the two independent
+ * decisions (Duty and Location sharing, kept as separate cards), then the one active Delivery.
+ */
+.courier {
+  max-width: 30rem;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.courier-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.courier-avatar {
+  display: grid;
+  place-items: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border-radius: 50%;
+  background: var(--accent-weak);
+  color: var(--accent-strong);
+  font-weight: 800;
+  font-size: var(--text-sm);
+  flex: none;
+}
+
+.courier-title {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+/* Duty and Location sharing sit one above the other, each its own decision on its own card. */
+.courier-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.courier-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The state line each decision opens with: a coloured dot and the plain-language status. */
+.courier-state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-weight: 600;
+}
+
+.status-dot.is-on {
+  background: var(--green);
+}
+
+.status-dot.is-off {
+  background: var(--gray);
+}
+
+.status-dot.is-warn {
+  background: var(--amber);
+}
+
+.courier-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.courier-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block-start: var(--space-1);
+}
+
+/* The server-held position, set apart from the sharing controls above it. */
+.courier-position {
+  margin-block-start: var(--space-1);
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--border);
+}
+
+.courier-position-label {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.courier-position-line {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+/* The one active Delivery: reference, its pickup → handoff route, and the next confirmation. */
+.courier-delivery {
+  gap: var(--space-3);
+}
+
+.courier-delivery-ref {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.courier-empty {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.courier-confirm {
+  align-self: stretch;
+  padding-block: var(--space-3);
+}
