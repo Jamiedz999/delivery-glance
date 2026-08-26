@@ -11,6 +11,7 @@ import type {
 import {
   assignCourier,
   cancelDelivery,
+  copyTrackingLink,
   createDelivery,
   fetchCourierRecommendation,
   fetchCurrentCourierDelivery,
@@ -99,6 +100,24 @@ export function useAssignCourier(id: string) {
         queryClient.invalidateQueries({ queryKey: queryKeys.deliveries, exact: true }),
         queryClient.invalidateQueries({ queryKey: queryKeys.recommendation(id), exact: true }),
       ])
+    },
+  })
+}
+
+/**
+ * Copy a Delivery's Tracking Link to the clipboard, surfacing only its expiry to the caller.
+ *
+ * The raw URL the endpoint returns is a live capability. It is written to the clipboard inside the
+ * mutation and deliberately never returned: the caller — and therefore React Query's cache, the
+ * rendered page and its history — only ever sees `expiresAt`. There is no query to invalidate; the
+ * server records who copied and when, but the Delivery the page reads is unchanged.
+ */
+export function useCopyTrackingLink(id: string) {
+  return useMutation({
+    mutationFn: async (): Promise<{ expiresAt: string }> => {
+      const { url, expiresAt } = await copyTrackingLink(id)
+      await navigator.clipboard.writeText(url)
+      return { expiresAt }
     },
   })
 }

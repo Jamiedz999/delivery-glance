@@ -63,6 +63,13 @@ const recommendation = {
 
 const emptyRecommendation = { calculatedAt: '2026-08-10T09:04:00Z', candidates: [] }
 
+// The raw capability the copy endpoint returns. The test's whole point is that this string reaches
+// the clipboard and never the DOM, so it is deliberately distinctive.
+const copiedLink = {
+  url: '/track#t=raw-capability-token-must-never-render',
+  expiresAt: '2026-08-17T09:00:00Z',
+}
+
 function renderDetail() {
   renderWithProviders(
     <Routes>
@@ -84,6 +91,8 @@ describe('DeliveryDetailPage', () => {
   afterEach(() => {
     cleanup()
     vi.unstubAllGlobals()
+    // The clipboard test defines navigator.clipboard; drop it so the stub cannot leak into later tests.
+    Reflect.deleteProperty(navigator, 'clipboard')
   })
 
   it('shows the delivery, its route and its history', async () => {
@@ -228,6 +237,39 @@ describe('DeliveryDetailPage', () => {
 
     expect(await screen.findByText(/final state and cannot be changed/)).toHaveAttribute('role', 'status')
     expect(screen.queryByRole('button', { name: 'Cancel delivery' })).not.toBeInTheDocument()
+  })
+
+  it('copies the tracking link to the clipboard without ever rendering the raw URL', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    respondWith((url) =>
+      url.endsWith('/courier-recommendations')
+        ? jsonResponse(emptyRecommendation)
+        : url.endsWith('/tracking-link/copy')
+          ? jsonResponse(copiedLink)
+          : jsonResponse(awaitingCourier),
+    )
+    renderDetail()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Copy tracking link' }))
+
+    const call = vi.mocked(fetch).mock.calls.find(([url]) => urlOf(url).endsWith('/tracking-link/copy'))
+    const [copyUrl, copyInit] = call as [RequestInfo | URL, RequestInit]
+    expect(copyUrl).toBe(`/api/deliveries/${DELIVERY_ID}/tracking-link/copy`)
+    expect(copyInit.method).toBe('POST')
+    expect(writeText).toHaveBeenCalledWith(copiedLink.url)
+    expect(await screen.findByText(/^Copied · expires/)).toBeVisible()
+    // The one invariant of the whole issue: the raw capability is on the clipboard, not the page.
+    expect(document.body).not.toHaveTextContent(copiedLink.url)
+  })
+
+  it('offers no copy control once the delivery is final', async () => {
+    respondWith(() => jsonResponse(cancelled))
+
+    renderDetail()
+
+    expect(await screen.findByRole('heading', { name: 'Tracking link' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Copy tracking link' })).not.toBeInTheDocument()
   })
 
   it('reports a delivery that does not exist', async () => {
