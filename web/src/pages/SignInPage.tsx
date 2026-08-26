@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Navigate } from 'react-router'
 import { useSession, useSignIn } from '../api/queries'
 import { ApiError } from '../api/http'
+import { BrandMark } from '../components/BrandMark'
 
 export function SignInPage() {
   const { data: session, isPending: isSessionPending } = useSession()
@@ -24,9 +25,15 @@ export function SignInPage() {
   }
 
   return (
-    <section>
+    <section className="auth">
+      <div className="auth-brand">
+        <BrandMark />
+        <span className="app-wordmark">Delivery Glance</span>
+      </div>
       <h1>Sign in</h1>
-      <p>Delivery Glance is used by the pre-provisioned accounts of one delivery team.</p>
+      <p className="auth-intro">
+        Delivery Glance is used by the pre-provisioned accounts of one delivery team.
+      </p>
 
       {signIn.isError && (
         <p role="alert" className="error">
@@ -61,7 +68,12 @@ export function SignInPage() {
           />
         </div>
 
-        <button type="submit" disabled={signIn.isPending} aria-busy={signIn.isPending}>
+        <button
+          type="submit"
+          className="btn-primary"
+          disabled={signIn.isPending}
+          aria-busy={signIn.isPending}
+        >
           {signIn.isPending ? 'Signing in…' : 'Sign in'}
         </button>
       </form>

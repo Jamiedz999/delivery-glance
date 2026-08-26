@@ -10,6 +10,86 @@
  * for anything larger. A Tracking Link is opened on a phone, from a message.
  */
 
+/*
+ * Design tokens, mirrored verbatim from `src/index.css`. This bundle is served without the internal
+ * build, so it carries its own copy rather than importing one — the two files are kept in sync by
+ * hand and are deliberately not coupled. Keep every value identical to `index.css`.
+ */
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #eef0f3;
+  --border: #e2e5ea;
+  --border-strong: #cfd4db;
+
+  --text: #1c2530;
+  --text-muted: #586372;
+  --text-faint: #8b95a3;
+
+  --accent: #1f5f9e;
+  --accent-weak: #e9f0f7;
+  --accent-strong: #184e83;
+  --on-accent: #ffffff;
+
+  --green: #137a4a;
+  --green-bg: #e6f2ea;
+  --amber: #855d0e;
+  --amber-bg: #f4ecd8;
+  --red: #b23b3b;
+  --red-bg: #f5e8e8;
+  --gray: #636a78;
+  --gray-bg: #eaecef;
+
+  --radius: 10px;
+  --radius-sm: 7px;
+  --shadow: 0 1px 2px rgba(20, 28, 40, 0.05), 0 1px 1px rgba(20, 28, 40, 0.04);
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216;
+    --surface: #171b21;
+    --surface-2: #1e232b;
+    --border: #282e37;
+    --border-strong: #343b46;
+
+    --text: #e6eaf0;
+    --text-muted: #9aa4b2;
+    --text-faint: #6b7480;
+
+    --accent: #5b9bd6;
+    --accent-weak: #15212e;
+    --accent-strong: #8ab8e0;
+    --on-accent: #0f1216;
+
+    --green: #43c284;
+    --green-bg: #132a22;
+    --amber: #d6a955;
+    --amber-bg: #2e2612;
+    --red: #e08585;
+    --red-bg: #341d1d;
+    --gray: #9aa4b2;
+    --gray-bg: #212630;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  }
+}
+
 body {
   /* The bootstrap page's own padding is fine on a phone; the map wants the full width beneath it. */
   padding: 1.25rem 1rem 3rem;
