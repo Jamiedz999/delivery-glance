@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
-import type { CancellationReason, DeliveryDetail } from '../api/deliveries'
+import type { Address, CancellationReason, DeliveryDetail, DeliveryState } from '../api/deliveries'
 import { CANCELLATION_REASONS, DELIVERY_STATE_LABELS } from '../api/deliveries'
 import { ApiError } from '../api/http'
 import { useAssignCourier, useCancelDelivery, useCourierRecommendation, useDelivery } from '../api/queries'
@@ -26,57 +26,149 @@ export function DeliveryDetailPage() {
   }
 
   return (
-    <section>
+    <section className="detail">
       <p>
-        <Link to="/deliveries">Back to deliveries</Link>
+        <Link to="/deliveries">← Back to deliveries</Link>
       </p>
-      <h1>{delivery.reference}</h1>
-      <p>
-        Status: <strong>{DELIVERY_STATE_LABELS[delivery.state]}</strong>
-      </p>
-      {delivery.assignment !== null && (
-        <p>
-          Assigned to <strong>{delivery.assignment.courierDisplayName}</strong>
-        </p>
-      )}
 
-      <h2>Route</h2>
-      <dl>
-        <dt>Pickup</dt>
-        <dd>
-          {delivery.pickup.addressLabel} ({delivery.pickup.latitude}, {delivery.pickup.longitude})
-        </dd>
-        <dt>Handoff</dt>
-        <dd>
-          {delivery.handoff.addressLabel} ({delivery.handoff.latitude}, {delivery.handoff.longitude})
-        </dd>
-      </dl>
+      <header className="detail-head">
+        <div>
+          <h1>{delivery.reference}</h1>
+          {delivery.assignment !== null && (
+            <p className="detail-sub">
+              Assigned to <strong>{delivery.assignment.courierDisplayName}</strong>
+            </p>
+          )}
+        </div>
+        <span className={`status-chip ${statusChipClass(delivery.state)}`}>
+          {DELIVERY_STATE_LABELS[delivery.state]}
+        </span>
+      </header>
 
-      <h2>History</h2>
-      <ol>
+      <div className="detail-grid">
+        <div className="detail-col">
+          <section className="card" aria-labelledby="delivery-heading">
+            <h2 id="delivery-heading" className="card-title">
+              Delivery
+            </h2>
+            <dl className="address-pair">
+              <AddressPoint label="Handoff" tag="public" address={delivery.handoff} />
+              <AddressPoint label="Pickup" tag="internal" address={delivery.pickup} />
+            </dl>
+          </section>
+
+          <DirectAssignment delivery={delivery} />
+
+          {(delivery.state === 'AWAITING_COURIER' || delivery.state === 'ASSIGNED') && (
+            <CancelDeliveryForm delivery={delivery} />
+          )}
+          {(delivery.state === 'DELIVERED' || delivery.state === 'CANCELLED') && (
+            <p className="card detail-note" role="status">
+              This delivery has reached a final state and cannot be changed.
+            </p>
+          )}
+          {delivery.state === 'IN_TRANSIT' && (
+            <p className="card detail-note" role="status">
+              The Courier has confirmed pickup; only they can confirm handoff.
+            </p>
+          )}
+        </div>
+
+        <aside className="detail-col">
+          <Timeline delivery={delivery} />
+          <TrackingLinkPanel />
+        </aside>
+      </div>
+    </section>
+  )
+}
+
+function AddressPoint({
+  label,
+  tag,
+  address,
+}: {
+  label: string
+  tag: 'public' | 'internal'
+  address: Address
+}) {
+  return (
+    <div className="address-point">
+      <dt>
+        {label}
+        <span className={`address-tag is-${tag}`}>{tag}</span>
+      </dt>
+      <dd>
+        {address.addressLabel} ({address.latitude}, {address.longitude})
+      </dd>
+    </div>
+  )
+}
+
+function Timeline({ delivery }: { delivery: DeliveryDetail }) {
+  return (
+    <section className="card" aria-labelledby="history-heading">
+      <h2 id="history-heading" className="card-title">
+        History
+      </h2>
+      <ol className="timeline">
         {delivery.transitions.map((transition) => (
           <li key={`${transition.occurredAt}-${transition.nextState}`}>
-            <time dateTime={transition.occurredAt}>{new Date(transition.occurredAt).toLocaleString()}</time> —{' '}
-            {DELIVERY_STATE_LABELS[transition.nextState]} by {transition.actorDisplayName}
-            {transition.reasonCode != null && ` (${labelFor(transition.reasonCode)})`}
-            {transition.reasonNote != null && `: ${transition.reasonNote}`}
+            <span className="timeline-dot" aria-hidden="true" />
+            <div className="timeline-body">
+              <span className="timeline-event">
+                {DELIVERY_STATE_LABELS[transition.nextState]} by {transition.actorDisplayName}
+                {transition.reasonCode != null && ` (${labelFor(transition.reasonCode)})`}
+                {transition.reasonNote != null && `: ${transition.reasonNote}`}
+              </span>
+              <time className="timeline-time" dateTime={transition.occurredAt}>
+                {new Date(transition.occurredAt).toLocaleString()}
+              </time>
+            </div>
           </li>
         ))}
       </ol>
-
-      <DirectAssignment delivery={delivery} />
-
-      {(delivery.state === 'AWAITING_COURIER' || delivery.state === 'ASSIGNED') && (
-        <CancelDeliveryForm delivery={delivery} />
-      )}
-      {(delivery.state === 'DELIVERED' || delivery.state === 'CANCELLED') && (
-        <p role="status">This delivery has reached a final state and cannot be changed.</p>
-      )}
-      {delivery.state === 'IN_TRANSIT' && (
-        <p role="status">The Courier has confirmed pickup; only they can confirm handoff.</p>
-      )}
     </section>
   )
+}
+
+/**
+ * A display-only shell for the Recipient Tracking Link. Per its lifecycle the link is valid from
+ * Delivery creation and independent of the Delivery's own state, and the contract carries no per-link
+ * status or expiry timestamp — so this shows the documented policy rather than a fetched value, and
+ * leaves the Copy control that hands the Dispatcher the link to its own issue.
+ */
+function TrackingLinkPanel() {
+  return (
+    <section className="card" aria-labelledby="tracking-heading">
+      <h2 id="tracking-heading" className="card-title">
+        Tracking link
+      </h2>
+      <p className="tracking-status">
+        <span className="status-dot is-live" aria-hidden="true" />
+        Active for the Recipient
+      </p>
+      <p className="tracking-note">
+        A private, read-only link the Recipient opens without an account. It expires 24 hours after the
+        Delivery is completed.
+      </p>
+    </section>
+  )
+}
+
+function statusChipClass(state: DeliveryState): string {
+  switch (state) {
+    case 'AWAITING_COURIER':
+      return 'is-awaiting'
+    case 'ASSIGNED':
+      return 'is-assigned'
+    case 'IN_TRANSIT':
+      return 'is-transit'
+    case 'DELIVERED':
+      return 'is-delivered'
+    case 'CANCELLED':
+      return 'is-cancelled'
+  }
 }
 
 /**
@@ -105,7 +197,7 @@ function DirectAssignment({ delivery }: { delivery: DeliveryDetail }) {
   return (
     <>
       {assign.isError && (
-        <p role="alert" className="error">
+        <p role="alert" className="error card detail-note">
           {assignmentMessageFor(assign.error)}
         </p>
       )}
@@ -126,37 +218,53 @@ function RecommendationPanel({ delivery, assigning, onAssign }: RecommendationPa
   const recommendation = useCourierRecommendation(delivery.id)
 
   return (
-    <section aria-labelledby="recommendation-heading">
-      <h2 id="recommendation-heading">Nearest eligible Couriers</h2>
+    <section className="card" aria-labelledby="recommendation-heading">
+      <div className="card-head">
+        <h2 id="recommendation-heading" className="card-title">
+          Nearest eligible Couriers
+        </h2>
+        {recommendation.data !== undefined && (
+          <button
+            type="button"
+            className="btn-ghost btn-sm"
+            onClick={() => void recommendation.refetch()}
+            disabled={recommendation.isFetching || assigning}
+            aria-busy={recommendation.isFetching}
+          >
+            Refresh recommendation
+          </button>
+        )}
+      </div>
       {recommendation.isPending && <p role="status">Calculating a fresh recommendation…</p>}
       {recommendation.isError && <p role="alert">Could not calculate a recommendation. Try again.</p>}
       {recommendation.data !== undefined && (
         <>
-          <p>
+          <p className="card-meta">
             Calculated{' '}
             <time dateTime={recommendation.data.calculatedAt}>
               {new Date(recommendation.data.calculatedAt).toLocaleString()}
             </time>
-            {' · '}
-            <button
-              type="button"
-              onClick={() => void recommendation.refetch()}
-              disabled={recommendation.isFetching || assigning}
-              aria-busy={recommendation.isFetching}
-            >
-              Refresh recommendation
-            </button>
           </p>
           {recommendation.data.candidates.length === 0 ? (
-            <p>No Courier is currently eligible. Refresh when duty or location changes.</p>
+            <p className="card-meta">
+              No Courier is currently eligible. Refresh when duty or location changes.
+            </p>
           ) : (
-            <ol>
-              {recommendation.data.candidates.map((candidate) => (
-                <li key={candidate.courierId}>
-                  <strong>{candidate.displayName}</strong> — {Math.round(candidate.distanceMetres)} m from
-                  pickup{' '}
+            <ol className="candidate-list">
+              {recommendation.data.candidates.map((candidate, index) => (
+                <li key={candidate.courierId} className="candidate-card">
+                  <span className="candidate-rank" aria-hidden="true">
+                    {index + 1}
+                  </span>
+                  <div className="candidate-body">
+                    <span className="candidate-name">{candidate.displayName}</span>
+                    <span className="candidate-meta">
+                      {formatDistance(candidate.distanceMetres)} from pickup
+                    </span>
+                  </div>
                   <button
                     type="button"
+                    className="btn-primary btn-sm"
                     aria-label={`Direct assign ${candidate.displayName}`}
                     onClick={() => onAssign(candidate.courierId)}
                     disabled={assigning}
@@ -172,6 +280,11 @@ function RecommendationPanel({ delivery, assigning, onAssign }: RecommendationPa
       )}
     </section>
   )
+}
+
+/** The candidate DTO carries metres; the Dispatcher reads kilometres to one decimal, e.g. `0.4 km`. */
+function formatDistance(distanceMetres: number): string {
+  return `${(distanceMetres / 1000).toFixed(1)} km`
 }
 
 function CancelDeliveryForm({ delivery }: { delivery: DeliveryDetail }) {
@@ -195,9 +308,11 @@ function CancelDeliveryForm({ delivery }: { delivery: DeliveryDetail }) {
   const noteRequired = reason === 'OTHER'
 
   return (
-    <form onSubmit={submit} noValidate>
-      <h2>Cancel this delivery</h2>
-      <p>A delivery can be cancelled before pickup, including after a Courier has been assigned.</p>
+    <form className="card" onSubmit={submit} noValidate>
+      <h2 className="card-title">Cancel this delivery</h2>
+      <p className="card-meta">
+        A delivery can be cancelled before pickup, including after a Courier has been assigned.
+      </p>
 
       {cancel.isError && (
         <p role="alert" className="error">

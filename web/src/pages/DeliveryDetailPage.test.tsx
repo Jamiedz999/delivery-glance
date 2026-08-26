@@ -113,7 +113,7 @@ describe('DeliveryDetailPage', () => {
     renderDetail()
 
     expect(await screen.findByText('Cory the Courier')).toBeInTheDocument()
-    expect(screen.getByText(/m from pickup/)).toHaveTextContent('432 m from pickup')
+    expect(screen.getByText(/km from pickup/)).toHaveTextContent('0.4 km from pickup')
     await userEvent.click(screen.getByRole('button', { name: 'Direct assign Cory the Courier' }))
 
     const call = vi.mocked(fetch).mock.calls.find(([url]) => String(url).endsWith('/assignment'))

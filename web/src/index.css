@@ -448,6 +448,254 @@ td {
   white-space: nowrap;
 }
 
+/* ---------------------------------------------------------- delivery detail */
+
+.detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-block: var(--space-2) var(--space-5);
+}
+
+.detail-head h1 {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.detail-sub {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* Main column carries the Delivery and its actions; the aside holds history and the tracking link. */
+.detail-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  align-items: start;
+}
+
+.detail-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+@media (max-width: 48rem) {
+  .detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-block-end: var(--space-2);
+}
+
+.card-head .card-title {
+  margin: 0;
+}
+
+.card-meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.detail-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.btn-sm {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+/* Address pair — a public Handoff over an internal Pickup, joined by a route spine. */
+.address-pair {
+  position: relative;
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding-inline-start: var(--space-4);
+}
+
+.address-pair::before {
+  content: '';
+  position: absolute;
+  inset-block: 0.5rem;
+  inset-inline-start: 4px;
+  inline-size: 1px;
+  background: var(--border-strong);
+}
+
+.address-point {
+  position: relative;
+}
+
+.address-point::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 0.3rem;
+  inset-inline-start: calc(-1 * var(--space-4) + 1px);
+  inline-size: 7px;
+  block-size: 7px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+
+.address-point dt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.address-point dd {
+  margin: var(--space-1) 0 0;
+  font-weight: 600;
+}
+
+.address-tag {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.address-tag.is-public {
+  color: var(--accent-strong);
+  background: var(--accent-weak);
+}
+
+.address-tag.is-internal {
+  color: var(--amber);
+  background: var(--amber-bg);
+}
+
+/* Ranked Courier candidates. */
+.candidate-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.candidate-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.candidate-rank {
+  flex: none;
+  inline-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.candidate-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin-inline-end: auto;
+}
+
+.candidate-name {
+  font-weight: 700;
+}
+
+.candidate-meta {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* Lifecycle timeline. */
+.timeline {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.timeline-dot {
+  inline-size: 9px;
+  block-size: 9px;
+  margin-block-start: 0.35rem;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.timeline-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-event {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.timeline-time {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tracking-link panel (display only). */
+.tracking-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.status-dot {
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: 50%;
+}
+
+.status-dot.is-live {
+  background: var(--green);
+}
+
+.tracking-note {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
 /* ------------------------------------------------------------------ sign in */
 
 .auth {
