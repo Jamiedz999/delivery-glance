@@ -46,7 +46,9 @@ services:
       PROOF_BROWSER_ORIGIN: http://localhost:8080
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
-      - "./infra/localstack/init:/etc/localstack/init/ready.d:ro"
+      # Only this feature's init script, so another overlay's script in the same directory is not
+      # run against a LocalStack that has not started the services it needs.
+      - "./infra/localstack/init/10-proof.sh:/etc/localstack/init/ready.d/10-proof.sh:ro"
       - "./lambda/proof-processor:/opt/proof-processor:ro"
     healthcheck:
       # Ready only once the init script has created the bucket, so the app waits for a usable S3.

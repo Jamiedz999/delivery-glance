@@ -1,0 +1,61 @@
+# Off-band notification demo overlay (Issue 51). Deliberately separate from compose.yaml so the
+# default `docker compose up` — the one CI builds and the journeys run against — stays exactly as it
+# was: no queue, no Lambda, notifications disabled. This overlay adds a LocalStack SQS + Lambda + SES
+# + SNS and turns the feature on, which is the only way it runs end to end without an AWS account.
+#
+#   docker compose -f compose.yaml -f compose.notify.yaml up --build
+#
+# Then open a tracking link, opt in with an email or phone from the tracking page, and drive the
+# Delivery through its states as a Dispatcher/Courier. Each state change is relayed to the queue and
+# the Lambda sends through LocalStack's SES/SNS — inspect the sent messages with, for example,
+# `awslocal ses list-identities` and the LocalStack logs.
+#
+# The automated proof of correctness does not depend on any of this — it lives in the server's
+# integration tests and the Lambda's pytest. This overlay is for demonstrating the live loop.
+
+services:
+  app:
+    environment:
+      # The relay connects to the LocalStack SQS by the Compose service name; the queue URL's path
+      # (account + name) is what LocalStack matches, so it is constructed to match the init script's
+      # queue rather than read back at runtime.
+      NOTIFY_QUEUE_URL: http://localstack:4566/000000000000/delivery-glance-notify
+      NOTIFY_REGION: us-east-1
+      NOTIFY_ENDPOINT_OVERRIDE: http://localstack:4566
+      NOTIFY_ACCESS_KEY_ID: test
+      NOTIFY_SECRET_ACCESS_KEY: test
+      NOTIFY_CALLBACK_TOKEN: local-demo-notify-callback-token
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+
+  localstack:
+    image: localstack/localstack:3
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: sqs,lambda,ses,sns
+      # LocalStack runs the Lambda in its own container; putting it on this Compose network lets the
+      # function reach the application by service name for the begin/sent callbacks. The name is the
+      # default Compose project network (directory name + _default); override COMPOSE_PROJECT_NAME and
+      # this together if you rename the project.
+      LAMBDA_DOCKER_NETWORK: delivery-glance_default
+      # Passed through to the init script, which bakes them into the deployed function.
+      APP_CALLBACK_URL: http://app:8080
+      APP_CALLBACK_TOKEN: local-demo-notify-callback-token
+      NOTIFY_EMAIL_SOURCE: notify@delivery-glance.example
+      NOTIFY_QUEUE_NAME: delivery-glance-notify
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      # Only this feature's init script, so the proof overlay's script in the same directory is not
+      # run against a LocalStack that has not started S3.
+      - "./infra/localstack/init/20-notify.sh:/etc/localstack/init/ready.d/20-notify.sh:ro"
+      - "./lambda/notification-sender:/opt/notification-sender:ro"
+    healthcheck:
+      # Ready only once the init script has created the work queue, so the app waits for a usable SQS.
+      test: ["CMD-SHELL", "awslocal sqs get-queue-url --queue-name delivery-glance-notify >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30

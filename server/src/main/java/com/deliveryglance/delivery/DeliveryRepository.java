@@ -57,15 +57,15 @@ class DeliveryRepository implements TrackedDeliveries {
 			.update();
 	}
 
-	void insertTransition(UUID deliveryId, DeliveryState previousState, DeliveryState nextState, CurrentActor actor,
-			CancellationReason reasonCode, String reasonNote, UUID commandId, Instant occurredAt) {
+	void insertTransition(UUID transitionId, UUID deliveryId, DeliveryState previousState, DeliveryState nextState,
+			CurrentActor actor, CancellationReason reasonCode, String reasonNote, UUID commandId, Instant occurredAt) {
 		this.jdbcClient.sql("""
 				INSERT INTO delivery_transition (id, delivery_id, previous_state, next_state, actor_account_id,
 				                                 actor_display_name, reason_code, reason_note, command_id, occurred_at)
 				VALUES (:id, :deliveryId, :previousState, :nextState, :actorAccountId,
 				        :actorDisplayName, :reasonCode, :reasonNote, :commandId, :occurredAt)
 				""")
-			.param("id", UUID.randomUUID())
+			.param("id", transitionId)
 			.param("deliveryId", deliveryId)
 			.param("previousState", (previousState == null) ? null : previousState.name())
 			.param("nextState", nextState.name())

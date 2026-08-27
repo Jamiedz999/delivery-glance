@@ -194,6 +194,27 @@ docker compose -f compose.yaml -f compose.proof.yaml up --build
 Nothing above depends on any of this: the default `docker compose up`, the deployment check and the
 journeys all run with proof disabled, exactly as they did before the epic.
 
+The second deliberate exception is **off-band notification** ([Issue 51](https://github.com/Jamiedz999/delivery-glance/issues/51)),
+the portfolio-expansion epic that reverses Core's no-Recipient-contact stance under one narrow term:
+the Recipient volunteers an email or phone from the tracking page (see
+[ADR 13](adr/13-notify-recipient-off-band.md)). It introduces a transactional outbox, an SQS queue
+with a dead-letter queue, and one consumer Lambda that sends through SES/SNS
+([`lambda/notification-sender/README.md`](../lambda/notification-sender/README.md)). It is **off unless
+a queue is configured** — the settings under `delivery-glance.notification` default to blank, the
+tracking page's opt-in then reports itself unavailable, and no contact is ever captured or sent. A
+deployment that leaves it off holds no Recipient contact at all, exactly as Core always has. Turn it on
+only where you have provisioned the queue, its DLQ, the Lambda, a verified SES sender and the IAM that
+lets the application send to the queue and the Lambda call back. To demonstrate the whole loop locally
+without an AWS account, run the LocalStack overlay:
+
+```bash
+docker compose -f compose.yaml -f compose.notify.yaml up --build
+```
+
+As with proof, nothing above depends on it: the default compose, the deployment check and the journeys
+all run with notification disabled. **No Courier coordinate ever enters the queue** — the message body
+is a transition id and nothing more.
+
 ## Deploy
 
 1. Build the image from a **clean checkout** at the revision you intend to run.

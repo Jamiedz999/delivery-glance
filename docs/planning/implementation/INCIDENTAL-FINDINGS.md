@@ -368,6 +368,26 @@ Fix: when a reskin ticket first needs `--text-faint` for real text, darken it to
 `--surface` in both themes (roughly `#6f7885` light / keep the dark value, which is close) — or route
 that text through `--text-muted` instead and keep `--text-faint` for non-text decoration only.
 
+### The notification Lambda hand-copies the tracking page's state vocabulary
+
+`lambda/notification-sender/handler.py:35` carries a `STATE_COPY` dict that is a byte-for-byte copy
+of the four notify-worthy entries in `web/src/track/copy.ts`, with a comment saying "kept identical
+to the tracking page's STATE_COPY". Issue 51's scope says the Lambda renders the message "reusing
+`STATE_COPY`"; this is a second copy, not a reuse. It matches today, and both the page's
+`RecipientState` record and the Lambda's `render` are exhaustive over their own copies, so neither
+side notices if the wording drifts — a headline reworded on the page would leave the email saying the
+old thing, with nothing failing.
+
+Found while implementing DG-051, writing the Lambda's renderer. Not fixed on the spot because the
+honest fix crosses a runtime boundary the project has no shared-asset path for: the copy lives in
+TypeScript, the Lambda is Python, and there is no build step that emits one from the other. A test
+that pins them together cannot import the TS from Python either.
+
+Fix: decide whether the four public sentences are worth a single source both sides read — a small
+committed JSON the web bundle imports and the Lambda loads, or a generated file — or accept the copy
+and add a check (a script in CI, or a doc test) that fails when `copy.ts` and `handler.py` disagree,
+so drift is caught rather than shipped.
+
 ## Recently cleared
 
 *(Nothing. Entries move out of this file by being deleted, not by being marked done.)*

@@ -74,6 +74,15 @@
 			<artifactId>url-connection-client</artifactId>
 		</dependency>
 
+		<!-- Off-band Recipient notification (Issue 51). The server's only broker collaborator is
+		     SQS: the relay hands a committed transition id to a queue and the consumer Lambda does
+		     the SES/SNS send. So the server carries the SQS client and nothing else; SES and SNS
+		     live in the Python Lambda, not here. -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sqs</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>

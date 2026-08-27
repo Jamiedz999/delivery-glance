@@ -142,7 +142,10 @@ function fakeUpdates() {
 }
 
 function snapshotRequests() {
-  return vi.mocked(fetch).mock.calls.map(([input]) => urlOf(input))
+  return vi
+    .mocked(fetch)
+    .mock.calls.map(([input]) => urlOf(input))
+    .filter((url) => url === '/api/tracking/snapshot')
 }
 
 describe('the Recipient tracking view', () => {
@@ -454,15 +457,21 @@ describe('the Recipient tracking view', () => {
     expect(Object.keys(rest)).toEqual(['markers'])
   })
 
-  it('asks the server for exactly one thing, and never sends the grant in a URL', async () => {
+  it('reads only its snapshot and opt-in state, and never sends the grant in a URL', async () => {
     respondWithSnapshot(inTransit())
 
     renderPage(recordingEngine().engine)
     await screen.findByRole('heading', { name: 'Your delivery is on the way' })
 
-    const requests = vi.mocked(fetch).mock.calls.map(([input]) => urlOf(input))
-    expect(requests).toEqual(['/api/tracking/snapshot'])
-    expect(requests[0]).not.toContain(GRANT_SECRET)
+    // The snapshot is the delivery read; the opt-in section asks the server once whether it may be
+    // offered. Both are same-origin GETs, and the grant travels in neither URL.
+    await waitFor(() =>
+      expect(vi.mocked(fetch).mock.calls.map(([input]) => urlOf(input))).toEqual([
+        '/api/tracking/snapshot',
+        '/api/tracking/notifications',
+      ]),
+    )
+    vi.mocked(fetch).mock.calls.forEach(([input]) => expect(urlOf(input)).not.toContain(GRANT_SECRET))
   })
 
   /**

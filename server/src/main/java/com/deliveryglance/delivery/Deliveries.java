@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import com.deliveryglance.identityaccess.CurrentActor;
 import com.deliveryglance.identityaccess.CurrentActorProvider;
+import com.deliveryglance.notification.NotificationOutbox;
 import com.deliveryglance.proof.DeliveryProofAttachments;
 import com.deliveryglance.recipientview.RecipientDeliveryFacts;
 import com.deliveryglance.recipientview.RecipientViewUpdates;
@@ -39,17 +40,20 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 
 	private final DeliveryProofAttachments proofAttachments;
 
+	private final NotificationOutbox notifications;
+
 	private final Clock clock;
 
 	Deliveries(DeliveryRepository repository, CurrentActorProvider currentActorProvider, ActiveAssignments assignments,
 			NewDeliveryLinks trackingLinks, RecipientViewUpdates recipientViews,
-			DeliveryProofAttachments proofAttachments, Clock clock) {
+			DeliveryProofAttachments proofAttachments, NotificationOutbox notifications, Clock clock) {
 		this.repository = repository;
 		this.currentActorProvider = currentActorProvider;
 		this.assignments = assignments;
 		this.trackingLinks = trackingLinks;
 		this.recipientViews = recipientViews;
 		this.proofAttachments = proofAttachments;
+		this.notifications = notifications;
 		this.clock = clock;
 	}
 
@@ -65,7 +69,8 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 		catch (DuplicateKeyException ex) {
 			throw DeliveryConflictException.referenceTaken(request.reference());
 		}
-		this.repository.insertTransition(id, null, DeliveryState.AWAITING_COURIER, actor, null, null, null, now);
+		this.repository.insertTransition(UUID.randomUUID(), id, null, DeliveryState.AWAITING_COURIER, actor, null, null,
+				null, now);
 		// Same transaction as the Delivery itself: ADR 06 says the link exists and is valid from
 		// creation, so a Delivery that committed without one would be permanently untrackable.
 		this.trackingLinks.createFor(id, now);
@@ -125,14 +130,19 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 		if (this.repository.markState(id, request.expectedVersion(), DeliveryState.CANCELLED, now) != 1) {
 			throw DeliveryConflictException.versionConflict(current.state(), current.version());
 		}
-		this.repository.insertTransition(id, current.state(), DeliveryState.CANCELLED, actor, request.reason(),
-				request.note(), request.commandId(), now);
+		UUID transitionId = UUID.randomUUID();
+		this.repository.insertTransition(transitionId, id, current.state(), DeliveryState.CANCELLED, actor,
+				request.reason(), request.note(), request.commandId(), now);
 		if (current.state().endsAssignmentOnMoveTo(DeliveryState.CANCELLED)) {
 			this.assignments.endForDelivery(id, now);
 		}
 		// Reported from inside the transaction, delivered only if it commits. A retry that took the
 		// idempotent path above never reaches here, because it changed nothing to report.
 		this.recipientViews.deliveryChanged(id);
+		// Same transaction, same rule: the outbox row that will notify the Recipient of this
+		// cancellation commits with the transition or not at all. It writes nothing unless someone
+		// opted in.
+		this.notifications.recordTransition(transitionId, now);
 
 		return requireDetail(id);
 	}
@@ -187,8 +197,9 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 		if (this.repository.markState(deliveryId, request.expectedVersion(), nextState, now) != 1) {
 			throw DeliveryConflictException.versionConflict(current.state(), current.version());
 		}
-		this.repository.insertTransition(deliveryId, current.state(), nextState, actor, null, null, request.commandId(),
-				now);
+		UUID transitionId = UUID.randomUUID();
+		this.repository.insertTransition(transitionId, deliveryId, current.state(), nextState, actor, null, null,
+				request.commandId(), now);
 		if (current.state().endsAssignmentOnMoveTo(nextState)) {
 			this.assignments.endForDelivery(deliveryId, now);
 		}
@@ -199,6 +210,7 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 			this.proofAttachments.attachAtHandoff(deliveryId, proof, now);
 		}
 		this.recipientViews.deliveryChanged(deliveryId);
+		this.notifications.recordTransition(transitionId, now);
 	}
 
 	/**
@@ -251,9 +263,11 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 		if (this.repository.markState(deliveryId, expectedVersion, DeliveryState.ASSIGNED, occurredAt) != 1) {
 			throw DeliveryConflictException.versionConflict(current.state(), current.version());
 		}
-		this.repository.insertTransition(deliveryId, current.state(), DeliveryState.ASSIGNED, actor, null, null, commandId,
-				occurredAt);
+		UUID transitionId = UUID.randomUUID();
+		this.repository.insertTransition(transitionId, deliveryId, current.state(), DeliveryState.ASSIGNED, actor, null,
+				null, commandId, occurredAt);
 		this.recipientViews.deliveryChanged(deliveryId);
+		this.notifications.recordTransition(transitionId, occurredAt);
 	}
 
 	/**
