@@ -142,8 +142,9 @@ function fakeUpdates() {
 }
 
 function snapshotRequests() {
-  return vi.mocked(fetch).mock.calls
-    .map(([input]) => urlOf(input))
+  return vi
+    .mocked(fetch)
+    .mock.calls.map(([input]) => urlOf(input))
     .filter((url) => url === '/api/tracking/snapshot')
 }
 

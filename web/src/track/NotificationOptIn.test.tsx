@@ -71,7 +71,10 @@ describe('NotificationOptIn', () => {
   it('shows an existing subscription and turns it off', async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(
-        jsonResponse({ available: true, subscription: { channel: 'SMS', target: '+15551234567', active: true } }),
+        jsonResponse({
+          available: true,
+          subscription: { channel: 'SMS', target: '+15551234567', active: true },
+        }),
       )
       .mockResolvedValueOnce(noContentResponse())
 

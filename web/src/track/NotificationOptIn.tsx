@@ -44,7 +44,12 @@ export function NotificationOptIn() {
     )
   }
 
-  return <OptInForm onSubscribed={(subscription) => setState({ available: true, subscription })} onOff={() => setState({ available: false, subscription: null })} />
+  return (
+    <OptInForm
+      onSubscribed={(subscription) => setState({ available: true, subscription })}
+      onOff={() => setState({ available: false, subscription: null })}
+    />
+  )
 }
 
 function ActiveSubscription({
@@ -71,7 +76,8 @@ function ActiveSubscription({
     <section className="card opt-in" aria-labelledby="opt-in-heading">
       <h3 id="opt-in-heading">Delivery updates</h3>
       <p>
-        We’ll {channel === 'EMAIL' ? 'email' : 'text'} you at <strong>{target}</strong> when this delivery changes.
+        We’ll {channel === 'EMAIL' ? 'email' : 'text'} you at <strong>{target}</strong> when this delivery
+        changes.
       </p>
       <button type="button" onClick={() => void turnOff()} disabled={working}>
         Turn off updates
@@ -103,7 +109,9 @@ function OptInForm({
         onSubscribed(result.subscription)
         return
       case 'invalid':
-        setError(channel === 'EMAIL' ? 'Enter a valid email address.' : 'Enter a phone number like +15551234567.')
+        setError(
+          channel === 'EMAIL' ? 'Enter a valid email address.' : 'Enter a phone number like +15551234567.',
+        )
         return
       case 'unavailable':
         // The feature went off underneath the page; stop offering it rather than retrying.
