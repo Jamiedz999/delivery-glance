@@ -67,6 +67,12 @@ public class SecurityConfig {
 				// malformed and expired links can be told apart by nobody.
 				.requestMatchers(HttpMethod.POST, "/api/tracking-session").permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/tracking/**").permitAll()
+				// The proof processing callback. Open here for the same reason as the Recipient
+				// routes — its caller holds no Internal Account — and authorized the same way they
+				// are: by a capability this policy knows nothing about. The proof module compares a
+				// shared bearer token itself, and a deployment with no token configured refuses
+				// every callback, so an anonymous POST here is answered 401 by the controller.
+				.requestMatchers(HttpMethod.POST, "/api/internal/proof-processed").permitAll()
 				// HEAD is named explicitly because the frontend catch-all below permits GET only,
 				// and every other route is happy to refuse a HEAD. This one is not: a Tracking Link
 				// travels through message apps and mail filters that issue HEAD before any person
@@ -91,7 +97,12 @@ public class SecurityConfig {
 		});
 
 		http.csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository())
-				.csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
+				.csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
+				// The proof processing callback is a server-to-server POST carrying a bearer token,
+				// not a browser form, so it holds no CSRF cookie to echo. CSRF defends a session a
+				// browser holds ambiently; this route has no session and its own token instead.
+				.ignoringRequestMatchers(PathPatternRequestMatcher.withDefaults()
+					.matcher(HttpMethod.POST, "/api/internal/proof-processed")))
 			.addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class);
 
 		http.formLogin(login -> login.loginProcessingUrl("/api/session/login")

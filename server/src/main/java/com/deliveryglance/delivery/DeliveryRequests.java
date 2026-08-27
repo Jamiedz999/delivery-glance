@@ -68,7 +68,19 @@ final class DeliveryRequests {
 
 	record Progress(
 			@NotNull(message = REQUIRED) UUID commandId,
-			@NotNull(message = REQUIRED) @PositiveOrZero(message = "must not be negative") Integer expectedVersion) {
+			@NotNull(message = REQUIRED) @PositiveOrZero(message = "must not be negative") Integer expectedVersion,
+
+			/**
+			 * Optional proof-of-delivery object keys a handoff carries. Absent for pickup, and
+			 * absent for a handoff captured without proof. The keys are validated where they are
+			 * stored, so only their length is bounded here.
+			 */
+			@Valid Proof proof) {
+	}
+
+	record Proof(
+			@Size(max = 512, message = "must be 512 characters or fewer") String photoObjectKey,
+			@Size(max = 512, message = "must be 512 characters or fewer") String signatureObjectKey) {
 	}
 
 }

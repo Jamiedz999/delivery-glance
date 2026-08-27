@@ -54,8 +54,10 @@ class RecipientSnapshotsTest {
 
 	private final FakeLocationFacts locations = new FakeLocationFacts();
 
+	private final FakeProofPresence proof = new FakeProofPresence();
+
 	private final RecipientSnapshots snapshots = new RecipientSnapshots(this.deliveries, this.locations,
-			new RecipientViewProperties(CONTACT));
+			new RecipientViewProperties(CONTACT), this.proof);
 
 	/**
 	 * What each state may carry. Any component of the response not named here has to be null, which
@@ -70,7 +72,7 @@ class RecipientSnapshotsTest {
 				Arguments.of(DeliveryState.IN_TRANSIT,
 						Set.of("reference", "state", "handoffAddressLabel", "courierDisplayName", "map")),
 				Arguments.of(DeliveryState.DELIVERED,
-						Set.of("reference", "state", "handoffAddressLabel", "completedAt")),
+						Set.of("reference", "state", "handoffAddressLabel", "completedAt", "proofOnFile")),
 				Arguments.of(DeliveryState.CANCELLED,
 						Set.of("reference", "state", "completedAt", "deliveryTeamContact")));
 	}
@@ -173,9 +175,27 @@ class RecipientSnapshotsTest {
 		this.deliveries.holds(deliveryIn(DeliveryState.CANCELLED));
 
 		RecipientViews.Snapshot snapshot = new RecipientSnapshots(this.deliveries, this.locations,
-				new RecipientViewProperties("   ")).of(DELIVERY_ID);
+				new RecipientViewProperties("   "), this.proof).of(DELIVERY_ID);
 
 		assertThat(snapshot.deliveryTeamContact()).isNull();
+	}
+
+	/**
+	 * The whole of what a Recipient learns about proof: that a Delivered handoff has it, or that it
+	 * does not. It is a yes or no in Delivered and null everywhere else — never a URL, a key or a
+	 * time — which is the privacy decision made structural.
+	 */
+	@Test
+	void tellsARecipientWhetherProofIsOnFileOnlyOnceDeliveredAndNeverTheImage() {
+		this.deliveries.holds(deliveryIn(DeliveryState.DELIVERED));
+		this.proof.holds(true);
+		assertThat(this.snapshots.of(DELIVERY_ID).proofOnFile()).isTrue();
+
+		this.proof.holds(false);
+		assertThat(this.snapshots.of(DELIVERY_ID).proofOnFile()).isFalse();
+
+		this.deliveries.holds(deliveryIn(DeliveryState.IN_TRANSIT));
+		assertThat(this.snapshots.of(DELIVERY_ID).proofOnFile()).isNull();
 	}
 
 	/**
@@ -226,6 +246,22 @@ class RecipientSnapshotsTest {
 		public Optional<RecipientDelivery> recipientFactsFor(UUID deliveryId) {
 			assertThat(deliveryId).isEqualTo(DELIVERY_ID);
 			return Optional.ofNullable(this.delivery);
+		}
+
+	}
+
+	private static final class FakeProofPresence implements com.deliveryglance.proof.ProofPresence {
+
+		private boolean onFile = true;
+
+		void holds(boolean present) {
+			this.onFile = present;
+		}
+
+		@Override
+		public boolean hasProofOnFile(UUID deliveryId) {
+			assertThat(deliveryId).isEqualTo(DELIVERY_ID);
+			return this.onFile;
 		}
 
 	}

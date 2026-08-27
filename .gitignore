@@ -24,3 +24,8 @@ npm-debug.log*
 # Playwright
 web/playwright-report/
 web/test-results/
+
+# Python bytecode (proof-processor Lambda)
+__pycache__/
+*.pyc
+.venv/

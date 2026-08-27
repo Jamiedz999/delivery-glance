@@ -1,0 +1,2 @@
+# Runtime dependency. boto3 is provided by the Lambda runtime and is not listed here.
+Pillow>=11,<12

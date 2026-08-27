@@ -1,0 +1,6 @@
+# For running test_handler.py locally. boto3 is imported by handler.py, so it is needed here even
+# though the deployed runtime provides it.
+-r requirements.txt
+boto3>=1.34
+piexif>=1.1
+pytest>=8
