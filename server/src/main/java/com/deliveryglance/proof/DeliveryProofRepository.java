@@ -93,9 +93,12 @@ class DeliveryProofRepository implements ProofPresence {
 
 	@Override
 	public boolean hasProofOnFile(UUID deliveryId) {
+		// READY only: a Recipient is told proof is on file just for an artifact that was validated
+		// and scrubbed. A PENDING upload might still be quarantined as not an image, and telling the
+		// Recipient it exists before then could claim a proof that never comes to be.
 		return this.jdbcClient.sql("""
 				SELECT count(*) FROM delivery_proof
-				WHERE delivery_id = :deliveryId AND status IN ('PENDING', 'READY')
+				WHERE delivery_id = :deliveryId AND status = 'READY'
 				""")
 			.param("deliveryId", deliveryId)
 			.query(Integer.class)

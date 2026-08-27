@@ -27,6 +27,7 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.PublicAccessBlockConfiguration;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -124,6 +125,22 @@ class ProofApiTest {
 			.headObject(builder -> builder.bucket(BUCKET).key(objectKey));
 		assertThat(head.contentLength()).isEqualTo((long) bytes.length);
 		assertThat(head.contentType()).isEqualTo("image/jpeg");
+	}
+
+	@Test
+	void keepsTheBucketPrivateWithPublicAccessFullyBlocked() {
+		// The acceptance floor says the bucket "refuses anonymous reads". On real S3 that refusal is
+		// enforced by public access being blocked; LocalStack does not emulate the anonymous-read
+		// authorization itself, so what is asserted here is the reproducible cause: the bucket has
+		// every public-access control on. A read is only ever a presigned GET, minted per object.
+		PublicAccessBlockConfiguration block = this.s3
+			.getPublicAccessBlock(builder -> builder.bucket(BUCKET))
+			.publicAccessBlockConfiguration();
+
+		assertThat(block.blockPublicAcls()).isTrue();
+		assertThat(block.ignorePublicAcls()).isTrue();
+		assertThat(block.blockPublicPolicy()).isTrue();
+		assertThat(block.restrictPublicBuckets()).isTrue();
 	}
 
 	@Test
@@ -293,6 +310,13 @@ class ProofApiTest {
 		}
 		catch (SdkException ex) {
 			this.s3.createBucket(builder -> builder.bucket(BUCKET));
+			// The same private posture the demo init script sets, so the anonymous-read refusal is
+			// tested against a bucket configured the way a real deployment configures it.
+			this.s3.putPublicAccessBlock(builder -> builder.bucket(BUCKET)
+				.publicAccessBlockConfiguration(block -> block.blockPublicAcls(true)
+					.ignorePublicAcls(true)
+					.blockPublicPolicy(true)
+					.restrictPublicBuckets(true)));
 		}
 	}
 

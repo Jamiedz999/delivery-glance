@@ -11,9 +11,10 @@ import java.util.UUID;
 public interface ProofPresence {
 
 	/**
-	 * Whether this Delivery has proof on file: at least one captured artifact that was not rejected.
-	 * A proof still being processed already counts, because it was genuinely captured; only a
-	 * quarantined upload does not.
+	 * Whether this Delivery has proof on file: at least one captured artifact that has been
+	 * validated and scrubbed (READY). A still-processing upload does not count — it may yet be
+	 * quarantined as not an image — so the Recipient is never told proof exists for one that never
+	 * comes to be.
 	 */
 	boolean hasProofOnFile(UUID deliveryId);
 

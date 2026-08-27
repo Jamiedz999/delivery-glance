@@ -17,6 +17,10 @@ BUILD="/tmp/proof-build"
 echo "[proof-init] creating private bucket ${BUCKET}"
 awslocal s3api create-bucket --bucket "${BUCKET}" >/dev/null
 
+echo "[proof-init] blocking all public access"
+awslocal s3api put-public-access-block --bucket "${BUCKET}" --public-access-block-configuration \
+  "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+
 echo "[proof-init] allowing browser uploads from ${ORIGIN}"
 awslocal s3api put-bucket-cors --bucket "${BUCKET}" --cors-configuration '{
   "CORSRules": [{
@@ -25,6 +29,16 @@ awslocal s3api put-bucket-cors --bucket "${BUCKET}" --cors-configuration '{
     "AllowedHeaders": ["*"],
     "ExposeHeaders": ["ETag"],
     "MaxAgeSeconds": 3000
+  }]
+}'
+
+echo "[proof-init] expiring proof objects after 30 days"
+awslocal s3api put-bucket-lifecycle-configuration --bucket "${BUCKET}" --lifecycle-configuration '{
+  "Rules": [{
+    "ID": "expire-proof",
+    "Status": "Enabled",
+    "Filter": {"Prefix": ""},
+    "Expiration": {"Days": 30}
   }]
 }'
 
