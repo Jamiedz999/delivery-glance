@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type FreshnessDescription, type FreshnessLabel, describeFreshness } from '../freshness'
 import { DeliveryMap } from './DeliveryMap'
+import { NotificationOptIn } from './NotificationOptIn'
 import {
   TRACKING_CONNECTION_COPY,
   NO_POSITION,
@@ -190,6 +191,13 @@ function Delivery({
           {snapshot.proofOnFile === true && <p className="proof-confirmed">Confirmed with proof on file.</p>}
         </div>
       )}
+
+      {/*
+        The opt-in for off-band updates, offered only while the Delivery is still moving — a
+        terminal Delivery has no further state change to notify about. It renders nothing at all on a
+        deployment that cannot notify, so a page that could never deliver an update never asks.
+      */}
+      {isInProgress(snapshot.state) && <NotificationOptIn />}
 
       {snapshot.state === 'CANCELLED' && (
         <p className="contact">
