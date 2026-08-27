@@ -81,6 +81,30 @@ delivery-glance:
     # disables the callback route, so a deployment without the Lambda cannot have proof metadata
     # written by anything but the Lambda it never configured.
     callback-token: ${PROOF_CALLBACK_TOKEN:}
+  notification:
+    # Off-band Recipient notification (Issue 51). Off unless a queue-url is set: a blank queue is a
+    # supported deployment where transitions still write outbox rows for opted-in Recipients but
+    # nothing relays or sends, and the opt-in endpoint reports the feature unavailable. The
+    # application's only broker collaborator is SQS — the consumer Lambda does the SES/SNS send — so
+    # only what makes the queue reachable, plus the callback secret, lives here. The Compose `notify`
+    # profile points these at a LocalStack SQS, the only way the loop runs without an AWS account.
+    queue-url: ${NOTIFY_QUEUE_URL:}
+    region: ${NOTIFY_REGION:us-east-1}
+    # An SQS endpoint to use instead of the real AWS one. Blank in production; a LocalStack address
+    # for the demo and tests.
+    endpoint-override: ${NOTIFY_ENDPOINT_OVERRIDE:}
+    # Static credentials for the SQS client. Blank in production, where the default provider chain
+    # (an instance role) is used; any value works for LocalStack.
+    access-key-id: ${NOTIFY_ACCESS_KEY_ID:}
+    secret-access-key: ${NOTIFY_SECRET_ACCESS_KEY:}
+    # The most outbox rows one relay pass publishes, so a backlog drains over several ticks.
+    relay-batch-size: ${NOTIFY_RELAY_BATCH_SIZE:50}
+    # How often the relay looks for unpublished outbox rows. ISO-8601 duration.
+    relay-interval: ${NOTIFY_RELAY_INTERVAL:PT5S}
+    # The shared secret the consumer Lambda presents to the begin and sent callbacks. Blank disables
+    # both routes, so a deployment without the Lambda cannot have a send recorded by anything but the
+    # Lambda it never configured.
+    callback-token: ${NOTIFY_CALLBACK_TOKEN:}
   demo:
     # POST /api/demo/reset, which empties every Delivery, Assignment, Tracking Link and Courier fact
     # and puts the fictional Deliveries back. Off unless a deployment says otherwise, and the
