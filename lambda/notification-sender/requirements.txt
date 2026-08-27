@@ -1,0 +1,2 @@
+# The Lambda runtime provides boto3, so it is not listed here. This function has no other runtime
+# dependency — begin/sent go over urllib, and SES/SNS through the runtime's boto3.
