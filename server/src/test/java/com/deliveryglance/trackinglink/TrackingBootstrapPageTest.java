@@ -86,6 +86,19 @@ class TrackingBootstrapPageTest {
 		assertThat(html).contains("content=\"https://tiles.example/style.json?key=demo&amp;lang=en\"");
 	}
 
+	/**
+	 * The tab and bookmark carry the product's own parcel mark rather than the browser default. The
+	 * icon is the one asset {@code #47} ships at {@code /favicon.svg}; being same-origin, the existing
+	 * {@code img-src 'self'} already admits it, so the mark loads without widening the policy.
+	 */
+	@Test
+	void carriesTheBrandFaviconThatTheExistingImagePolicyAlreadyAdmits() {
+		TrackingBootstrapPage page = pageWith("");
+
+		assertThat(page.html()).contains("<link rel=\"icon\" type=\"image/svg+xml\" href=\"/favicon.svg\">");
+		assertThat(page.contentSecurityPolicy()).contains("img-src 'self'");
+	}
+
 	private static TrackingBootstrapPage pageWith(String mapStyleUrl) {
 		return new TrackingBootstrapPage(new TrackingLinkProperties(Map.of(1, "irrelevant"), 1, true, mapStyleUrl));
 	}

@@ -68,6 +68,7 @@ class TrackingBootstrapPage {
 				<meta name="viewport" content="width=device-width, initial-scale=1">
 				<meta name="robots" content="noindex, nofollow, nosnippet">
 				<title>Delivery Glance</title>
+				<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 				<meta property="og:title" content="Delivery Glance">
 				<meta property="og:description" content="Delivery Glance tracking link">
 				<meta name="delivery-glance-map-style" content="%s">
