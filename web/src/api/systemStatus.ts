@@ -1,6 +1,8 @@
 export interface SystemStatus {
   application: string
   status: string
+  /** Whether this deployment has proof of delivery configured; false hides capture entirely. */
+  proofCaptureEnabled: boolean
 }
 
 export async function fetchSystemStatus(): Promise<SystemStatus> {

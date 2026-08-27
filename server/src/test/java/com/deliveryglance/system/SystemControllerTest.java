@@ -24,7 +24,7 @@ class SystemControllerTest {
 		mockMvc.perform(get("/api/system"))
 				.andExpect(status().isOk())
 				.andExpect(content().json("""
-						{"application":"delivery-glance","status":"ok"}
+						{"application":"delivery-glance","status":"ok","proofCaptureEnabled":false}
 						"""));
 	}
 

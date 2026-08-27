@@ -4,13 +4,16 @@ import { Link, useParams } from 'react-router'
 import type { Address, CancellationReason, DeliveryDetail, DeliveryState } from '../api/deliveries'
 import { CANCELLATION_REASONS, DELIVERY_STATE_LABELS, isTerminalState } from '../api/deliveries'
 import { ApiError } from '../api/http'
+import { PROOF_KIND_LABELS, PROOF_STATUS_LABELS } from '../api/proof'
 import {
   useAssignCourier,
   useCancelDelivery,
   useCopyTrackingLink,
   useCourierRecommendation,
   useDelivery,
+  useDeliveryProof,
 } from '../api/queries'
+import { useSystemStatus } from '../api/useSystemStatus'
 
 export function DeliveryDetailPage() {
   const { id = '' } = useParams()
@@ -82,6 +85,7 @@ export function DeliveryDetailPage() {
 
         <aside className="detail-col">
           <Timeline delivery={delivery} />
+          <ProofPanel delivery={delivery} />
           <TrackingLinkPanel delivery={delivery} />
         </aside>
       </div>
@@ -134,6 +138,58 @@ function Timeline({ delivery }: { delivery: DeliveryDetail }) {
           </li>
         ))}
       </ol>
+    </section>
+  )
+}
+
+/**
+ * The Delivery Team's view of a completed handoff's proof — the actual photo and signature, loaded
+ * straight from the private bucket through short-lived presigned URLs. This is the read surface the
+ * privacy decision reserves for the Dispatcher; the Recipient is only ever told that proof exists.
+ *
+ * It appears only once a Delivery is Delivered, since that is the only state a proof can exist in,
+ * and only where proof is configured at all. A READY artifact shows a thumbnail that opens the full
+ * image; one still processing or rejected shows its status and nothing to load.
+ */
+function ProofPanel({ delivery }: { delivery: DeliveryDetail }) {
+  const proofEnabled = useSystemStatus().data?.proofCaptureEnabled ?? false
+  const show = proofEnabled && delivery.state === 'DELIVERED'
+  const proof = useDeliveryProof(delivery.id, show)
+
+  if (!show) {
+    return null
+  }
+
+  return (
+    <section className="card" aria-labelledby="proof-heading">
+      <h2 id="proof-heading" className="card-title">
+        Proof of delivery
+      </h2>
+      {proof.isPending && <p role="status">Loading proof…</p>}
+      {proof.isError && <p role="alert">Could not load the proof. Reload the page.</p>}
+      {proof.isSuccess && proof.data.artifacts.length === 0 && (
+        <p className="card-meta">This handoff was confirmed without proof.</p>
+      )}
+      {proof.isSuccess && proof.data.artifacts.length > 0 && (
+        <ul className="proof-list">
+          {proof.data.artifacts.map((artifact) => (
+            <li key={artifact.kind} className="proof-item">
+              <span className="proof-item-label">{PROOF_KIND_LABELS[artifact.kind]}</span>
+              {artifact.status === 'READY' && artifact.thumbnailUrl !== null && artifact.fullUrl !== null ? (
+                <a href={artifact.fullUrl} target="_blank" rel="noreferrer" className="proof-thumb-link">
+                  <img
+                    className="proof-thumb"
+                    src={artifact.thumbnailUrl}
+                    alt={`${PROOF_KIND_LABELS[artifact.kind]} — open full image`}
+                  />
+                </a>
+              ) : (
+                <span className="proof-item-status">{PROOF_STATUS_LABELS[artifact.status]}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   )
 }

@@ -81,6 +81,17 @@ export interface CourierDelivery {
 export interface ProgressDeliveryInput {
   commandId: string
   expectedVersion: number
+  /**
+   * Optional proof-of-delivery object keys a handoff carries. Only ever set on a handoff, and only
+   * once the browser has uploaded the artifacts to their presigned URLs; the keys name where those
+   * objects landed. Absent for a pickup and for a handoff captured without proof.
+   */
+  proof?: ProofKeys
+}
+
+export interface ProofKeys {
+  photoObjectKey?: string
+  signatureObjectKey?: string
 }
 
 /**

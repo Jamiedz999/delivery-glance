@@ -185,6 +185,9 @@ function Delivery({
               <time dateTime={snapshot.completedAt}>{formatTime(snapshot.completedAt)}</time>
             </p>
           )}
+
+          {/* Proof presence, never the image: the Recipient is told it is on file and no more. */}
+          {snapshot.proofOnFile === true && <p className="proof-confirmed">Confirmed with proof on file.</p>}
         </div>
       )}
 

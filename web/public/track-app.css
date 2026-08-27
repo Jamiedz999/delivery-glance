@@ -449,3 +449,10 @@ body {
     block-size: 26rem;
   }
 }
+
+/* Proof presence, shown to the Recipient once Delivered. Never an image — a single reassurance line. */
+.proof-confirmed {
+  margin: var(--space-2) 0 0;
+  color: var(--green);
+  font-weight: 600;
+}

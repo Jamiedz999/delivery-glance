@@ -19,6 +19,7 @@ import {
   fetchDelivery,
   progressCourierDelivery,
 } from './deliveries'
+import { fetchDeliveryProof } from './proof'
 import type { Credentials } from './session'
 import { fetchSession, signIn, signOut } from './session'
 
@@ -28,6 +29,7 @@ export const queryKeys = {
   deliveries: ['deliveries'] as const,
   delivery: (id: string) => ['deliveries', id] as const,
   recommendation: (id: string) => ['deliveries', id, 'courier-recommendation'] as const,
+  deliveryProof: (id: string) => ['deliveries', id, 'proof'] as const,
   courier: ['courier'] as const,
   currentCourierDelivery: ['current-courier-delivery'] as const,
 }
@@ -80,6 +82,21 @@ export function useDeliveries() {
 
 export function useDelivery(id: string) {
   return useQuery({ queryKey: queryKeys.delivery(id), queryFn: () => fetchDelivery(id), retry: false })
+}
+
+/**
+ * A Delivery's proof, for the Dispatcher detail. Enabled only once a Delivery is Delivered, because
+ * that is the only state a completed handoff — and so any proof — can exist in; before then there is
+ * nothing to fetch. The presigned URLs it returns are short-lived, so it does not cache long.
+ */
+export function useDeliveryProof(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.deliveryProof(id),
+    queryFn: () => fetchDeliveryProof(id),
+    enabled,
+    retry: false,
+    staleTime: 60_000,
+  })
 }
 
 export function useCourierRecommendation(id: string) {
