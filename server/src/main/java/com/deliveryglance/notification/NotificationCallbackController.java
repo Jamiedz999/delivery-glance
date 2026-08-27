@@ -1,9 +1,8 @@
 package com.deliveryglance.notification;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-
 import jakarta.validation.Valid;
+
+import com.deliveryglance.shared.CallbackToken;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -56,22 +55,9 @@ class NotificationCallbackController {
 	}
 
 	private void requireCallbackToken(String authorizationHeader) {
-		String expected = this.properties.callbackToken();
-		if (expected == null || expected.isBlank()) {
+		if (!CallbackToken.authorizes(authorizationHeader, this.properties.callbackToken())) {
 			throw NotificationException.callbackUnauthorized();
 		}
-		String presented = bearerToken(authorizationHeader);
-		if (presented == null || !MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8),
-				presented.getBytes(StandardCharsets.UTF_8))) {
-			throw NotificationException.callbackUnauthorized();
-		}
-	}
-
-	private static String bearerToken(String authorizationHeader) {
-		if (authorizationHeader == null || !authorizationHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
-			return null;
-		}
-		return authorizationHeader.substring(7).strip();
 	}
 
 }
