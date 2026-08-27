@@ -319,3 +319,11 @@ _Avoid_: Delivery photo in the database, mandatory proof
 **Proof Privacy**:
 The rule that a Recipient is told only that a Delivery was confirmed with proof on file, never shown the image; the photo and signature are visible to the Delivery Team alone. EXIF/GPS is stripped before anything that outlives the request is stored, regardless of who may later view it.
 _Avoid_: Recipient-visible delivery photo, retained location metadata
+
+**Off-band Notification**:
+An email or SMS sent to a Recipient when a Delivery changes state — assigned, in transit, delivered, cancelled — reaching them when no tracking page is open. It is decoupled from the state-change command through a transactional outbox and an event pipeline, so a slow or failing provider never blocks a Courier or Dispatcher, and no notification is sent twice. It complements the tracking page's in-page live updates rather than replacing them, and is a deliberate extension past Core's minimal scope ([Issue 51](https://github.com/Jamiedz999/delivery-glance/issues/51)), off unless configured. The message is state-derived and reveals no dispatch internals; cancelled implies no retry.
+_Avoid_: Push notification, courier-proximity ping, sending on the request thread
+
+**Notification Opt-in**:
+The channel — an email address or phone number — a Recipient volunteers from the tracking page to receive Off-band Notifications about that one Delivery, with a consent time and a revoke path. It is the sole way contact is captured: the Delivery Team never records or holds a Recipient's contact, and authority to create or revoke one is the Tracking Link grant alone. A revoke suppresses even a message already queued ([ADR 13](docs/adr/13-notify-recipient-off-band.md)).
+_Avoid_: Dispatcher-entered recipient contact, stored Recipient PII, mailing list

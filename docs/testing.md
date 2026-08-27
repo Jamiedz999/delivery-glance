@@ -111,6 +111,20 @@ in Future Work 18 for exactly this reason.
 | The processing callback is not actually the Lambda | `proof/ProofApiTest.refusesAProcessingCallbackThatDoesNotCarryTheSharedToken` | No shared bearer token, no write: the callback is refused `401` before it can settle anything. |
 | A Recipient is shown the image rather than only that proof exists | `recipientview/RecipientSnapshotsTest.tellsARecipientWhetherProofIsOnFileOnlyOnceDeliveredAndNeverTheImage` and its state matrix, plus `web/src/track/TrackingPage.test.tsx` | `proofOnFile` is a yes/no present only once Delivered — the privacy matrix fails if any other field appears — and the Recipient page renders only the reassurance line. |
 
+### Off-band notification
+
+| Risk | Proved by | What it actually asserts |
+|---|---|---|
+| A state change sends inline, or without an opt-in, or writes more than one message | `notification/NotificationApiTest.writesExactlyOneOutboxRowInTheSameTransactionOnlyForAnOptedInRecipient`, `writesNoOutboxRowForATransitionNobodyOptedInFor` | A notify-worthy transition writes exactly one `notification_outbox` row in its own transaction, and only when a Recipient opted in; a transition nobody opted in for writes none. |
+| A redelivery sends the notification twice | `notification/NotificationApiTest.sendsOnceAndReportsAlreadySentOnRedeliveryAfterTheSendIsRecorded` | The begin/sent handshake proceeds until a send is recorded, then answers every later delivery of the same transition id `ALREADY_SENT` with no channel or target. |
+| An unsubscribe does not reach a message already queued | `notification/NotificationApiTest.suppressesAMessageTheRecipientUnsubscribedFromBeforeItWasSent` | A revoke before the send makes begin return `SUPPRESSED` and marks the row terminal; it never sends. |
+| The relay publishes a row more than once | `notification/NotificationApiTest.relayPublishesAnUnpublishedRowOnceToTheQueue` | A published row is not relayed again, so the transition id reaches the queue exactly once however often the relay runs. |
+| The callback is not actually the Lambda | `notification/NotificationApiTest.refusesACallbackWithoutTheSharedToken`, `NotificationDisabledApiTest.refusesTheCallbackWhenNoTokenIsConfigured` | No shared bearer token, no dispatch: the callback is refused `401`, and a deployment with no token configured refuses every callback. |
+| A channel is stored that could never be sent to, or a target that does not fit its channel | `notification/NotificationApiTest.refusesATargetThatDoesNotMatchItsChannel`, `NotificationDisabledApiTest.refusesToStoreASubscriptionItCouldNeverSendTo` | A mismatched email/phone is refused `422`; an unconfigured deployment refuses the opt-in `503` rather than storing a dead channel. |
+| The queue never actually receives the id | `notification/NotificationQueueTest.putsTheBareTransitionIdOnTheQueue` | Against a real SQS (LocalStack), the queue seam puts the bare transition id on the queue and nothing else. |
+| Cancelled implies a retry, or the message names a dispatch internal | `lambda/notification-sender` — `test_render_cancelled_implies_no_retry`, `test_render_covers_every_notify_state_and_names_the_reference` | The rendered message is state-derived and reuses `STATE_COPY`; cancelled says nothing further is scheduled, and every message carries the way to turn updates off. |
+| The consumer sends on a non-proceed decision, or confirms a send that failed | `lambda/notification-sender` — `test_a_non_proceed_decision_sends_nothing`, `test_a_failed_send_propagates_and_is_not_confirmed` | The Lambda sends only on `PROCEED`, and a failed send re-raises unconfirmed so SQS retries and finally dead-letters it. |
+
 ### Role isolation and transport
 
 | Risk | Proved by |
