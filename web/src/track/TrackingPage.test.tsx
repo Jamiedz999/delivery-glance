@@ -72,6 +72,7 @@ function snapshotOf(state: RecipientState, overrides: Partial<TrackingSnapshot> 
     map: null,
     completedAt: null,
     deliveryTeamContact: null,
+    proofOnFile: null,
     ...overrides,
   }
 }
@@ -266,6 +267,28 @@ describe('the Recipient tracking view', () => {
     await screen.findByRole('heading', { name: 'Delivered' })
 
     expect(screen.queryByRole('list', { name: 'Delivery progress' })).not.toBeInTheDocument()
+  })
+
+  it('tells the recipient proof is on file when a delivery was confirmed with it', async () => {
+    respondWithSnapshot(
+      snapshotOf('DELIVERED', { completedAt: '2026-08-10T09:42:00.000Z', proofOnFile: true }),
+    )
+
+    renderPage(recordingEngine().engine)
+    await screen.findByRole('heading', { name: 'Delivered' })
+
+    expect(screen.getByText('Confirmed with proof on file.')).toBeInTheDocument()
+  })
+
+  it('says nothing about proof when a delivery was confirmed without it', async () => {
+    respondWithSnapshot(
+      snapshotOf('DELIVERED', { completedAt: '2026-08-10T09:42:00.000Z', proofOnFile: false }),
+    )
+
+    renderPage(recordingEngine().engine)
+    await screen.findByRole('heading', { name: 'Delivered' })
+
+    expect(screen.queryByText('Confirmed with proof on file.')).not.toBeInTheDocument()
   })
 
   it('reads the freshness at a glance in a chip beside the location sentence', async () => {

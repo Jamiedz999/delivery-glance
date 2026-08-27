@@ -50,6 +50,31 @@ const assigned = {
   },
 }
 
+const delivered = { ...assigned, state: 'DELIVERED', version: 3 }
+
+const systemWithProof = { application: 'delivery-glance', status: 'ok', proofCaptureEnabled: true }
+
+const proofSet = {
+  artifacts: [
+    {
+      kind: 'PHOTO',
+      status: 'READY',
+      capturedAt: '2026-08-10T09:42:00Z',
+      processedAt: '2026-08-10T09:42:05Z',
+      thumbnailUrl: 'https://bucket.s3.example/thumb.jpg?sig=1',
+      fullUrl: 'https://bucket.s3.example/full.jpg?sig=2',
+    },
+    {
+      kind: 'SIGNATURE',
+      status: 'PENDING',
+      capturedAt: '2026-08-10T09:42:00Z',
+      processedAt: null,
+      thumbnailUrl: null,
+      fullUrl: null,
+    },
+  ],
+}
+
 const recommendation = {
   calculatedAt: '2026-08-10T09:04:00Z',
   candidates: [
@@ -105,6 +130,51 @@ describe('DeliveryDetailPage', () => {
     expect(await screen.findByRole('heading', { name: 'DG-1001' })).toBeInTheDocument()
     expect(screen.getByText('Flat 2, 14 Notional Row (51.5033, -0.1195)')).toBeInTheDocument()
     expect(screen.getByRole('listitem')).toHaveTextContent('Awaiting courier by Dana the Dispatcher')
+  })
+
+  it('shows a delivered proof to the Dispatcher: a ready thumbnail that links to the full image', async () => {
+    respondWith((url) => {
+      if (url.endsWith('/api/system')) {
+        return jsonResponse(systemWithProof)
+      }
+      if (url.endsWith('/proof')) {
+        return jsonResponse(proofSet)
+      }
+      return jsonResponse(delivered)
+    })
+
+    renderDetail()
+
+    expect(await screen.findByRole('heading', { name: 'Proof of delivery' })).toBeInTheDocument()
+    const openFull = await screen.findByRole('link', { name: 'Delivery photo — open full image' })
+    expect(openFull).toHaveAttribute('href', 'https://bucket.s3.example/full.jpg?sig=2')
+    expect(screen.getByAltText('Delivery photo — open full image')).toHaveAttribute(
+      'src',
+      'https://bucket.s3.example/thumb.jpg?sig=1',
+    )
+    // The signature is still processing, so it is a status and no image to load.
+    expect(screen.getByText('Processing…')).toBeInTheDocument()
+  })
+
+  it('offers no proof panel until a delivery is delivered', async () => {
+    respondWith((url) => {
+      if (url.endsWith('/api/system')) {
+        return jsonResponse(systemWithProof)
+      }
+      if (url.endsWith('/courier-recommendations')) {
+        return jsonResponse(emptyRecommendation)
+      }
+      if (url.endsWith('/proof')) {
+        return jsonResponse(proofSet)
+      }
+      return jsonResponse(awaitingCourier)
+    })
+
+    renderDetail()
+
+    await screen.findByRole('heading', { name: 'DG-1001' })
+    expect(screen.queryByRole('heading', { name: 'Proof of delivery' })).not.toBeInTheDocument()
+    expect(fetch).not.toHaveBeenCalledWith(expect.stringMatching(/\/proof$/), expect.anything())
   })
 
   it('shows a fresh nearest recommendation and directly assigns the selected Courier', async () => {

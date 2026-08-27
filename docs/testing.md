@@ -99,6 +99,18 @@ in Future Work 18 for exactly this reason.
 | A Tracking grant confers internal authority, or a session confers Recipient access | `trackinglink/TrackingLinkApiTest.keepsInternalSessionsAndTrackingGrantsFromStandingInForEachOther` | Neither substitutes for the other. |
 | Guessing a token is cheap | `trackinglink/TrackingAttemptsTest` (6 cases, including `neverExpiresOrDisablesTheLinkItProtects`) | Failures throttle the source that is guessing and nobody else, and never damage the link. |
 
+### Proof of delivery
+
+| Risk | Proved by | What it actually asserts |
+|---|---|---|
+| A raw image byte reaches PostgreSQL | `proof/ProofApiTest.mintsAPresignedUploadAndTheBrowserUploadsStraightToS3`, `handoffAttachesTheCapturedProofAsPendingReferencesInOneTransaction` | Against a real S3 (LocalStack), the browser PUTs straight to the bucket and the application only ever records object keys; `delivery_proof` holds references, a hash and times, never bytes. |
+| The bucket serves anonymous reads | `proof/ProofApiTest.keepsTheBucketPrivateWithPublicAccessFullyBlocked` | The bucket has every public-access control on — the configuration that makes real S3 refuse an anonymous read. LocalStack does not emulate the anonymous-read authorization itself, so the reproducible cause is asserted rather than the S3-enforced effect; a read is only ever a per-object presigned GET. |
+| A Courier captures proof for a Delivery they are not carrying, or forges a key onto a handoff | `proof/ProofApiTest.refusesAnUploadForADeliveryTheCourierIsNotCarrying`, `refusesAHandoffCarryingAKeyForAnotherDeliveryAndKeepsTheDeliveryInTransit` | The presign is refused for a Delivery the Courier does not hold, and a key for another Delivery rolls the handoff back rather than being recorded. |
+| EXIF/GPS survives into stored proof | `lambda/proof-processor` — `test_scrub_strips_gps_and_every_other_exif_tag` | A GPS-carrying JPEG fixture comes out of the scrub with no GPS and no EXIF at all, and a bounded thumbnail is produced. |
+| An invalid upload is served rather than quarantined | `proof/ProofApiTest.aRejectedCallbackLeavesTheDispatcherWithAStatusAndNoImageToLoad` | A rejected artifact carries a status and no URL to load; the Lambda moves the raw object to `quarantine/`. |
+| The processing callback is not actually the Lambda | `proof/ProofApiTest.refusesAProcessingCallbackThatDoesNotCarryTheSharedToken` | No shared bearer token, no write: the callback is refused `401` before it can settle anything. |
+| A Recipient is shown the image rather than only that proof exists | `recipientview/RecipientSnapshotsTest.tellsARecipientWhetherProofIsOnFileOnlyOnceDeliveredAndNeverTheImage` and its state matrix, plus `web/src/track/TrackingPage.test.tsx` | `proofOnFile` is a yes/no present only once Delivered — the privacy matrix fails if any other field appears — and the Recipient page renders only the reassurance line. |
+
 ### Role isolation and transport
 
 | Risk | Proved by |

@@ -45,6 +45,11 @@ export interface TrackingSnapshot {
   map: TrackingMap | null
   completedAt: string | null
   deliveryTeamContact: string | null
+  /**
+   * Whether the Delivery was confirmed with proof on file. Non-null only once Delivered, and never
+   * anything more than a yes or no: the Recipient is told proof exists, never shown the image.
+   */
+  proofOnFile: boolean | null
 }
 
 /**

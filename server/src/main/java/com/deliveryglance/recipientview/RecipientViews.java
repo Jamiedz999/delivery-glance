@@ -30,9 +30,14 @@ final class RecipientViews {
 	 * @param completedAt the actual handoff time, or the cancellation time
 	 * @param deliveryTeamContact the Delivery Team's configured contact, offered only once there is
 	 * nothing left to track
+	 * @param proofOnFile whether the Delivery was confirmed with proof on file. Null in every state
+	 * but Delivered — like every other field here, absence is the Recipient not being told — so
+	 * proof presence is disclosed only once there is a completed handoff to attach it to, and never
+	 * the image itself. This is the whole of what the privacy decision lets a Recipient learn about
+	 * proof.
 	 */
 	record Snapshot(String reference, DeliveryState state, String handoffAddressLabel, String courierDisplayName,
-			MapView map, Instant completedAt, String deliveryTeamContact) {
+			MapView map, Instant completedAt, String deliveryTeamContact, Boolean proofOnFile) {
 	}
 
 	/**

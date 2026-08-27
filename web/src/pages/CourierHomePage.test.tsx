@@ -359,6 +359,72 @@ describe('CourierHomePage', () => {
     expect(await screen.findByText('No Delivery is currently assigned to you.')).toBeInTheDocument()
   })
 
+  it('uploads a captured photo straight to S3 and carries its object key on the handoff', async () => {
+    const systemWithProof = { application: 'delivery-glance', status: 'ok', proofCaptureEnabled: true }
+    const inTransit = { ...assignedDelivery, state: 'IN_TRANSIT', version: 2 }
+    const objectKey =
+      'raw/deliveries/5f2d0b1e-3f6e-4a1f-9f1a-9a2b3c4d5e6f/photo/8b0c1d2e-3f4a-4b5c-8d9e-0f1a2b3c4d5e'
+    respondWith((url, method) => {
+      if (url.endsWith('/api/system')) {
+        return jsonResponse(systemWithProof)
+      }
+      if (url.endsWith('/deliveries/current')) {
+        return jsonResponse(inTransit)
+      }
+      if (url.endsWith('/proof-uploads') && method === 'POST') {
+        return jsonResponse({ uploadUrl: 'https://bucket.s3.example/upload-target', objectKey })
+      }
+      if (url.endsWith('/upload-target') && method === 'PUT') {
+        return new Response(null, { status: 200 })
+      }
+      if (url.endsWith('/handoff') && method === 'POST') {
+        return noContentResponse()
+      }
+      return jsonResponse(offDuty)
+    })
+    renderWithProviders(<CourierHomePage />)
+
+    const photo = new File(['captured-photo-bytes'], 'photo.png', { type: 'image/png' })
+    await userEvent.upload(await screen.findByLabelText('Delivery photo'), photo)
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm handoff' }))
+
+    await waitFor(() => expect(callsTo('/handoff')).toHaveLength(1))
+    // The presign request named the artifact and its type; the bytes went to S3, not the app.
+    expect(requestBodyOf(callsTo('/proof-uploads')[0])).toEqual({ kind: 'PHOTO', contentType: 'image/png' })
+    expect((callsTo('/upload-target')[0][1]?.method ?? 'GET').toUpperCase()).toBe('PUT')
+    // The handoff carried the object key the presign returned.
+    expect(requestBodyOf(callsTo('/handoff')[0])).toMatchObject({
+      expectedVersion: 2,
+      proof: { photoObjectKey: objectKey },
+    })
+  })
+
+  it('confirms a handoff with no proof when nothing was captured', async () => {
+    const systemWithProof = { application: 'delivery-glance', status: 'ok', proofCaptureEnabled: true }
+    const inTransit = { ...assignedDelivery, state: 'IN_TRANSIT', version: 2 }
+    respondWith((url, method) => {
+      if (url.endsWith('/api/system')) {
+        return jsonResponse(systemWithProof)
+      }
+      if (url.endsWith('/deliveries/current')) {
+        return jsonResponse(inTransit)
+      }
+      if (url.endsWith('/handoff') && method === 'POST') {
+        return noContentResponse()
+      }
+      return jsonResponse(offDuty)
+    })
+    renderWithProviders(<CourierHomePage />)
+
+    // The capture panel is offered, but proof is optional: confirming without it sends a plain handoff.
+    expect(await screen.findByLabelText('Delivery photo')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm handoff' }))
+
+    await waitFor(() => expect(callsTo('/handoff')).toHaveLength(1))
+    expect(callsTo('/proof-uploads')).toHaveLength(0)
+    expect(requestBodyOf(callsTo('/handoff')[0])).not.toHaveProperty('proof')
+  })
+
   it('counts down to the moment the server drops the position', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.setSystemTime(new Date('2026-08-10T09:01:00Z'))

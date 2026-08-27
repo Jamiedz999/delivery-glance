@@ -311,3 +311,11 @@ _Avoid_: Status edit, status overwrite
 **Handoff Confirmation**:
 The current Courier's explicit confirmation that the item was transferred successfully, which is required for the Delivered transition. GPS proximity to the Handoff Address is not confirmation.
 _Avoid_: Geofence completion, arrival near destination
+
+**Proof of Delivery**:
+The photo and on-screen signature a Courier optionally captures at Handoff Confirmation as evidence the item was transferred. The image bytes are uploaded straight to a private object store and never pass through the application, which keeps only an immutable reference — object key, content hash, capture time — after EXIF/GPS metadata has been stripped. It is a deliberate extension past Core's minimal scope ([Issue 50](https://github.com/Jamiedz999/delivery-glance/issues/50)), off unless configured.
+_Avoid_: Delivery photo in the database, mandatory proof
+
+**Proof Privacy**:
+The rule that a Recipient is told only that a Delivery was confirmed with proof on file, never shown the image; the photo and signature are visible to the Delivery Team alone. EXIF/GPS is stripped before anything that outlives the request is stored, regardless of who may later view it.
+_Avoid_: Recipient-visible delivery photo, retained location metadata

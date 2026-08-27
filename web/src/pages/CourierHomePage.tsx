@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { ChangeEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { describeFreshness, formatCountdown } from '../freshness'
-import type { CourierDelivery } from '../api/deliveries'
+import type { CourierDelivery, ProofKeys } from '../api/deliveries'
 import { ApiError } from '../api/http'
+import { uploadCapturedArtifact } from '../api/proof'
 import { useCourier, useCurrentCourierDelivery, useProgressCourierDelivery, useSetDuty } from '../api/queries'
+import { useSystemStatus } from '../api/useSystemStatus'
 import { SHARING_STATUS_LABELS, useLocationSharing } from './useLocationSharing'
 import type { SharingStatus } from './useLocationSharing'
 
@@ -150,19 +153,50 @@ function CurrentDeliverySection() {
   const current = useCurrentCourierDelivery()
   const pickup = useProgressCourierDelivery('pickup')
   const handoff = useProgressCourierDelivery('handoff')
+  const proofCaptureEnabled = useSystemStatus().data?.proofCaptureEnabled ?? false
   const commandIds = useRef(new Map<string, string>())
+  const captured = useCapturedProof()
+  const [uploading, setUploading] = useState(false)
+  const [captureError, setCaptureError] = useState<string | null>(null)
 
-  function progress(delivery: CourierDelivery, action: 'pickup' | 'handoff') {
+  async function progress(delivery: CourierDelivery, action: 'pickup' | 'handoff') {
     const key = `${delivery.id}:${action}`
     let commandId = commandIds.current.get(key)
     if (commandId === undefined) {
       commandId = crypto.randomUUID()
       commandIds.current.set(key, commandId)
     }
+
+    // A handoff uploads whatever proof was captured first, then carries the resulting keys on the
+    // command. Proof is optional: nothing captured means an ordinary handoff, unchanged.
+    let proof: ProofKeys | undefined
+    if (action === 'handoff' && captured.hasAny) {
+      setCaptureError(null)
+      setUploading(true)
+      try {
+        proof = {}
+        if (captured.photo !== null) {
+          proof.photoObjectKey = await uploadCapturedArtifact(delivery.id, 'PHOTO', captured.photo)
+        }
+        if (captured.signature !== null) {
+          proof.signatureObjectKey = await uploadCapturedArtifact(
+            delivery.id,
+            'SIGNATURE',
+            captured.signature,
+          )
+        }
+      } catch {
+        setUploading(false)
+        setCaptureError('Could not upload the proof. Try again, or confirm the handoff without it.')
+        return
+      }
+      setUploading(false)
+    }
+
     const mutation = action === 'pickup' ? pickup : handoff
     mutation.mutate({
       deliveryId: delivery.id,
-      input: { commandId, expectedVersion: delivery.version },
+      input: { commandId, expectedVersion: delivery.version, proof },
     })
   }
 
@@ -184,6 +218,7 @@ function CurrentDeliverySection() {
           chip: 'is-transit',
           label: 'Confirm handoff',
         }
+  const busy = step.mutation.isPending || uploading
 
   return (
     <section className="card courier-delivery" aria-labelledby="current-delivery-heading">
@@ -215,15 +250,23 @@ function CurrentDeliverySection() {
               <dd>{delivery.handoffAddressLabel}</dd>
             </div>
           </dl>
+          {step.action === 'handoff' && proofCaptureEnabled && (
+            <ProofCapture captured={captured} disabled={busy} />
+          )}
           <button
             type="button"
             className="btn-primary courier-confirm"
-            onClick={() => progress(delivery, step.action)}
-            disabled={step.mutation.isPending}
-            aria-busy={step.mutation.isPending}
+            onClick={() => void progress(delivery, step.action)}
+            disabled={busy}
+            aria-busy={busy}
           >
-            {step.label}
+            {uploading ? 'Uploading proof…' : step.label}
           </button>
+          {captureError !== null && (
+            <p role="alert" className="error">
+              {captureError}
+            </p>
+          )}
           {step.mutation.isError && (
             <p role="alert" className="error">
               {progressMessageFor(step.mutation.error)}
@@ -232,6 +275,146 @@ function CurrentDeliverySection() {
         </>
       )}
     </section>
+  )
+}
+
+interface CapturedProof {
+  photo: Blob | null
+  signature: Blob | null
+  hasAny: boolean
+  setPhoto: (blob: Blob | null) => void
+  setSignature: (blob: Blob | null) => void
+}
+
+/** Holds the two optional artifacts a handoff may capture, so the confirm step can upload them. */
+function useCapturedProof(): CapturedProof {
+  const [photo, setPhoto] = useState<Blob | null>(null)
+  const [signature, setSignature] = useState<Blob | null>(null)
+  return { photo, signature, hasAny: photo !== null || signature !== null, setPhoto, setSignature }
+}
+
+/**
+ * The optional proof panel shown on the handoff step. A photo comes from the device camera or a
+ * file; a signature is drawn on a canvas. Both are captured in the browser and uploaded straight to
+ * S3 by the confirm step — nothing here talks to the application.
+ */
+function ProofCapture({ captured, disabled }: { captured: CapturedProof; disabled: boolean }) {
+  return (
+    <fieldset className="proof-capture" disabled={disabled}>
+      <legend>Proof of delivery (optional)</legend>
+      <PhotoField onCapture={captured.setPhoto} />
+      <SignaturePad onCapture={captured.setSignature} />
+    </fieldset>
+  )
+}
+
+function PhotoField({ onCapture }: { onCapture: (blob: Blob | null) => void }) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
+  function onChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null
+    onCapture(file)
+    setPreviewUrl((previous) => {
+      if (previous !== null) {
+        URL.revokeObjectURL(previous)
+      }
+      return file === null ? null : URL.createObjectURL(file)
+    })
+  }
+
+  return (
+    <div className="proof-field">
+      <label className="proof-field-label" htmlFor="proof-photo">
+        Delivery photo
+      </label>
+      <input id="proof-photo" type="file" accept="image/*" capture="environment" onChange={onChange} />
+      {previewUrl !== null && (
+        <img className="proof-preview" src={previewUrl} alt="Captured delivery photo" />
+      )}
+    </div>
+  )
+}
+
+/**
+ * A canvas the Courier signs on with a pointer. It exports the drawing as a PNG blob after each
+ * stroke, so the confirm step always has the current signature without a separate save action.
+ */
+function SignaturePad({ onCapture }: { onCapture: (blob: Blob | null) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const drawing = useRef(false)
+
+  const exportBlob = useCallback(() => {
+    canvasRef.current?.toBlob((blob) => onCapture(blob), 'image/png')
+  }, [onCapture])
+
+  function positionOf(event: ReactPointerEvent<HTMLCanvasElement>): [number, number] {
+    const rect = event.currentTarget.getBoundingClientRect()
+    return [event.clientX - rect.left, event.clientY - rect.top]
+  }
+
+  function start(event: ReactPointerEvent<HTMLCanvasElement>) {
+    const context = canvasRef.current?.getContext('2d')
+    if (context === null || context === undefined) {
+      return
+    }
+    drawing.current = true
+    const [x, y] = positionOf(event)
+    context.beginPath()
+    context.moveTo(x, y)
+  }
+
+  function move(event: ReactPointerEvent<HTMLCanvasElement>) {
+    if (!drawing.current) {
+      return
+    }
+    const context = canvasRef.current?.getContext('2d')
+    if (context === null || context === undefined) {
+      return
+    }
+    const [x, y] = positionOf(event)
+    context.lineTo(x, y)
+    context.stroke()
+  }
+
+  function end() {
+    if (!drawing.current) {
+      return
+    }
+    drawing.current = false
+    exportBlob()
+  }
+
+  function clear() {
+    const canvas = canvasRef.current
+    const context = canvas?.getContext('2d')
+    if (canvas !== null && context !== null && context !== undefined) {
+      context.clearRect(0, 0, canvas.width, canvas.height)
+    }
+    onCapture(null)
+  }
+
+  return (
+    <div className="proof-field">
+      <span className="proof-field-label" id="proof-signature-label">
+        Recipient signature
+      </span>
+      <canvas
+        ref={canvasRef}
+        className="proof-signature"
+        width={320}
+        height={140}
+        role="img"
+        aria-label="Recipient signature"
+        aria-describedby="proof-signature-label"
+        onPointerDown={start}
+        onPointerMove={move}
+        onPointerUp={end}
+        onPointerLeave={end}
+      />
+      <button type="button" className="btn-secondary proof-clear" onClick={clear}>
+        Clear signature
+      </button>
+    </div>
   )
 }
 

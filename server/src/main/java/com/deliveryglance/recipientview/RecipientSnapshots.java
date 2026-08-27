@@ -3,6 +3,7 @@ package com.deliveryglance.recipientview;
 import java.util.UUID;
 
 import com.deliveryglance.location.LocationFacts;
+import com.deliveryglance.proof.ProofPresence;
 import com.deliveryglance.recipientview.RecipientDeliveryFacts.RecipientDelivery;
 import com.deliveryglance.trackinglink.UnavailableLinkException;
 
@@ -29,11 +30,14 @@ class RecipientSnapshots {
 
 	private final RecipientViewProperties properties;
 
-	RecipientSnapshots(RecipientDeliveryFacts deliveries, LocationFacts locations,
-			RecipientViewProperties properties) {
+	private final ProofPresence proofPresence;
+
+	RecipientSnapshots(RecipientDeliveryFacts deliveries, LocationFacts locations, RecipientViewProperties properties,
+			ProofPresence proofPresence) {
 		this.deliveries = deliveries;
 		this.locations = locations;
 		this.properties = properties;
+		this.proofPresence = proofPresence;
 	}
 
 	/**
@@ -49,7 +53,7 @@ class RecipientSnapshots {
 			case AWAITING_COURIER -> awaitingCourier(delivery);
 			case ASSIGNED -> assigned(delivery);
 			case IN_TRANSIT -> inTransit(delivery);
-			case DELIVERED -> delivered(delivery);
+			case DELIVERED -> delivered(deliveryId, delivery);
 			case CANCELLED -> cancelled(delivery);
 		};
 	}
@@ -57,7 +61,7 @@ class RecipientSnapshots {
 	/** No Courier has been arranged, so there is no Courier and no location to be honest about. */
 	private RecipientViews.Snapshot awaitingCourier(RecipientDelivery delivery) {
 		return new RecipientViews.Snapshot(delivery.reference(), delivery.state(), delivery.handoffAddressLabel(),
-				null, null, null, null);
+				null, null, null, null, null);
 	}
 
 	/**
@@ -67,13 +71,13 @@ class RecipientSnapshots {
 	 */
 	private RecipientViews.Snapshot assigned(RecipientDelivery delivery) {
 		return new RecipientViews.Snapshot(delivery.reference(), delivery.state(), delivery.handoffAddressLabel(),
-				delivery.courierDisplayName(), null, null, null);
+				delivery.courierDisplayName(), null, null, null, null);
 	}
 
 	/** The only state that carries coordinates, and the only one that asks location anything. */
 	private RecipientViews.Snapshot inTransit(RecipientDelivery delivery) {
 		return new RecipientViews.Snapshot(delivery.reference(), delivery.state(), delivery.handoffAddressLabel(),
-				delivery.courierDisplayName(), mapFor(delivery), null, null);
+				delivery.courierDisplayName(), mapFor(delivery), null, null, null);
 	}
 
 	/**
@@ -81,9 +85,9 @@ class RecipientSnapshots {
 	 * they are what a Recipient checking an old link needs; Courier identity and every trace of
 	 * location are gone the moment the state changed, with no sweep to wait for.
 	 */
-	private RecipientViews.Snapshot delivered(RecipientDelivery delivery) {
+	private RecipientViews.Snapshot delivered(UUID deliveryId, RecipientDelivery delivery) {
 		return new RecipientViews.Snapshot(delivery.reference(), delivery.state(), delivery.handoffAddressLabel(),
-				null, null, delivery.completedAt(), null);
+				null, null, delivery.completedAt(), null, this.proofPresence.hasProofOnFile(deliveryId));
 	}
 
 	/**
@@ -96,7 +100,7 @@ class RecipientSnapshots {
 	 */
 	private RecipientViews.Snapshot cancelled(RecipientDelivery delivery) {
 		return new RecipientViews.Snapshot(delivery.reference(), delivery.state(), null, null, null,
-				delivery.completedAt(), configuredContact());
+				delivery.completedAt(), configuredContact(), null);
 	}
 
 	private RecipientViews.MapView mapFor(RecipientDelivery delivery) {

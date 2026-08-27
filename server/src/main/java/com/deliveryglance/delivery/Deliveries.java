@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import com.deliveryglance.identityaccess.CurrentActor;
 import com.deliveryglance.identityaccess.CurrentActorProvider;
+import com.deliveryglance.proof.DeliveryProofAttachments;
 import com.deliveryglance.recipientview.RecipientDeliveryFacts;
 import com.deliveryglance.recipientview.RecipientViewUpdates;
 
@@ -36,15 +37,19 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 
 	private final RecipientViewUpdates recipientViews;
 
+	private final DeliveryProofAttachments proofAttachments;
+
 	private final Clock clock;
 
 	Deliveries(DeliveryRepository repository, CurrentActorProvider currentActorProvider, ActiveAssignments assignments,
-			NewDeliveryLinks trackingLinks, RecipientViewUpdates recipientViews, Clock clock) {
+			NewDeliveryLinks trackingLinks, RecipientViewUpdates recipientViews,
+			DeliveryProofAttachments proofAttachments, Clock clock) {
 		this.repository = repository;
 		this.currentActorProvider = currentActorProvider;
 		this.assignments = assignments;
 		this.trackingLinks = trackingLinks;
 		this.recipientViews = recipientViews;
+		this.proofAttachments = proofAttachments;
 		this.clock = clock;
 	}
 
@@ -141,16 +146,21 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 
 	@Transactional
 	void confirmPickup(UUID deliveryId, DeliveryRequests.Progress request) {
-		progress(deliveryId, request, DeliveryState.ASSIGNED, DeliveryState.IN_TRANSIT);
+		progress(deliveryId, request, DeliveryState.ASSIGNED, DeliveryState.IN_TRANSIT, null);
 	}
 
 	@Transactional
 	void confirmHandoff(UUID deliveryId, DeliveryRequests.Progress request) {
-		progress(deliveryId, request, DeliveryState.IN_TRANSIT, DeliveryState.DELIVERED);
+		progress(deliveryId, request, DeliveryState.IN_TRANSIT, DeliveryState.DELIVERED, proofKeys(request.proof()));
+	}
+
+	private static DeliveryProofAttachments.ProofKeys proofKeys(DeliveryRequests.Proof proof) {
+		return (proof == null) ? null
+				: new DeliveryProofAttachments.ProofKeys(proof.photoObjectKey(), proof.signatureObjectKey());
 	}
 
 	private void progress(UUID deliveryId, DeliveryRequests.Progress request, DeliveryState requiredState,
-			DeliveryState nextState) {
+			DeliveryState nextState, DeliveryProofAttachments.ProofKeys proof) {
 		DeliveryRepository.CurrentState current = this.repository.lockCurrentState(deliveryId)
 			.orElseThrow(() -> new DeliveryNotFoundException(deliveryId));
 		if (alreadyHandled(deliveryId, request.commandId(), nextState)) {
@@ -181,6 +191,12 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 				now);
 		if (current.state().endsAssignmentOnMoveTo(nextState)) {
 			this.assignments.endForDelivery(deliveryId, now);
+		}
+		// Same transaction as the transition it proves: a captured handoff records its proof
+		// references here, so proof and the completion it belongs to are never seen apart. Reached
+		// only on the real path — a retried command returned above without changing anything.
+		if (proof != null) {
+			this.proofAttachments.attachAtHandoff(deliveryId, proof, now);
 		}
 		this.recipientViews.deliveryChanged(deliveryId);
 	}
