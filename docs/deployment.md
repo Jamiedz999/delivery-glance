@@ -177,6 +177,23 @@ There is no Redis to provision, no message broker, no object store, no separate 
 CDN to configure. If a deployment guide for this application is longer than this page, something has
 been added that Core does not use.
 
+The one deliberate exception is **proof of delivery** ([Issue 50](https://github.com/Jamiedz999/delivery-glance/issues/50)),
+a portfolio-expansion epic that consciously extends this section: it is the first feature to store
+binary artifacts, and it introduces a private S3 bucket and one processing Lambda. It is **off unless
+a bucket is configured** — the settings under `delivery-glance.proof` default to blank, `/api/system`
+then reports `proofCaptureEnabled: false`, and the application behaves exactly as this page otherwise
+describes. Turn it on only where you have provisioned the bucket, the Lambda and the IAM that lets the
+application presign and the Lambda read, write and call back (see
+[`lambda/proof-processor/README.md`](../lambda/proof-processor/README.md)). To demonstrate the whole
+loop locally without an AWS account, run the LocalStack overlay:
+
+```bash
+docker compose -f compose.yaml -f compose.proof.yaml up --build
+```
+
+Nothing above depends on any of this: the default `docker compose up`, the deployment check and the
+journeys all run with proof disabled, exactly as they did before the epic.
+
 ## Deploy
 
 1. Build the image from a **clean checkout** at the revision you intend to run.

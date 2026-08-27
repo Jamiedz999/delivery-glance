@@ -1,0 +1,56 @@
+# Proof-of-delivery demo overlay (Issue 50). It is deliberately separate from compose.yaml so the
+# default `docker compose up` — the one CI builds and the journeys run against — stays exactly as it
+# was: no object store, no Lambda, proof disabled. This overlay adds a LocalStack S3 + Lambda and
+# turns the feature on, which is the only way it runs without an AWS account.
+#
+#   docker compose -f compose.yaml -f compose.proof.yaml up --build
+#
+# The automated proof of correctness does not depend on any of this — it lives in the server's
+# LocalStack integration tests and the Lambda's pytest. This overlay is for demonstrating the live
+# loop end to end in a browser.
+
+services:
+  app:
+    environment:
+      PROOF_BUCKET: delivery-glance-proof
+      PROOF_REGION: us-east-1
+      # The browser uploads straight to S3, so the signed endpoint must be one the browser can reach:
+      # localhost, mapped to the LocalStack container. The application only signs and never connects.
+      PROOF_ENDPOINT_OVERRIDE: http://localhost:4566
+      PROOF_PATH_STYLE_ACCESS: "true"
+      PROOF_ACCESS_KEY_ID: test
+      PROOF_SECRET_ACCESS_KEY: test
+      PROOF_CALLBACK_TOKEN: local-demo-proof-callback-token
+    depends_on:
+      postgres:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+
+  localstack:
+    image: localstack/localstack:3
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: s3,lambda
+      # LocalStack runs the Lambda in its own container; putting it on this Compose network lets the
+      # function reach the application by service name for the callback. The name is the default
+      # Compose project network (directory name + _default); override COMPOSE_PROJECT_NAME and this
+      # together if you rename the project.
+      LAMBDA_DOCKER_NETWORK: delivery-glance_default
+      # Passed through to the init script, which bakes them into the deployed function.
+      APP_CALLBACK_URL: http://app:8080
+      APP_CALLBACK_TOKEN: local-demo-proof-callback-token
+      PROOF_BUCKET: delivery-glance-proof
+      # The origin the browser uploads from, allowed through the bucket's CORS by the init script.
+      PROOF_BROWSER_ORIGIN: http://localhost:8080
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./infra/localstack/init:/etc/localstack/init/ready.d:ro"
+      - "./lambda/proof-processor:/opt/proof-processor:ro"
+    healthcheck:
+      # Ready only once the init script has created the bucket, so the app waits for a usable S3.
+      test: ["CMD-SHELL", "awslocal s3api head-bucket --bucket delivery-glance-proof >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30

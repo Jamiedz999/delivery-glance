@@ -57,6 +57,30 @@ delivery-glance:
     # Team, never anything derived from the Delivery. Blank is supported; the page then points back
     # at whoever shared the link.
     delivery-team-contact: ${DELIVERY_TEAM_CONTACT:}
+  proof:
+    # Proof of delivery (Issue 50), the first feature to store binary artifacts. Off unless a bucket
+    # is set: a blank bucket is a supported deployment, the /api/system probe reports it disabled and
+    # the Courier is offered no capture. The application never streams a proof byte — it only signs
+    # URLs — so it needs no S3 HTTP client, credentials or endpoint to sign against real AWS with an
+    # instance role. The Compose `proof` profile points these at a LocalStack S3 instead, which is the
+    # only way this feature runs without an AWS account.
+    bucket: ${PROOF_BUCKET:}
+    region: ${PROOF_REGION:us-east-1}
+    # An S3 endpoint to sign against instead of the real AWS one. Blank in production; set to a
+    # browser-reachable LocalStack address for the demo, paired with path-style access.
+    endpoint-override: ${PROOF_ENDPOINT_OVERRIDE:}
+    path-style-access: ${PROOF_PATH_STYLE_ACCESS:false}
+    # Static credentials for signing. Blank in production, where the default provider chain (an
+    # instance role) is used; any value works for LocalStack.
+    access-key-id: ${PROOF_ACCESS_KEY_ID:}
+    secret-access-key: ${PROOF_SECRET_ACCESS_KEY:}
+    # How long an issued upload or view URL stays valid. Short by design.
+    presign-expiry: ${PROOF_PRESIGN_EXPIRY:5m}
+    max-upload-bytes: ${PROOF_MAX_UPLOAD_BYTES:10485760}
+    # The shared secret the processing Lambda presents to POST /api/internal/proof-processed. Blank
+    # disables the callback route, so a deployment without the Lambda cannot have proof metadata
+    # written by anything but the Lambda it never configured.
+    callback-token: ${PROOF_CALLBACK_TOKEN:}
   demo:
     # POST /api/demo/reset, which empties every Delivery, Assignment, Tracking Link and Courier fact
     # and puts the fictional Deliveries back. Off unless a deployment says otherwise, and the
