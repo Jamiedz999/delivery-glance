@@ -85,8 +85,14 @@ class TrackingLinks implements NewDeliveryLinks {
 	 */
 	@Transactional
 	TrackingLinkViews.CopiedLink copyFor(UUID deliveryId) {
-		TrackingLinkRepository.StoredLink link = this.repository.findByDelivery(deliveryId)
+		TrackingLinkRepository.StoredLink link = this.repository.lockByDelivery(deliveryId)
 			.orElseThrow(TrackingLinkNotFoundException::new);
+		// A revoked link is never re-derived or handed out. The row is locked, so a Revocation racing
+		// this Copy has either already committed — and is seen here — or is waiting behind this
+		// transaction and will find the link still active; one of the two wins, not both.
+		if (link.revoked()) {
+			throw new TrackingLinkRevokedException();
+		}
 		String token = this.capabilities.derive(link.linkId(), link.generation(), link.keyVersion());
 		if (!Secrets.matches(token, link.tokenVerifier())) {
 			throw new IllegalStateException(
@@ -100,6 +106,29 @@ class TrackingLinks implements NewDeliveryLinks {
 		this.repository.insertCopy(link.linkId(), actor.accountId(), now);
 
 		return new TrackingLinkViews.CopiedLink("/track#t=" + token, effectiveExpiryOf(link));
+	}
+
+	/**
+	 * Ends access through the Delivery's current link without creating a replacement. Every grant
+	 * derived from it fails on its next read, and the token itself fails to exchange, through the one
+	 * generic Unavailable response; the reason and note go to the audit and never to a holder.
+	 *
+	 * @throws TrackingLinkNotFoundException if the Delivery has no link
+	 * @throws TrackingLinkRevokedException if it is already revoked — Revocation is terminal and does
+	 * not record a second reason over the first
+	 */
+	@Transactional
+	void revoke(UUID deliveryId, TrackingLinkChangeReason reason, String note) {
+		TrackingLinkRepository.StoredLink link = this.repository.lockByDelivery(deliveryId)
+			.orElseThrow(TrackingLinkNotFoundException::new);
+		if (link.revoked()) {
+			throw new TrackingLinkRevokedException();
+		}
+
+		Instant now = this.clock.instant();
+		CurrentActor actor = this.currentActorProvider.requireCurrentActor();
+		this.repository.markRevoked(link.linkId(), now);
+		this.repository.insertRevocation(UUID.randomUUID(), link.linkId(), actor.accountId(), reason, note, now);
 	}
 
 	/**
@@ -123,6 +152,11 @@ class TrackingLinks implements NewDeliveryLinks {
 		// The lookup above found a candidate by an indexed equality match on a digest; this is the
 		// comparison that actually authorizes, and it does not stop early on the first wrong byte.
 		if (!Secrets.matches(presented, link.tokenVerifier())) {
+			throw new UnavailableLinkException();
+		}
+		// A revoked link joins unknown, malformed and expired on the one refusal. It is checked after
+		// the authorizing digest comparison, so a guesser reaches it no sooner than any other holder.
+		if (link.revoked()) {
 			throw new UnavailableLinkException();
 		}
 
@@ -156,6 +190,11 @@ class TrackingLinks implements NewDeliveryLinks {
 		// derived access without having to find every grant it produced. Core never rotates; the
 		// check is here because the grant table would otherwise outlive the rule that justifies it.
 		if (grant.generation() != grant.linkGeneration()) {
+			throw new UnavailableLinkException();
+		}
+		// The Revocation the grant knows nothing about: it was issued while the link was active, and
+		// the next snapshot or heartbeat is where derived access ends, with no grace period.
+		if (grant.linkRevoked()) {
 			throw new UnavailableLinkException();
 		}
 
