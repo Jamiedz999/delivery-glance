@@ -1,0 +1,14 @@
+# Provider binaries and init artifacts — re-created by `terraform init`.
+.terraform/
+
+# State and any local plan output. Core state lives in the S3 backend; bootstrap state is local by
+# design but still not committed — its resources already exist and can be re-imported (see README).
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+*.tfplan
+
+# Never commit a variable file that holds a real secret. The checked-in terraform.tfvars carries
+# only non-secret facts (account id, region, EIP, admin CIDR); anything sensitive goes here.
+*.auto.tfvars
+secrets.tfvars
