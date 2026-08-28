@@ -7,6 +7,9 @@ package com.deliveryglance.system;
  *
  * @param proofCaptureEnabled whether proof of delivery is configured on this deployment. False when
  * no bucket is set, and the frontend then offers no capture rather than a control that cannot work.
+ * @param etaEnabled whether external travel-time ETA is configured on this deployment. False when no
+ * provider base URL is set, and the Recipient view then shows no arrival window rather than a
+ * control that can never populate.
  */
-record SystemStatus(String application, String status, boolean proofCaptureEnabled) {
+record SystemStatus(String application, String status, boolean proofCaptureEnabled, boolean etaEnabled) {
 }

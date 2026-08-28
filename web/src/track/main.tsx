@@ -23,11 +23,22 @@ if (container !== null) {
 
   createRoot(container).render(
     <StrictMode>
-      <TrackingPage map={{ styleUrl: mapStyleUrl() }} />
+      <TrackingPage map={{ styleUrl: mapStyleUrl() }} etaEnabled={etaEnabled()} />
     </StrictMode>,
   )
 }
 
 function mapStyleUrl(): string {
   return document.querySelector<HTMLMetaElement>('meta[name="delivery-glance-map-style"]')?.content ?? ''
+}
+
+/**
+ * Whether this deployment computes ETAs, read from the same kind of meta tag as the map style — a
+ * deployment fact identical for every visitor. Absent or anything but "true" is off, so a page
+ * served without the tag simply shows no arrival section.
+ */
+function etaEnabled(): boolean {
+  return (
+    document.querySelector<HTMLMetaElement>('meta[name="delivery-glance-eta-enabled"]')?.content === 'true'
+  )
 }

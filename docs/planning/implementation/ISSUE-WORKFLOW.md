@@ -16,7 +16,7 @@ The planning tree holds four kinds of file, and only one of them is a queue:
 
 Opening any of the other rows as an Issue turns a finished record into a permanently open ticket, which is noise for anyone reading the repository.
 
-Issue titles are plain. The `DG-0NN` planning IDs are gone from titles but remain the **branch and commit key** — `dg-026-add-recipient-sse-refresh`, `DG-026:` — because ten merged pull requests already use them, and each Issue's footer records its own ID.
+Issue titles are plain. Name a branch and its commits after the change itself — a short descriptive slug such as `add-recipient-sse-refresh` — with no required ID prefix. Older merged pull requests carry a `DG-0NN` planning ID in their branch and commit subject; that is history, not a rule to continue.
 
 ## Labels and milestones
 

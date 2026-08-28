@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.deliveryglance.delivery.DeliveryState;
+import com.deliveryglance.eta.EtaProjection;
 import com.deliveryglance.location.LocationFacts;
 import com.deliveryglance.recipientview.RecipientDeliveryFacts.RecipientDelivery;
 import com.deliveryglance.trackinglink.UnavailableLinkException;
@@ -50,14 +51,20 @@ class RecipientSnapshotsTest {
 
 	private static final Instant COMPLETED_AT = Instant.parse("2026-03-01T10:00:00Z");
 
+	private static final EtaProjection.EtaSnapshot ETA = new EtaProjection.EtaSnapshot(
+			Instant.parse("2026-03-01T10:15:00Z"), Instant.parse("2026-03-01T10:35:00Z"),
+			Instant.parse("2026-03-01T09:59:30Z"));
+
 	private final FakeDeliveryFacts deliveries = new FakeDeliveryFacts();
 
 	private final FakeLocationFacts locations = new FakeLocationFacts();
 
 	private final FakeProofPresence proof = new FakeProofPresence();
 
+	private final FakeEtaProjection eta = new FakeEtaProjection();
+
 	private final RecipientSnapshots snapshots = new RecipientSnapshots(this.deliveries, this.locations,
-			new RecipientViewProperties(CONTACT), this.proof);
+			new RecipientViewProperties(CONTACT), this.proof, this.eta);
 
 	/**
 	 * What each state may carry. Any component of the response not named here has to be null, which
@@ -68,9 +75,9 @@ class RecipientSnapshotsTest {
 		return List.of(
 				Arguments.of(DeliveryState.AWAITING_COURIER, Set.of("reference", "state", "handoffAddressLabel")),
 				Arguments.of(DeliveryState.ASSIGNED,
-						Set.of("reference", "state", "handoffAddressLabel", "courierDisplayName")),
+						Set.of("reference", "state", "handoffAddressLabel", "courierDisplayName", "eta")),
 				Arguments.of(DeliveryState.IN_TRANSIT,
-						Set.of("reference", "state", "handoffAddressLabel", "courierDisplayName", "map")),
+						Set.of("reference", "state", "handoffAddressLabel", "courierDisplayName", "map", "eta")),
 				Arguments.of(DeliveryState.DELIVERED,
 						Set.of("reference", "state", "handoffAddressLabel", "completedAt", "proofOnFile")),
 				Arguments.of(DeliveryState.CANCELLED,
@@ -109,6 +116,10 @@ class RecipientSnapshotsTest {
 		}
 		if (allowed.contains("deliveryTeamContact")) {
 			assertThat(snapshot.deliveryTeamContact()).isEqualTo(CONTACT);
+		}
+		if (allowed.contains("eta")) {
+			assertThat(snapshot.eta()).isEqualTo(new RecipientViews.EtaView(ETA.windowStart(), ETA.windowEnd(),
+					ETA.calculatedAt()));
 		}
 	}
 
@@ -175,7 +186,7 @@ class RecipientSnapshotsTest {
 		this.deliveries.holds(deliveryIn(DeliveryState.CANCELLED));
 
 		RecipientViews.Snapshot snapshot = new RecipientSnapshots(this.deliveries, this.locations,
-				new RecipientViewProperties("   "), this.proof).of(DELIVERY_ID);
+				new RecipientViewProperties("   "), this.proof, this.eta).of(DELIVERY_ID);
 
 		assertThat(snapshot.deliveryTeamContact()).isNull();
 	}
@@ -262,6 +273,22 @@ class RecipientSnapshotsTest {
 		public boolean hasProofOnFile(UUID deliveryId) {
 			assertThat(deliveryId).isEqualTo(DELIVERY_ID);
 			return this.onFile;
+		}
+
+	}
+
+	/**
+	 * Holds one window for every Delivery, so a state that is allowed an ETA shows one and the matrix
+	 * proves the field is present exactly where it should be. A state that must not carry an ETA never
+	 * asks — the projection only reads eta while Assigned or In Transit — so this fake returning a
+	 * window can never make one appear where it is forbidden.
+	 */
+	private static final class FakeEtaProjection implements EtaProjection {
+
+		@Override
+		public Optional<EtaSnapshot> currentEta(UUID deliveryId) {
+			assertThat(deliveryId).isEqualTo(DELIVERY_ID);
+			return Optional.of(ETA);
 		}
 
 	}

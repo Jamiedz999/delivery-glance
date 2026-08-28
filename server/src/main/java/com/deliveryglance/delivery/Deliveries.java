@@ -6,6 +6,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.deliveryglance.eta.EtaPhase;
+import com.deliveryglance.eta.EtaRecalculation;
+import com.deliveryglance.eta.EtaRouteFacts;
 import com.deliveryglance.identityaccess.CurrentActor;
 import com.deliveryglance.identityaccess.CurrentActorProvider;
 import com.deliveryglance.notification.NotificationOutbox;
@@ -13,6 +16,7 @@ import com.deliveryglance.proof.DeliveryProofAttachments;
 import com.deliveryglance.recipientview.RecipientDeliveryFacts;
 import com.deliveryglance.recipientview.RecipientViewUpdates;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
  * together, and that composition is a service's job rather than a repository's.
  */
 @Service
-class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts, DeliveryProvisioning {
+class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts, EtaRouteFacts, DeliveryProvisioning {
 
 	private final DeliveryRepository repository;
 
@@ -38,6 +42,12 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 
 	private final RecipientViewUpdates recipientViews;
 
+	// Lazy on purpose, to break a constructor cycle rather than to reach an optional bean: eta reads
+	// this same service's route facts, so injecting EtaRecalculation directly would make Deliveries and
+	// EtaCalculations depend on each other at construction. An ObjectProvider defers the lookup to the
+	// after-commit call, which is the only place it is used, and lets Spring build either bean first.
+	private final ObjectProvider<EtaRecalculation> etaRecalculation;
+
 	private final DeliveryProofAttachments proofAttachments;
 
 	private final NotificationOutbox notifications;
@@ -46,15 +56,21 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 
 	Deliveries(DeliveryRepository repository, CurrentActorProvider currentActorProvider, ActiveAssignments assignments,
 			NewDeliveryLinks trackingLinks, RecipientViewUpdates recipientViews,
-			DeliveryProofAttachments proofAttachments, NotificationOutbox notifications, Clock clock) {
+			ObjectProvider<EtaRecalculation> etaRecalculation, DeliveryProofAttachments proofAttachments,
+			NotificationOutbox notifications, Clock clock) {
 		this.repository = repository;
 		this.currentActorProvider = currentActorProvider;
 		this.assignments = assignments;
 		this.trackingLinks = trackingLinks;
 		this.recipientViews = recipientViews;
+		this.etaRecalculation = etaRecalculation;
 		this.proofAttachments = proofAttachments;
 		this.notifications = notifications;
 		this.clock = clock;
+	}
+
+	private void recalculateEta(UUID deliveryId) {
+		this.etaRecalculation.getObject().deliveryPhaseChanged(deliveryId);
 	}
 
 	@Transactional
@@ -139,6 +155,9 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 		// Reported from inside the transaction, delivered only if it commits. A retry that took the
 		// idempotent path above never reaches here, because it changed nothing to report.
 		this.recipientViews.deliveryChanged(id);
+		// A pre-pickup Cancel leaves no phase that carries an ETA, so this withdraws any window rather
+		// than computing one. Deferred to after-commit, so a rolled-back Cancel changes no ETA either.
+		this.recalculateEta(id);
 		// Same transaction, same rule: the outbox row that will notify the Recipient of this
 		// cancellation commits with the transition or not at all. It writes nothing unless someone
 		// opted in.
@@ -210,6 +229,10 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 			this.proofAttachments.attachAtHandoff(deliveryId, proof, now);
 		}
 		this.recipientViews.deliveryChanged(deliveryId);
+		// Pickup turns the Delivery In Transit and handoff makes it terminal; either way the ETA is now
+		// drawn from different inputs (or withdrawn), so ask eta to recompute at once — ADR 05's
+		// "immediately at pickup" — rather than waiting for the next sweep. After-commit, holding no lock.
+		this.recalculateEta(deliveryId);
 		this.notifications.recordTransition(transitionId, now);
 	}
 
@@ -267,6 +290,9 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 		this.repository.insertTransition(transitionId, deliveryId, current.state(), DeliveryState.ASSIGNED, actor, null,
 				null, commandId, occurredAt);
 		this.recipientViews.deliveryChanged(deliveryId);
+		// A Courier is now assigned: draw the provisional window immediately — ADR 05's "immediately at
+		// Assignment" — instead of waiting up to a minute for the sweeper. After-commit, no lock held.
+		this.recalculateEta(deliveryId);
 		this.notifications.recordTransition(transitionId, occurredAt);
 	}
 
@@ -282,6 +308,37 @@ class Deliveries implements DeliveryAssignmentOperations, RecipientDeliveryFacts
 			.map((delivery) -> this.assignments.activeForDelivery(deliveryId)
 				.map((active) -> delivery.withCourier(active.courierId(), active.courierDisplayName()))
 				.orElse(delivery));
+	}
+
+	/**
+	 * The route facts eta computes a window from. Only the two ETA-bearing phases return one; every
+	 * other state answers empty, which is eta's signal to withdraw any window. The Courier is attached
+	 * from the active Assignment — the same join the Recipient projection uses — because whose location
+	 * is the routing origin is an Assignment question.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<EtaRouteFacts.Route> routeFor(UUID deliveryId) {
+		return this.repository.findRouteFacts(deliveryId)
+			.flatMap((facts) -> etaPhase(facts.state())
+				.map((phase) -> new EtaRouteFacts.Route(phase, facts.pickupLatitude(), facts.pickupLongitude(),
+						facts.handoffLatitude(), facts.handoffLongitude(), this.assignments.activeForDelivery(deliveryId)
+							.map(ActiveAssignments.ActiveAssignment::courierId)
+							.orElse(null))));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<UUID> activeDeliveryIds() {
+		return this.repository.findActiveDeliveryIds();
+	}
+
+	private static Optional<EtaPhase> etaPhase(DeliveryState state) {
+		return switch (state) {
+			case ASSIGNED -> Optional.of(EtaPhase.ASSIGNED);
+			case IN_TRANSIT -> Optional.of(EtaPhase.IN_TRANSIT);
+			default -> Optional.empty();
+		};
 	}
 
 	private DeliveryViews.Detail requireDetail(UUID id) {

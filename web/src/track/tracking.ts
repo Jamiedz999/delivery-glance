@@ -34,6 +34,19 @@ export interface TrackingMap {
 }
 
 /**
+ * The current ETA Window: the earliest and latest estimated handoff, and when it was last
+ * calculated. The page ages `calculatedAt` itself — showing "last calculated X ago" and then
+ * withdrawing the window past five minutes — and compares its own clock to `windowEnd` to say
+ * "running later than expected", the same way it ages the courier's position. There is no route
+ * here, only two times: a Recipient is never shown a path.
+ */
+export interface EtaWindow {
+  windowStart: string
+  windowEnd: string
+  calculatedAt: string
+}
+
+/**
  * Most fields are null in most states, because the server builds this for the state rather than
  * sending everything and expecting the page to hide what it should not show.
  */
@@ -50,6 +63,12 @@ export interface TrackingSnapshot {
    * anything more than a yes or no: the Recipient is told proof exists, never shown the image.
    */
   proofOnFile: boolean | null
+  /**
+   * The current ETA Window, non-null only while Assigned or In Transit and only when a successful
+   * estimate exists. Its absence in those states is the honest "temporarily unavailable"; whether
+   * the arrival section appears at all is a deployment fact carried in the page markup, not here.
+   */
+  eta: EtaWindow | null
 }
 
 /**

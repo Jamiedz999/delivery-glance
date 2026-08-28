@@ -215,6 +215,36 @@ As with proof, nothing above depends on it: the default compose, the deployment 
 all run with notification disabled. **No Courier coordinate ever enters the queue** — the message body
 is a transition id and nothing more.
 
+The third deliberate exception is **external travel-time ETA** ([Issue 27](https://github.com/Jamiedz999/delivery-glance/issues/27)),
+the portfolio-expansion epic that restores the arrival window ADR 05 designed and Core deferred: while a
+Courier is on the way, the Recipient page shows a rounded provisional or current window, ages it to an
+honest "temporarily unavailable" past five minutes, and keeps a missed window visible as "running later
+than expected". It calls a contract-approved travel-time provider behind a project-owned port — the
+reference provider is **Mapbox Directions** ([ADR 10](adr/10-choose-core-technical-architecture.md)) —
+and stores only the two rounded window endpoints and a calculation time. **No route geometry, polyline,
+waypoint or Courier coordinate is ever stored or shown**; the provider is asked for a duration with
+`overview=false`, and the provider's response types never leave the adapter. It is **off unless a
+provider base URL is configured** — the settings under `delivery-glance.eta` default to blank,
+`/api/system` then reports `etaEnabled: false`, the tracking page shows no arrival section, and the
+application computes no windows and makes no external call, exactly as Core ran before this feature.
+
+Turn it on only once the operational gate is met, because this is the one feature whose external
+dependency carries licensing and money:
+
+- **A contract-approved provider account.** Record the provider's **terms of service**, its **DPA and
+  privacy disclosure** (the application sends two coordinates per active Delivery to the provider and
+  receives a duration — no Recipient identity), and confirm the plan permits this use.
+- **A billing cap.** Set `ETA_DAILY_REQUEST_CAP` to a ceiling the account can afford; the adapter stops
+  calling the provider once a day's requests reach it and leaves windows to age out rather than run up a
+  bill. Zero — the default — is uncapped and is only for tests and the local demo.
+- **The provider inputs**: `ETA_PROVIDER_BASE_URL` (`https://api.mapbox.com` for the reference
+  provider), `ETA_ACCESS_TOKEN`, and optionally `ETA_REQUEST_TIMEOUT` and `ETA_REFRESH_INTERVAL`.
+
+A provider fault is never allowed to matter to a Delivery: the estimate is computed after a transition
+commits, holding no lock, and any failure — a timeout, a rate limit, an outage — degrades the window
+rather than rolling anything back. Nothing above depends on ETA being on: the default compose, the
+deployment check and the journeys all run with it disabled.
+
 ## Deploy
 
 1. Build the image from a **clean checkout** at the revision you intend to run.

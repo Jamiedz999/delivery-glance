@@ -147,6 +147,31 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * The arrival window: the two ends read as the loud fact, and how fresh the estimate is reads as the
+ * quiet one beneath, the same shape the courier's position uses. The unavailable line borrows the
+ * muted freshness tone so an absent estimate does not shout.
+ */
+.eta-window {
+  margin-block-start: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.eta-freshness {
+  margin-block-start: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.eta {
+  margin-block-start: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
 /* --------------------------------------------------------------------- cards */
 
 /*

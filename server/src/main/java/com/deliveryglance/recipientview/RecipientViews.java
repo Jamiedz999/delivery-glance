@@ -35,9 +35,24 @@ final class RecipientViews {
 	 * proof presence is disclosed only once there is a completed handoff to attach it to, and never
 	 * the image itself. This is the whole of what the privacy decision lets a Recipient learn about
 	 * proof.
+	 * @param eta the current ETA Window, present only while Assigned or In Transit and only when a
+	 * successful estimate exists — its absence in those states is the honest "ETA temporarily
+	 * unavailable" the browser shows. Null in every other state, because a Delivery not yet arranged
+	 * or already ended has no arrival to estimate. It carries the two endpoints and calculation time,
+	 * never a route.
 	 */
 	record Snapshot(String reference, DeliveryState state, String handoffAddressLabel, String courierDisplayName,
-			MapView map, Instant completedAt, String deliveryTeamContact, Boolean proofOnFile) {
+			MapView map, Instant completedAt, String deliveryTeamContact, Boolean proofOnFile, EtaView eta) {
+	}
+
+	/**
+	 * The Recipient-facing ETA Window: the earliest and latest estimated handoff, both on five-minute
+	 * boundaries, and when the estimate was last calculated. The browser ages {@code calculatedAt} to
+	 * show "last calculated X ago" and then withdraw the window past five minutes, and compares its
+	 * clock to {@code windowEnd} to show "running later than expected" — the same way it ages Location
+	 * Freshness. No route, leg or waypoint is here, because none is ever allowed to reach a Recipient.
+	 */
+	record EtaView(Instant windowStart, Instant windowEnd, Instant calculatedAt) {
 	}
 
 	/**

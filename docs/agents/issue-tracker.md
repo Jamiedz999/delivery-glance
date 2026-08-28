@@ -22,7 +22,7 @@ See `docs/planning/implementation/ISSUE-WORKFLOW.md` for the handoff pattern and
 
 Infer the repo from `git remote -v` — `gh` does this automatically when run inside a clone.
 
-Issue titles are plain. The local planning IDs (`DG-020`, etc.) predate the GitHub issue number and survive as the branch and commit key and in each Issue's footer — see `ISSUE-WORKFLOW.md`.
+Issue titles are plain. Name branches and commits after the change itself, with no required ID prefix — see `ISSUE-WORKFLOW.md`. The `DG-0NN` planning IDs survive only in each Issue's footer and in older merged history.
 
 ## Pull requests as a triage surface
 
