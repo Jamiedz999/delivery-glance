@@ -105,6 +105,25 @@ delivery-glance:
     # both routes, so a deployment without the Lambda cannot have a send recorded by anything but the
     # Lambda it never configured.
     callback-token: ${NOTIFY_CALLBACK_TOKEN:}
+  eta:
+    # External travel-time ETA (Issue 27). Off unless a provider-base-url is set: a blank base URL is
+    # a supported deployment where no window is ever computed and the Recipient view simply never
+    # shows an ETA, exactly as Core ran before this feature. The /api/system probe reports it disabled.
+    # The provider contract itself — terms, DPA and privacy disclosure — and the billing account are
+    # arranged where the provider is; only what reaches it lives here. The reference provider is Mapbox
+    # Directions (ADR 10): base URL https://api.mapbox.com.
+    provider-base-url: ${ETA_PROVIDER_BASE_URL:}
+    # The provider access token. Never logged.
+    access-token: ${ETA_ACCESS_TOKEN:}
+    # How long one provider call may take before it is abandoned as unavailable, degrading the window
+    # rather than hanging the sweep.
+    request-timeout: ${ETA_REQUEST_TIMEOUT:5s}
+    # How often the sweeper recomputes active windows. ADR 05's "at most once per minute". ISO-8601.
+    refresh-interval: ${ETA_REFRESH_INTERVAL:PT1M}
+    # The most provider requests made in a day before calls are skipped and windows age out — the
+    # billing ceiling made something the code enforces. Zero means uncapped: fine for tests and the
+    # demo, never the production posture ADR 05 asks for.
+    daily-request-cap: ${ETA_DAILY_REQUEST_CAP:0}
   demo:
     # POST /api/demo/reset, which empties every Delivery, Assignment, Tracking Link and Courier fact
     # and puts the fictional Deliveries back. Off unless a deployment says otherwise, and the

@@ -4,15 +4,21 @@ import { DeliveryMap } from './DeliveryMap'
 import { NotificationOptIn } from './NotificationOptIn'
 import {
   TRACKING_CONNECTION_COPY,
+  ETA_RUNNING_LATE,
+  ETA_UNAVAILABLE,
+  ETA_UPDATED,
   NO_POSITION,
   STATE_COPY,
   UNAVAILABLE_LINK,
   UNREACHABLE,
   formatAge,
+  formatClockTime,
   formatTime,
 } from './copy'
+import { type EtaDescription, describeEta } from './eta'
 import type { MapEngine, MapMarker } from './mapEngine'
 import {
+  type EtaWindow,
   type RecipientState,
   type TrackingMap,
   type TrackingResult,
@@ -31,6 +37,12 @@ export interface MapConfiguration {
 
 interface TrackingPageProps {
   map: MapConfiguration
+  /**
+   * Whether this deployment computes ETAs, read once from the page markup. False hides the arrival
+   * section entirely, so a deployment without a provider shows no ETA rather than a permanent
+   * "temporarily unavailable".
+   */
+  etaEnabled?: boolean
   /** Tests drive the stream by hand; production gets the real EventSource. */
   updates?: OpenUpdates
 }
@@ -46,7 +58,7 @@ interface TrackingPageProps {
  * how old that is now is a question only this page can keep answering, because nothing arrives to
  * tell it the marker has expired.
  */
-export function TrackingPage({ map, updates = openUpdates }: TrackingPageProps) {
+export function TrackingPage({ map, etaEnabled = false, updates = openUpdates }: TrackingPageProps) {
   const [result, setResult] = useState<TrackingResult | null>(null)
   const mounted = useRef(true)
 
@@ -110,7 +122,7 @@ export function TrackingPage({ map, updates = openUpdates }: TrackingPageProps) 
       </div>
     )
   }
-  return <Delivery snapshot={result.snapshot} map={map} connection={connection} />
+  return <Delivery snapshot={result.snapshot} map={map} etaEnabled={etaEnabled} connection={connection} />
 }
 
 /** The ordered lifecycle a Recipient is shown, and the single word each milestone is named by. */
@@ -130,13 +142,24 @@ function isInProgress(state: RecipientState): boolean {
   return state === 'AWAITING_COURIER' || state === 'ASSIGNED' || state === 'IN_TRANSIT'
 }
 
+/**
+ * The two states that carry an arrival estimate. Awaiting has no Courier to route from, and a
+ * terminal Delivery has already arrived or been called off, so neither has an ETA to show or to be
+ * honest about being unavailable.
+ */
+function expectsEta(state: RecipientState): boolean {
+  return state === 'ASSIGNED' || state === 'IN_TRANSIT'
+}
+
 function Delivery({
   snapshot,
   map,
+  etaEnabled,
   connection,
 }: {
   snapshot: TrackingSnapshot
   map: MapConfiguration
+  etaEnabled: boolean
   connection: TrackingConnection
 }) {
   const copy = STATE_COPY[snapshot.state]
@@ -152,6 +175,14 @@ function Delivery({
       </header>
 
       {isInProgress(snapshot.state) && <Progress state={snapshot.state} />}
+
+      {/*
+        The arrival window, shown while a Courier is on the way — a provisional window while Assigned,
+        a tighter one In Transit. Only on a deployment that computes ETAs: with the feature off there
+        is no arrival to be honest or unavailable about, so the section is absent rather than
+        permanently "temporarily unavailable".
+      */}
+      {etaEnabled && expectsEta(snapshot.state) && <EtaWindowView eta={snapshot.eta} />}
 
       {snapshot.map !== null && <CourierLocation positions={snapshot.map} map={map} />}
 
@@ -318,6 +349,119 @@ function describeLocation(
   return `${freshness.label} location — updated ${formatAge(freshness.ageSeconds)}, ${accuracy}.`
 }
 
+/**
+ * The arrival window. It renders the two ends of the window and how long since it was last
+ * calculated, or, when no current estimate exists, the honest unavailable line. A window that has
+ * been missed keeps the running-late note beside it rather than being replaced silently, and the
+ * window that eventually replaces a missed one is labelled "estimated arrival updated" — the two
+ * halves of ADR 05's rule that a late estimate is neither hidden nor quietly overwritten.
+ *
+ * <p>Like the courier's position, it ages in the browser: the clock ticks each second, so "last
+ * calculated X ago" keeps climbing and the window withdraws itself once past five minutes, on a page
+ * nobody is refreshing.
+ */
+function EtaWindowView({ eta }: { eta: EtaWindow | null }) {
+  const now = useTickingClock(eta?.calculatedAt ?? null)
+  const description = describeEta(eta, now)
+  const updatedFromLate = useReplacedLateWindow(description)
+  const label = etaChipLabel(description)
+
+  return (
+    <section className="card eta-card" aria-labelledby="eta-heading">
+      <div className="card-head">
+        <h3 id="eta-heading">Estimated arrival</h3>
+        <span className={`freshness-chip ${etaChipClass(label)}`}>{label}</span>
+      </div>
+      {description === null ? (
+        <p className="eta">{ETA_UNAVAILABLE}</p>
+      ) : (
+        <>
+          <p className="eta-window">
+            <time dateTime={description.windowStart}>{formatClockTime(description.windowStart)}</time>
+            {' – '}
+            <time dateTime={description.windowEnd}>{formatClockTime(description.windowEnd)}</time>
+          </p>
+          <p className="eta-freshness">{etaFreshnessLine(description, updatedFromLate)}</p>
+        </>
+      )}
+      {/*
+        Not a live region, for the same reason the freshness sentence is not: the age ticks every
+        second, and announcing each one would talk over the rest of the page. The category — a window,
+        a late window, a just-updated one, or unavailable — is what a reader wants, and the chip above
+        carries it.
+      */}
+      <span className="visually-hidden" role="status">
+        {etaStatusText(description, updatedFromLate)}
+      </span>
+    </section>
+  )
+}
+
+function etaFreshnessLine(description: EtaDescription, updatedFromLate: boolean): string {
+  if (description.runningLate) {
+    return ETA_RUNNING_LATE
+  }
+  if (updatedFromLate) {
+    return ETA_UPDATED
+  }
+  return `Last calculated ${formatAge(description.ageSeconds)}.`
+}
+
+/**
+ * Whether the window on screen is the one that replaced a missed estimate. It remembers the previous
+ * window and whether it had gone late, so the moment a fresh future window arrives after a running-late
+ * one, the page can label it "updated" rather than swap it in as though it were the original — ADR 05's
+ * rule that a replacement is never a silent erasure. The flag stays set until the window changes again.
+ */
+function useReplacedLateWindow(description: EtaDescription | null): boolean {
+  const previousEnd = useRef<string | null>(null)
+  const previousWasLate = useRef(false)
+  const [updatedFromLate, setUpdatedFromLate] = useState(false)
+
+  const end = description?.windowEnd ?? null
+  const runningLate = description?.runningLate ?? false
+
+  useEffect(() => {
+    if (end !== previousEnd.current) {
+      setUpdatedFromLate(previousWasLate.current && end !== null && !runningLate)
+      previousEnd.current = end
+    }
+    previousWasLate.current = runningLate
+  }, [end, runningLate])
+
+  return updatedFromLate
+}
+
+/** The chip word: the category of the estimate at a glance. */
+function etaChipLabel(description: EtaDescription | null): string {
+  if (description === null) {
+    return 'Unavailable'
+  }
+  return description.runningLate ? 'Running late' : 'On track'
+}
+
+function etaChipClass(label: string): string {
+  switch (label) {
+    case 'On track':
+      return 'is-live'
+    case 'Running late':
+      return 'is-delayed'
+    default:
+      return 'is-unavailable'
+  }
+}
+
+function etaStatusText(description: EtaDescription | null, updatedFromLate: boolean): string {
+  if (description === null) {
+    return ETA_UNAVAILABLE
+  }
+  const window = `Estimated arrival ${formatClockTime(description.windowStart)} to ${formatClockTime(description.windowEnd)}.`
+  if (description.runningLate) {
+    return `${window} ${ETA_RUNNING_LATE}`
+  }
+  return updatedFromLate ? `${window} ${ETA_UPDATED}` : window
+}
+
 function bannerToneClass(state: RecipientState): string {
   switch (state) {
     case 'AWAITING_COURIER':
@@ -345,21 +489,27 @@ function freshnessChipClass(label: FreshnessLabel): string {
 }
 
 /**
- * Ages one reading in the browser. It restarts whenever a reload brings a different measurement
- * time, and stops entirely when there is no position, so a page showing no Courier is not running
- * a timer for one.
+ * A clock that re-renders once a second while `active` is non-null, and stands still otherwise — so a
+ * page with nothing to age is not running a timer. It restarts whenever `active` changes, which is how
+ * a reload bringing a new measurement or calculation time resets the age. Both the courier's position
+ * and the ETA age against it, which is the whole reason it is one hook rather than two.
  */
-function useFreshness(recordedAt: string | null) {
+function useTickingClock(active: string | null): number {
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
-    if (recordedAt === null) {
+    if (active === null) {
       return
     }
     setNow(Date.now())
     const tick = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(tick)
-  }, [recordedAt])
+  }, [active])
 
-  return describeFreshness(recordedAt, now)
+  return now
+}
+
+/** Ages one courier reading: the ticking clock, described through the shared freshness rule. */
+function useFreshness(recordedAt: string | null) {
+  return describeFreshness(recordedAt, useTickingClock(recordedAt))
 }

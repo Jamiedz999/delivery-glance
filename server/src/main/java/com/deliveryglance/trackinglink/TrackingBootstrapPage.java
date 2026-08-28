@@ -9,6 +9,7 @@ import java.util.Base64;
 
 import com.deliveryglance.shared.Secrets;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.HtmlUtils;
@@ -54,7 +55,12 @@ class TrackingBootstrapPage {
 
 	private final String contentSecurityPolicy;
 
-	TrackingBootstrapPage(TrackingLinkProperties properties) {
+	TrackingBootstrapPage(TrackingLinkProperties properties,
+			// Read from configuration for the same reason the map style is: whether this deployment
+			// computes ETAs is a deployment fact, identical for every visitor and nothing to do with a
+			// Delivery. A blank provider base URL is a deployment without ETA, and the Recipient page
+			// then shows no arrival section rather than a permanent "temporarily unavailable".
+			@Value("${delivery-glance.eta.provider-base-url:}") String etaProviderBaseUrl) {
 		String script = read("tracking/bootstrap.js");
 		String tileOrigin = tileOriginOf(properties.mapStyleUrl());
 		String allowed = tileOrigin.isEmpty() ? "" : " " + tileOrigin;
@@ -72,6 +78,7 @@ class TrackingBootstrapPage {
 				<meta property="og:title" content="Delivery Glance">
 				<meta property="og:description" content="Delivery Glance tracking link">
 				<meta name="delivery-glance-map-style" content="%s">
+				<meta name="delivery-glance-eta-enabled" content="%s">
 				<style>%s</style>
 				</head>
 				<body>
@@ -83,7 +90,8 @@ class TrackingBootstrapPage {
 				<script>%s</script>
 				</body>
 				</html>
-				""".formatted(HtmlUtils.htmlEscape(nullToEmpty(properties.mapStyleUrl())), STYLE, script);
+				""".formatted(HtmlUtils.htmlEscape(nullToEmpty(properties.mapStyleUrl())),
+				!nullToEmpty(etaProviderBaseUrl).isBlank(), STYLE, script);
 	}
 
 	String html() {

@@ -2,6 +2,7 @@ package com.deliveryglance.recipientview;
 
 import java.util.UUID;
 
+import com.deliveryglance.eta.EtaProjection;
 import com.deliveryglance.location.LocationFacts;
 import com.deliveryglance.proof.ProofPresence;
 import com.deliveryglance.recipientview.RecipientDeliveryFacts.RecipientDelivery;
@@ -32,12 +33,15 @@ class RecipientSnapshots {
 
 	private final ProofPresence proofPresence;
 
+	private final EtaProjection eta;
+
 	RecipientSnapshots(RecipientDeliveryFacts deliveries, LocationFacts locations, RecipientViewProperties properties,
-			ProofPresence proofPresence) {
+			ProofPresence proofPresence, EtaProjection eta) {
 		this.deliveries = deliveries;
 		this.locations = locations;
 		this.properties = properties;
 		this.proofPresence = proofPresence;
+		this.eta = eta;
 	}
 
 	/**
@@ -51,8 +55,8 @@ class RecipientSnapshots {
 
 		return switch (delivery.state()) {
 			case AWAITING_COURIER -> awaitingCourier(delivery);
-			case ASSIGNED -> assigned(delivery);
-			case IN_TRANSIT -> inTransit(delivery);
+			case ASSIGNED -> assigned(deliveryId, delivery);
+			case IN_TRANSIT -> inTransit(deliveryId, delivery);
 			case DELIVERED -> delivered(deliveryId, delivery);
 			case CANCELLED -> cancelled(delivery);
 		};
@@ -61,23 +65,23 @@ class RecipientSnapshots {
 	/** No Courier has been arranged, so there is no Courier and no location to be honest about. */
 	private RecipientViews.Snapshot awaitingCourier(RecipientDelivery delivery) {
 		return new RecipientViews.Snapshot(delivery.reference(), delivery.state(), delivery.handoffAddressLabel(),
-				null, null, null, null, null);
+				null, null, null, null, null, null);
 	}
 
 	/**
-	 * A Courier is on the way to pickup. The Display Name appears; the map does not, because a
-	 * Courier heading to a pickup address is not information about this Delivery's journey and
-	 * showing it would put the pickup address on screen by inference.
+	 * A Courier is on the way to pickup. The Display Name and a provisional ETA Window appear; the map
+	 * does not, because a Courier heading to a pickup address is not information about this Delivery's
+	 * journey and showing it would put the pickup address on screen by inference.
 	 */
-	private RecipientViews.Snapshot assigned(RecipientDelivery delivery) {
+	private RecipientViews.Snapshot assigned(UUID deliveryId, RecipientDelivery delivery) {
 		return new RecipientViews.Snapshot(delivery.reference(), delivery.state(), delivery.handoffAddressLabel(),
-				delivery.courierDisplayName(), null, null, null, null);
+				delivery.courierDisplayName(), null, null, null, null, etaFor(deliveryId));
 	}
 
 	/** The only state that carries coordinates, and the only one that asks location anything. */
-	private RecipientViews.Snapshot inTransit(RecipientDelivery delivery) {
+	private RecipientViews.Snapshot inTransit(UUID deliveryId, RecipientDelivery delivery) {
 		return new RecipientViews.Snapshot(delivery.reference(), delivery.state(), delivery.handoffAddressLabel(),
-				delivery.courierDisplayName(), mapFor(delivery), null, null, null);
+				delivery.courierDisplayName(), mapFor(delivery), null, null, null, etaFor(deliveryId));
 	}
 
 	/**
@@ -87,7 +91,7 @@ class RecipientSnapshots {
 	 */
 	private RecipientViews.Snapshot delivered(UUID deliveryId, RecipientDelivery delivery) {
 		return new RecipientViews.Snapshot(delivery.reference(), delivery.state(), delivery.handoffAddressLabel(),
-				null, null, delivery.completedAt(), null, this.proofPresence.hasProofOnFile(deliveryId));
+				null, null, delivery.completedAt(), null, this.proofPresence.hasProofOnFile(deliveryId), null);
 	}
 
 	/**
@@ -100,7 +104,20 @@ class RecipientSnapshots {
 	 */
 	private RecipientViews.Snapshot cancelled(RecipientDelivery delivery) {
 		return new RecipientViews.Snapshot(delivery.reference(), delivery.state(), null, null, null,
-				delivery.completedAt(), configuredContact(), null);
+				delivery.completedAt(), configuredContact(), null, null);
+	}
+
+	/**
+	 * The current window for a Delivery, or null when there is none. A null in an ETA-bearing state is
+	 * the honest "ETA temporarily unavailable": the last estimate failed or the Courier's location is
+	 * not usable, and the page says so rather than showing a stale guess as fact. The read is of the
+	 * stored projection only — a Recipient's page load never waits on the travel-time provider.
+	 */
+	private RecipientViews.EtaView etaFor(UUID deliveryId) {
+		return this.eta.currentEta(deliveryId)
+			.map((window) -> new RecipientViews.EtaView(window.windowStart(), window.windowEnd(),
+					window.calculatedAt()))
+			.orElse(null);
 	}
 
 	private RecipientViews.MapView mapFor(RecipientDelivery delivery) {

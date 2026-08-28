@@ -3,6 +3,7 @@ package com.deliveryglance.recipientview;
 import java.util.UUID;
 
 import com.deliveryglance.delivery.DeliveryState;
+import com.deliveryglance.eta.EtaChanges;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +30,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * location change is only visible In Transit, and that is the only state it produces a hint in.
  */
 @Service
-class RecipientViewChanges implements RecipientViewUpdates {
+class RecipientViewChanges implements RecipientViewUpdates, EtaChanges {
 
 	private static final Logger logger = LoggerFactory.getLogger(RecipientViewChanges.class);
 
@@ -44,6 +45,14 @@ class RecipientViewChanges implements RecipientViewUpdates {
 
 	@Override
 	public void deliveryChanged(UUID deliveryId) {
+		afterCommit(() -> this.streams.hintChanged(deliveryId));
+	}
+
+	@Override
+	public void etaChanged(UUID deliveryId) {
+		// eta already fires this only on a real move — a first window, a five-minute shift, or a
+		// withdrawal — so it is the same "refetch" hint as any other Delivery change. eta calls it after
+		// its own write, so there is usually no transaction to wait for and the hint goes out at once.
 		afterCommit(() -> this.streams.hintChanged(deliveryId));
 	}
 

@@ -233,6 +233,34 @@ class DeliveryRepository implements TrackedDeliveries {
 			.optional();
 	}
 
+	/**
+	 * The two coordinate pairs an ETA is drawn between, with the current state so eta can decide which
+	 * phase's window to draw. The Courier is not read here — eta joins the active Assignment for that,
+	 * exactly as the Recipient projection does — because a driving time depends on where the Courier is
+	 * now, which is location's fact, not the Delivery's.
+	 */
+	Optional<RouteFacts> findRouteFacts(UUID id) {
+		return this.jdbcClient.sql("""
+				SELECT state, pickup_latitude, pickup_longitude, handoff_latitude, handoff_longitude
+				FROM delivery
+				WHERE id = :id
+				""")
+			.param("id", id)
+			.query((rs, rowNumber) -> new RouteFacts(DeliveryState.valueOf(rs.getString("state")),
+					rs.getDouble("pickup_latitude"), rs.getDouble("pickup_longitude"), rs.getDouble("handoff_latitude"),
+					rs.getDouble("handoff_longitude")))
+			.optional();
+	}
+
+	/** Every Delivery currently in an ETA-bearing phase, for the sweeper to recompute. */
+	List<UUID> findActiveDeliveryIds() {
+		return this.jdbcClient.sql("""
+				SELECT id FROM delivery WHERE state IN ('ASSIGNED', 'IN_TRANSIT')
+				""")
+			.query(UUID.class)
+			.list();
+	}
+
 	private List<DeliveryViews.Transition> findTransitions(UUID deliveryId) {
 		return this.jdbcClient.sql("""
 				SELECT previous_state, next_state, actor_display_name, reason_code, reason_note, occurred_at
@@ -271,6 +299,11 @@ class DeliveryRepository implements TrackedDeliveries {
 	}
 
 	record HandledCommand(UUID deliveryId, DeliveryState nextState) {
+	}
+
+	/** The Delivery's current state and the two coordinate pairs an ETA is drawn between. */
+	record RouteFacts(DeliveryState state, double pickupLatitude, double pickupLongitude, double handoffLatitude,
+			double handoffLongitude) {
 	}
 
 }

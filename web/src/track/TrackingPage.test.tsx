@@ -73,6 +73,7 @@ function snapshotOf(state: RecipientState, overrides: Partial<TrackingSnapshot> 
     completedAt: null,
     deliveryTeamContact: null,
     proofOnFile: null,
+    eta: null,
     ...overrides,
   }
 }
@@ -101,6 +102,10 @@ function respondWithSnapshot(snapshot: TrackingSnapshot) {
 
 function renderPage(engine?: MapEngine, styleUrl = STYLE_URL, updates?: OpenUpdates) {
   return render(<TrackingPage map={{ styleUrl, engine }} updates={updates} />)
+}
+
+function renderPageWithEta(etaEnabled = true, updates?: OpenUpdates) {
+  return render(<TrackingPage map={{ styleUrl: STYLE_URL }} etaEnabled={etaEnabled} updates={updates} />)
 }
 
 /**
@@ -347,6 +352,163 @@ describe('the Recipient tracking view', () => {
     expect(screen.getByText(/Location unavailable — last reported 2 minutes ago/)).toBeInTheDocument()
     // The handoff stays: an unavailable courier leaves a map with a destination, not a blank one.
     expect(map.kindsLastDrawn()).toEqual(['handoff'])
+  })
+
+  /**
+   * The arrival window is the whole of Issue 27's Recipient surface. It shows the two ends of the
+   * window and how fresh the estimate is, ages that freshness in the browser to an honest unavailable
+   * state, keeps a missed window on screen with a running-late note, and appears only where a Courier
+   * is on the way and only on a deployment that computes ETAs.
+   */
+  it('shows the arrival window and how long ago it was last calculated', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
+    respondWithSnapshot(
+      snapshotOf('ASSIGNED', {
+        courierDisplayName: 'Cory C.',
+        eta: {
+          windowStart: '2026-08-10T10:15:00.000Z',
+          windowEnd: '2026-08-10T10:35:00.000Z',
+          calculatedAt: new Date(NOW).toISOString(),
+        },
+      }),
+    )
+
+    const { container } = renderPageWithEta()
+    await act(async () => {})
+
+    expect(screen.getByRole('heading', { name: 'Estimated arrival' })).toBeInTheDocument()
+    expect(screen.getByText('On track')).toBeInTheDocument()
+    expect(screen.getByText('Last calculated just now.')).toBeInTheDocument()
+    expect(container.querySelector('time[datetime="2026-08-10T10:15:00.000Z"]')).not.toBeNull()
+    expect(container.querySelector('time[datetime="2026-08-10T10:35:00.000Z"]')).not.toBeNull()
+  })
+
+  it('says the arrival is temporarily unavailable when a Courier is on the way but no window exists', async () => {
+    respondWithSnapshot(snapshotOf('ASSIGNED', { courierDisplayName: 'Cory C.', eta: null }))
+
+    renderPageWithEta()
+
+    // The visible line and the screen-reader live region both carry it, on purpose.
+    expect(await screen.findAllByText('Estimated arrival is temporarily unavailable.')).not.toHaveLength(0)
+    expect(screen.getByText('Unavailable')).toBeInTheDocument()
+  })
+
+  it('withdraws the window to unavailable once its last calculation ages past five minutes', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
+    respondWithSnapshot(
+      inTransit({
+        eta: {
+          windowStart: '2026-08-10T09:20:00.000Z',
+          windowEnd: '2026-08-10T09:30:00.000Z',
+          calculatedAt: new Date(NOW).toISOString(),
+        },
+      }),
+    )
+
+    renderPageWithEta()
+    await act(async () => {})
+    expect(screen.getByText('Last calculated just now.')).toBeInTheDocument()
+
+    await act(async () => {
+      vi.advanceTimersByTime(300_000)
+    })
+    expect(screen.getByText('Last calculated 5 minutes ago.')).toBeInTheDocument()
+
+    // One second past five minutes: the browser drops the window itself, with no new server response.
+    await act(async () => {
+      vi.advanceTimersByTime(1_000)
+    })
+    expect(screen.getAllByText('Estimated arrival is temporarily unavailable.')).not.toHaveLength(0)
+  })
+
+  it('keeps a missed window on screen and says it is running later than expected', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
+    respondWithSnapshot(
+      inTransit({
+        eta: {
+          // The window ended five minutes before now, but the estimate itself is fresh.
+          windowStart: '2026-08-10T08:40:00.000Z',
+          windowEnd: '2026-08-10T08:55:00.000Z',
+          calculatedAt: new Date(NOW).toISOString(),
+        },
+      }),
+    )
+
+    const { container } = renderPageWithEta()
+    await act(async () => {})
+
+    expect(screen.getByText('Running later than expected — updating the estimate.')).toBeInTheDocument()
+    expect(screen.getByText('Running late')).toBeInTheDocument()
+    // The missed window is not erased — ADR 05 keeps it visible beside the late note.
+    expect(container.querySelector('time[datetime="2026-08-10T08:55:00.000Z"]')).not.toBeNull()
+  })
+
+  it('labels the window that replaces a missed one as updated rather than swapping it in silently', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
+    const updates = fakeUpdates()
+    respondWithSnapshot(
+      inTransit({
+        eta: {
+          windowStart: '2026-08-10T08:40:00.000Z',
+          windowEnd: '2026-08-10T08:55:00.000Z',
+          calculatedAt: new Date(NOW).toISOString(),
+        },
+      }),
+    )
+
+    renderPageWithEta(true, updates.open)
+    await act(async () => {})
+    await updates.connect()
+    expect(screen.getByText('Running later than expected — updating the estimate.')).toBeInTheDocument()
+
+    // A fresh future window arrives on the next refresh. It is not swapped in silently: the page marks
+    // it as an update, so the Recipient sees a revised estimate rather than being shown a new window as
+    // though it were the one they were first given.
+    respondWithSnapshot(
+      inTransit({
+        eta: {
+          windowStart: '2026-08-10T09:10:00.000Z',
+          windowEnd: '2026-08-10T09:30:00.000Z',
+          calculatedAt: new Date(NOW).toISOString(),
+        },
+      }),
+    )
+    await updates.hint(2)
+
+    expect(screen.getByText('Estimated arrival updated.')).toBeInTheDocument()
+    expect(screen.getByText('On track')).toBeInTheDocument()
+    expect(screen.queryByText('Running later than expected — updating the estimate.')).not.toBeInTheDocument()
+  })
+
+  it('shows no arrival section on a deployment that does not compute ETAs', async () => {
+    respondWithSnapshot(
+      snapshotOf('ASSIGNED', {
+        courierDisplayName: 'Cory C.',
+        eta: {
+          windowStart: '2026-08-10T10:15:00.000Z',
+          windowEnd: '2026-08-10T10:35:00.000Z',
+          calculatedAt: new Date(NOW).toISOString(),
+        },
+      }),
+    )
+
+    renderPageWithEta(false)
+    await screen.findByRole('heading', { name: 'A courier has been assigned' })
+
+    expect(screen.queryByRole('heading', { name: 'Estimated arrival' })).not.toBeInTheDocument()
+  })
+
+  it('shows no arrival section before a Courier is assigned, even where ETAs are enabled', async () => {
+    respondWithSnapshot(snapshotOf('AWAITING_COURIER'))
+
+    renderPageWithEta()
+    await screen.findByRole('heading', { name: 'We’re preparing your delivery' })
+
+    expect(screen.queryByRole('heading', { name: 'Estimated arrival' })).not.toBeInTheDocument()
   })
 
   /**

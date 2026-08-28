@@ -99,8 +99,26 @@ class TrackingBootstrapPageTest {
 		assertThat(page.contentSecurityPolicy()).contains("img-src 'self'");
 	}
 
+	/**
+	 * Whether this deployment computes ETAs reaches the Recipient application through the markup, the
+	 * same way the map style does, so the page can hide the arrival section entirely rather than show a
+	 * permanent "temporarily unavailable" on a deployment that never computes one.
+	 */
+	@Test
+	void tellsTheApplicationWhetherEtaIsEnabledThroughTheMarkup() {
+		assertThat(pageWith("", "https://api.mapbox.com").html())
+			.contains("<meta name=\"delivery-glance-eta-enabled\" content=\"true\">");
+		assertThat(pageWith("", "").html())
+			.contains("<meta name=\"delivery-glance-eta-enabled\" content=\"false\">");
+	}
+
 	private static TrackingBootstrapPage pageWith(String mapStyleUrl) {
-		return new TrackingBootstrapPage(new TrackingLinkProperties(Map.of(1, "irrelevant"), 1, true, mapStyleUrl));
+		return pageWith(mapStyleUrl, "");
+	}
+
+	private static TrackingBootstrapPage pageWith(String mapStyleUrl, String etaProviderBaseUrl) {
+		return new TrackingBootstrapPage(new TrackingLinkProperties(Map.of(1, "irrelevant"), 1, true, mapStyleUrl),
+				etaProviderBaseUrl);
 	}
 
 }

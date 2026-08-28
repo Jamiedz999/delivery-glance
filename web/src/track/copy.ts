@@ -68,9 +68,35 @@ export const MAP_UNAVAILABLE = 'The map is unavailable, so the courier’s posit
  */
 export const NO_POSITION = 'The courier’s position is not available right now.'
 
+/**
+ * Shown while Assigned or In Transit when no current window exists — the last estimate failed or the
+ * courier's location is not usable. It names no cause, because several arrive here as the same
+ * absence, and asserting one would be a guess presented as fact.
+ */
+export const ETA_UNAVAILABLE = 'Estimated arrival is temporarily unavailable.'
+
+/**
+ * Shown once the page's clock passes the window's upper bound. ADR 05 keeps the missed window on
+ * screen and says this alongside it rather than silently replacing it, so a Recipient is never shown
+ * a moved estimate as though the first had never been given.
+ */
+export const ETA_RUNNING_LATE = 'Running later than expected — updating the estimate.'
+
+/**
+ * Shown on the window that replaces a missed one. ADR 05 requires a replacement to be labelled rather
+ * than swapped in silently, so a Recipient who was told the delivery was running late sees that the
+ * new window is a revised estimate, not the one they were originally given.
+ */
+export const ETA_UPDATED = 'Estimated arrival updated.'
+
 /** A whole time, in the reader's own locale. Core has no time-zone lookup for the handoff address. */
 export function formatTime(instant: string): string {
   return new Date(instant).toLocaleString()
+}
+
+/** Just the clock time, in the reader's own locale — the two ends of an ETA Window read as times. */
+export function formatClockTime(instant: string): string {
+  return new Date(instant).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
 export function formatAge(ageSeconds: number): string {
