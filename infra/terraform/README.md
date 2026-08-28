@@ -16,6 +16,8 @@ down with it.
 bootstrap/   the S3 bucket + DynamoDB lock table that hold Terraform's own state
 core/        the Core deployment: ECR, the GitHub OIDC role, the EC2 role, the security group,
              the instance and its Elastic IP
+proof/       Proof of Delivery (#50) on real AWS: the private bucket, the processing Lambda and its
+             trigger, and the app IAM — a separate state, gated behind enable_proof (default off)
 ```
 
 ## The backend
@@ -65,5 +67,7 @@ gh api repos/Jamiedz999/delivery-glance/actions/oidc/customization/sub
 
 ## What is not here
 
-This codifies **Core only**. The proof-of-delivery and off-band-notification stacks are separate,
-gated modules added on top of this foundation — #70 and #71 — with their own state boundaries.
+This codifies **Core only**. Proof of Delivery (`proof/`, #50) and Delivery Notification (#51) are
+separate, gated modules on top of this foundation, each with its own state boundary — so core's plan
+stays a strict no-op no matter which of them is on. `proof/` is built; see its README. Delivery
+Notification is still to come.
