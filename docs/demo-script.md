@@ -86,7 +86,7 @@ Within a few seconds the Courier's own panel shows **Live** and a position age t
 > you. Switch to another tab and reporting pauses honestly rather than pretending to continue.
 > The server keeps one snapshot per Courier, in memory, and never a trail.
 
-### 5 · Direct Assignment
+### 5 · Assignment
 
 Back in the Dispatcher window on DEMO-1001, press **Refresh recommendation**.
 
@@ -119,7 +119,7 @@ Send the returned URL to the phone and open it.
 > and removes it from the address bar and from history before rendering anything. Pressing Back does
 > not walk into a URL that still carries the token.
 
-Read what the page shows: the Reference, the Handoff Address, that a courier is being arranged, and
+Read what the page shows: the Reference, the Delivery Address, that a courier is being arranged, and
 Cory's limited display name. **No map.**
 
 > Say: a Courier heading to a pickup is not information about *this* Delivery's journey, and drawing
@@ -164,7 +164,7 @@ fetches the current snapshot in one read.
 Bring the Courier window back, press **Stop sharing** — the marker goes immediately rather than
 ageing out — then **Confirm handoff**.
 
-The Recipient's page keeps the Reference, the Handoff Address and the actual handoff time, and loses
+The Recipient's page keeps the Reference, the Delivery Address and the actual handoff time, and loses
 Cory's name and every trace of location.
 
 > Say: a delivered Delivery has nothing to say about where anybody is, so it stops saying it.
@@ -174,7 +174,7 @@ Cory's name and every trace of location.
 In the Dispatcher window open **DEMO-1002**, press **Cancel delivery** and give a reason.
 
 Copy that Delivery's Tracking Link the same way and open it. It shows the Reference, that it was
-cancelled, when, and who to contact — but not the Handoff Address, and never the internal reason the
+cancelled, when, and who to contact — but not the Delivery Address, and never the internal reason the
 Dispatcher gave.
 
 ### 11 · The one that is not on screen

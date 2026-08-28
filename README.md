@@ -13,7 +13,7 @@ or claim to know where somebody is on the strength of a two-minute-old reading.
 |---|---|
 | **Live demo** | _(release input — the owner's HTTPS deployment; see [`docs/deployment.md`](docs/deployment.md))_ |
 | **Stack** | Java 25 · Spring Boot 4.1 · PostgreSQL 18 · React 19 · TypeScript · MapLibre · Docker |
-| **Status** | Portfolio Core, complete. Everything below is built and tested; [Future Work 13–19](docs/planning/map.md#future-work) is designed and deliberately not built. |
+| **Status** | Version 1, complete. Everything below is built and tested. What is designed and deliberately not built is in the open [GitHub Issues](https://github.com/Jamiedz999/delivery-glance/issues). |
 
 ---
 
@@ -118,7 +118,7 @@ Three choices carry most of the design, and each is a trade rather than a defaul
   leak anything because the stream carries nothing to leak.
 
 **[`docs/architecture.md`](docs/architecture.md)** has the full system diagram, the end-to-end
-sequence diagram, and why Redis, Kafka, PostGIS, WebFlux and a full Matching Round are Future Work
+sequence diagram, and why Redis, Kafka, PostGIS, WebFlux and a full Matching Round are open Issues
 rather than missing dependencies.
 
 ## Privacy, and what is never stored
@@ -134,7 +134,7 @@ This is the part the product is actually about.
 | A Tracking Link is a capability, not an account | 256 bits, HMAC-derived, carried in the URL **fragment** so RFC 3986 keeps it out of every request. Only a SHA-256 verifier is stored, so a database copy cannot be turned back into a working link. The page exchanges it for a short-lived cookie and removes it from the address bar and from history before rendering anything. |
 | A bad link says nothing | Tampered, unknown and expired links get one identical response — which is what stops the route becoming a way to ask whether a Delivery exists. |
 | A Recipient sees one Delivery, reduced | No Pickup Address, no internal identifier, no cancellation reason. No map before pickup, because a Courier heading to a pickup would put the Pickup Address on screen by inference. Delivered removes the Courier's name and every trace of location. |
-| A grant confers nothing else | A Tracking grant reaches no internal route, and an Internal Account session reaches no Recipient route. |
+| A grant confers nothing else | A Tracking Session reaches no internal route, and an Staff Account session reaches no Recipient route. |
 
 Both checks below are committed commands, not assertions about them:
 
@@ -216,11 +216,11 @@ attempt is evidence of nothing.
 | Chosen | Given up | Why that way round |
 |---|---|---|
 | foreground-only Location Sharing | reporting while backgrounded | the page can only promise what a browser will actually do |
-| one reusable seven-day Tracking Link | Rotation, Revocation, Reissue | recovery needs a reason catalog, a history UI and a retention rule; Core ships the properties that make a public bearer link safe at all |
-| Direct Assignment | invitations, Decline, Timeout, cooldown | keeps the concurrency invariant, drops the timers |
+| one reusable seven-day Tracking Link, revocable | Replace Link, Reissue Link, a history UI | revoking is what a leaked link actually needs; replacing and reissuing need a history surface and a retention rule, and are [#60](https://github.com/Jamiedz999/delivery-glance/issues/60) and [#62](https://github.com/Jamiedz999/delivery-glance/issues/62) |
+| Assignment | invitations, Decline, Timeout, cooldown | keeps the concurrency invariant, drops the timers |
 | Current Location in memory only | any durable position | nothing to leak, and no migration that could turn it into a trail |
 | the Recipient's own timer for freshness | trusting the server to say | a disconnected page still tells the truth |
-| no ETA | travel-time estimates | an ETA needs a routing provider and an honest unavailable state; an invented one is worse than none |
+| an ETA behind a provider port, off unless configured | an ETA that always shows something | an ETA needs a routing provider and an honest unavailable state; an invented one is worse than none |
 
 **Redis, Kafka, PostGIS, WebFlux and a sixty-second Matching Round are not missing — they have no job
 here.** Each has a written trigger and a designed increment waiting behind it, and adding one before
@@ -237,19 +237,17 @@ Real, and listed rather than discovered:
 - **No Reassignment, Courier Withdrawal, Dispatcher Revocation or Undeliverable outcome.** A Delivery
   in trouble after pickup has no modelled way out.
   [#29](https://github.com/Jamiedz999/delivery-glance/issues/29).
-- **The Dispatcher has no button to copy a Tracking Link.** The endpoint exists and is tested; the
-  control does not.
 - **A Courier watching their own workspace is not told they have been assigned** until they reload.
-- **Recipient-facing times render in the reader's own time zone**, not the Handoff Address's.
+- **Recipient-facing times render in the reader's own time zone**, not the Delivery Address's.
 - **One browser engine**, Chromium, at a desktop and a phone viewport.
 - **Accessibility is checked, not certified**: automated axe-core rules with no serious or critical
   violations, plus a documented keyboard walkthrough. No screen-reader session, no WCAG audit.
 - **No performance, latency or scale figure exists**, anywhere, for the reason stated above.
 
-The three above that are defects rather than scope decisions — the missing Copy button, the Courier
-workspace not noticing an Assignment, and the time zone — are written up with several more in
+The two above that are defects rather than scope decisions — the Courier workspace not noticing an
+Assignment, and the time zone — are written up with several more in
 [`docs/planning/implementation/INCIDENTAL-FINDINGS.md`](docs/planning/implementation/INCIDENTAL-FINDINGS.md),
-each with how it was found and why it was not fixed on the spot. The rest are limits of what Core
+each with how it was found and why it was not fixed on the spot. The rest are limits of what Version 1
 set out to build, and [`docs/testing.md`](docs/testing.md) is where those are stated.
 
 ## Deploying it
@@ -270,11 +268,11 @@ along it is.
 | [`docs/architecture.md`](docs/architecture.md) | diagrams, the three choices, the trade-offs, the limits |
 | [`docs/testing.md`](docs/testing.md) | the risk matrix: every claim, its command, and what it does not claim |
 | [`docs/deployment.md`](docs/deployment.md) · [`docs/demo-script.md`](docs/demo-script.md) | running it somewhere, and showing it to somebody |
-| [`docs/adr/`](docs/adr) | resolved product and architecture decisions, each with a callout naming what Core actually implements |
-| [`docs/planning/`](docs/planning) | the Sprint roadmap and implementation guides; [Later Backlog](https://github.com/Jamiedz999/delivery-glance/milestone/5) lives in GitHub Issues |
+| [`docs/adr/`](docs/adr) | decisions already made — the question, what was decided, why, and what is actually built |
+| [`docs/planning/`](docs/planning) | the technical baseline, and problems found in passing |
 | [GitHub Issues](https://github.com/Jamiedz999/delivery-glance/issues) | the implementation queue. Each Issue is its own full specification; nothing here duplicates one |
 
-Four one-week Sprints, about 38–46 focused hours: a walking skeleton, a dispatchable Delivery, the
-Recipient MVP, and then the evidence and presentation that make it a finished thing rather than a
-work in progress. [`docs/adr/12-rescope-to-resume-ready-core.md`](docs/adr/12-rescope-to-resume-ready-core.md)
-is where that was decided, and why.
+It was built in four one-week increments of about ten hours each: a walking skeleton, a dispatchable
+Delivery, the Recipient's page, and then the evidence and presentation that make it a finished thing
+rather than a work in progress. [ADR 12](docs/adr/12-rescope-to-resume-ready-core.md) is where the
+decision to build the narrow version was made, and why.

@@ -60,8 +60,8 @@ of the above from a clean checkout on every push and pull request.
 | A retried command assigns twice | `dispatch/DispatchApiTest.directlyAssignsOnceAndTreatsARetryAsTheSameCommand` | The same `commandId` twice produces one Assignment. |
 
 **Not proved:** any throughput or latency figure. This is a correctness race with two contenders, not
-a load test, and no benchmark exists in this repository. Ticket 12 keeps a measured scale experiment
-in Future Work 18 for exactly this reason.
+a load test, and no benchmark exists in this repository. A measured scale experiment is
+[#32](https://github.com/Jamiedz999/delivery-glance/issues/32) for exactly this reason.
 
 ### Delivery lifecycle
 
@@ -96,7 +96,7 @@ in Future Work 18 for exactly this reason.
 | A tampered, unknown or expired link tells the holder which it was | `trackinglink/TrackingLinkApiTest.answersUnknownMalformedAndExpiredTokensWithOneIndistinguishableResponse` plus the browser half in `web/e2e/degradation.spec.ts` | One identical response for every failure, and — in a real browser — no Reference, no address, no Courier name, and the Recipient application never even downloaded. |
 | A link outlives what it is for | `trackinglink/TrackingLinkExpiryTest` (5 boundary cases) and `trackinglink/TrackingLinkApiTest.stopsAcceptingALinkSevenDaysAfterItWasIssued`, `stopsAcceptingALinkTwentyFourHoursAfterTheDeliveryIsCancelled`, `refusesTheExchangeOnTheExpiryInstantItselfRatherThanFailingOnIt` | Seven-day cap, terminal grace period, and the expiry instant itself, against a controlled server clock. |
 | Copy issues a new capability each time | `trackinglink/TrackingCapabilitiesTest` (12 derivation cases) and `TrackingLinkApiTest.returnsTheSameLinkEveryTimeTheDispatcherCopiesIt` | The HMAC is deterministic per link generation and key version, and changes when any of those change. |
-| A Tracking grant confers internal authority, or a session confers Recipient access | `trackinglink/TrackingLinkApiTest.keepsInternalSessionsAndTrackingGrantsFromStandingInForEachOther` | Neither substitutes for the other. |
+| A Tracking Session confers internal authority, or a session confers Recipient access | `trackinglink/TrackingLinkApiTest.keepsInternalSessionsAndTrackingGrantsFromStandingInForEachOther` | Neither substitutes for the other. |
 | Guessing a token is cheap | `trackinglink/TrackingAttemptsTest` (6 cases, including `neverExpiresOrDisablesTheLinkItProtects`) | Failures throttle the source that is guessing and nobody else, and never damage the link. |
 
 ### Proof of delivery
@@ -111,7 +111,7 @@ in Future Work 18 for exactly this reason.
 | The processing callback is not actually the Lambda | `proof/ProofApiTest.refusesAProcessingCallbackThatDoesNotCarryTheSharedToken` | No shared bearer token, no write: the callback is refused `401` before it can settle anything. |
 | A Recipient is shown the image rather than only that proof exists | `recipientview/RecipientSnapshotsTest.tellsARecipientWhetherProofIsOnFileOnlyOnceDeliveredAndNeverTheImage` and its state matrix, plus `web/src/track/TrackingPage.test.tsx` | `proofOnFile` is a yes/no present only once Delivered — the privacy matrix fails if any other field appears — and the Recipient page renders only the reassurance line. |
 
-### Off-band notification
+### Delivery notification
 
 | Risk | Proved by | What it actually asserts |
 |---|---|---|
@@ -183,7 +183,7 @@ journeys would race each other rather than the product.
 The Recipient's clock is moved with Playwright's browser clock. Nothing in the application knows
 about it: there is no test profile, no override header and no injected time source, so what the
 journey exercises is the shipped build. The Courier's positions are emulated Geolocation at
-fictional coordinates, and the Delivery References are generated per run because a Reference is
+fictional coordinates, and the Delivery Numbers are generated per run because a Reference is
 unique for the life of the database.
 
 **How the journeys reset:** through the API, as a signed-in Courier. `web/e2e/support/journey.ts`
@@ -206,7 +206,7 @@ before there is one, or refusing a question in words that answer it.
 
 | Risk | Proved by | What it actually asserts |
 |---|---|---|
-| A Dispatcher who lost a Direct Assignment is shown the winner's result as if it were theirs | "the Dispatcher who loses a Direct Assignment is told, not congratulated", and `pages/DeliveryDetailPage.test.tsx` — "says so when another Dispatcher won the Delivery…" | Two Dispatcher windows on one Delivery; the loser is told the Delivery changed. The refusal used to be rendered inside the shortlist panel, which the refetch triggered by that same failure unmounted — so the page silently redrew as an assigned Delivery with the winner's Courier where a success would have put one. Fixed by this Issue. |
+| A Dispatcher who lost an Assignment is shown the winner's result as if it were theirs | "the Dispatcher who loses an Assignment is told, not congratulated", and `pages/DeliveryDetailPage.test.tsx` — "says so when another Dispatcher won the Delivery…" | Two Dispatcher windows on one Delivery; the loser is told the Delivery changed. The refusal used to be rendered inside the shortlist panel, which the refetch triggered by that same failure unmounted — so the page silently redrew as an assigned Delivery with the winner's Courier where a success would have put one. Fixed by this Issue. |
 | A page still loading looks like an answer | "a page that is still loading does not look like an answer" | The Deliveries read is held open; the page shows its loading status and neither a table nor "No deliveries yet." |
 | A refusal describes what it is refusing | "a Delivery that does not exist is refused without describing anything" | A well-formed identifier for nothing gets the generic sentence, no heading, and no echo of the identifier. |
 | An empty workspace shows somebody else's work | "a Courier with nothing assigned is told so, and shown nobody else's Delivery" | A Delivery exists and belongs to no one; the Courier's page says nothing is assigned and does not name it. |
@@ -234,7 +234,7 @@ otherwise assume the opposite.
 - **No coverage percentage is published or enforced.** The matrix above is the coverage claim: risks
   named, each with a command. A global percentage would say less and drift more.
 - **One browser engine.** The journeys run in Chromium at a desktop and a phone viewport. WebKit,
-  Firefox and real devices are untested, and Ticket 12 rules an exhaustive matrix out of Core.
+  Firefox and real devices are untested; [ADR 12](adr/12-rescope-to-resume-ready-core.md) rules an exhaustive matrix out.
 - **The map's tiles are never fetched.** The journeys serve MapLibre an empty style with a background
   layer, so what is proved is that the map mounts inside the page's Content-Security-Policy and that
   markers are added and removed. No tile provider is exercised, and none is committed to.

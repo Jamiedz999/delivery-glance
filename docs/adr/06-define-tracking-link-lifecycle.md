@@ -1,83 +1,62 @@
-# Define the Tracking Link lifecycle
+# ADR 06 — A Tracking Link is a capability, not an account
 
-Type: grilling
-Status: resolved
-Blocked by: 03
+## The question
 
-## Question
+How does a Recipient with no account read exactly one Delivery, without that link becoming a way to
+discover other Deliveries or a permanent key to somebody's address?
 
-When is a Tracking Link created, shared, activated, expired, or revoked; what data remains visible after completion or failure; and what threat model and recovery flow keep location access private without requiring a Recipient account?
+## What we decided
 
-## Answer
+One Delivery has at most one working Tracking Link, created when the Delivery is created. Holding it
+authorises reading that one Delivery. It proves nothing about who is holding it, and there is no PIN
+and no Recipient account.
 
-> **Portfolio Core scope update:** [Ticket 12](12-rescope-to-resume-ready-core.md) retains secure creation, repeatable Copy, automatic Expiry, the fragment-to-Tracking-Grant exchange, the single Unavailable Link response and the cache/referrer/indexing headers. Core derives the capability rather than storing it, so Copy returns the same link without anything having kept one. Rotation, Revocation, Reissue, their structured reasons and their history remain preserved here for #28; Core still records the link generation each Grant was established through, which is the hook those controls need.
+**Opening it changes nothing.** No first-open activation, no timer started, no business state
+touched — so link previews, scanners and crawlers cannot consume it.
 
-### Capability and threat boundary
+**It expires on its own**, at the earlier of seven days after it was made or twenty-four hours after
+the Delivery finished. Opening it never extends either limit.
 
-A Tracking Link is a reusable, read-only bearer capability for exactly one Delivery. Possession authorizes access while the link is valid, but does not authenticate the holder as the intended Recipient. Core requires neither a Recipient account nor an additional PIN.
-
-The design protects against guessing and enumeration, accidental leakage through search, logs, analytics, referrers, previews, or caches, stale access, and Dispatcher mistakes through rapid recovery. It does not claim to prevent deliberate forwarding, screenshots, or access through a compromised Recipient device or messaging channel. A Tracking Link can never modify a Delivery, Handoff Address, lifecycle state, or Assignment.
-
-### Creation, copying, and use
-
-The sole Tracking Link is created and becomes valid when its Delivery is created in `AWAITING_COURIER`. There is no first-open activation: `GET`, `HEAD`, link previews, scanners, and ordinary reads cannot consume the link, start a timer, or change any business state.
-
-The Dispatcher uses `Copy Tracking Link` and distributes it through an existing external channel. Core stores no Recipient phone number or email address and sends no SMS or email; the Courier does not distribute the link. Copying records the Dispatcher and time but proves neither that a message was sent nor that the Recipient received it. Copying again returns the current link without rotating it or extending its validity.
-
-One Delivery has at most one valid Tracking Link. The same link may be reopened and used concurrently on multiple devices, and viewing it never changes or extends its lifecycle. It remains scoped to the Delivery through Reassignment rather than to a particular Courier.
-
-### Expiry and terminal views
-
-The server-enforced expiry is the earlier of:
-
-- seven days after the current link was issued; or
-- twenty-four hours after the Delivery entered `DELIVERED`, `CANCELLED`, or `UNDELIVERABLE`.
-
-Opening and reuse never extend either limit. A terminal outcome immediately removes Courier identity, map, location, and ETA while the valid link enters its remaining grace period:
-
-- `DELIVERED` shows Delivery Reference, Handoff Address, the Delivered result, and actual Handoff Confirmation time.
-- `CANCELLED` and `UNDELIVERABLE` show the Delivery Reference, a generic outcome, occurrence time, and Delivery Team Contact, and nothing else — in particular no Handoff Address.
-
-The Reference is on that second line because the same line offers a Delivery Team Contact. A page
-that tells a Recipient to phone somebody, and simultaneously withholds the only identifier that
-conversation can start from, is asking them to describe a delivery they cannot name. The Reference
-is also not what makes the page sensitive: it identifies a Delivery to the team that already owns
-it, while the Handoff Address identifies where a person lives, which is why the address is the thing
-a cancelled page still drops.
-
-The Tracking Link lifecycle is independent of the Delivery lifecycle. Expiry, Rotation, Revocation, or Reissue never transitions or cancels the Delivery.
-
-### Rotation, Revocation, and Reissue
-
-- **Rotation** immediately invalidates the old capability and every access established through it, then creates the Delivery's sole replacement link. It preserves the old link's absolute expiry and therefore cannot bypass the seven-day limit.
-- **Revocation** immediately invalidates the current capability and every access established through it, without creating a replacement.
-- **Reissue** is an explicit Dispatcher recovery action after Expiry or Revocation, allowed only while the Delivery is non-terminal. It creates a completely new link and validity period under the same seven-day/terminal-plus-twenty-four-hour rule; it never revives an old link. Terminal Deliveries cannot receive a Reissue.
-
-Each action requires one applicable structured reason from `WRONG_RECIPIENT`, `SUSPECTED_EXPOSURE`, `RECIPIENT_REQUEST`, `ACCESS_NO_LONGER_NEEDED`, `DELIVERY_STILL_ACTIVE`, or `OTHER`, and may carry an internal note. It records the Dispatcher and time.
-
-An already-open page loses authorization immediately after Rotation or Revocation: automatic updates stop and sensitive content is removed. There is no refresh-based or timed grace period for derived access.
-
-### Unavailable-link behaviour
-
-Unknown, malformed, expired, and revoked capabilities are publicly indistinguishable. They expose no Delivery Reference, Handoff Address, Delivery existence or state, expiry time, revocation reason, or team-specific contact details. The fixed page says:
+**A link that does not work says nothing about why.** Unknown, tampered with, expired and revoked all
+produce one identical page:
 
 > This tracking link is no longer available. Contact the delivery team that shared it.
 
-This unavailable view is distinct from a still-valid terminal grace-period view.
+**A Dispatcher can switch it off.** Revoke Link kills the link and every Tracking Session on it at
+once. Replace Link does the same and issues one replacement, keeping the original expiry so it cannot
+be used to extend access. Reissue Link makes a fresh link after the old one expired or was revoked,
+while the Delivery is still running. Each needs a Link Change Reason and records who did it and when.
 
-### Security acceptance requirements
+After the Delivery finishes, a still-valid link shows a reduced page: `DELIVERED` keeps the Delivery
+Number, Delivery Address, result and time; `CANCELLED` keeps the Delivery Number, a plain result, the
+time and the Support Contact — and **drops the address**.
 
-- The capability is opaque, unpredictable, and contains no Delivery identifier, reference, state, time, or Recipient information.
-- Raw capability material must not persist in databases, logs, analytics, error reports, or third-party scripts. No third-party analytics or session replay runs on the Tracking page.
-- Every sensitive Tracking response uses protected transport, cannot be cached, and sends no referrer. Generic preview metadata exposes no Delivery data.
-- Automated reads are side-effect free, and unknown, expired, and revoked links have data-free, externally indistinguishable behaviour.
-- Rotation and Revocation invalidate any sessions and realtime connections derived from the old link.
-- Invalid attempts are rate-limited and may trigger a challenge, alert, or investigation. Failed guesses never automatically revoke a valid link, which would allow denial of service.
+## Why
 
-The Core acceptance boundary is the security outcome, not a prematurely selected mechanism. Token bit length and encoding, digest or HMAC verification, fragment/cookie exchange versus path/query redaction, realtime invalidation, cache and telemetry configuration, rate-limit thresholds, CSP, map-provider isolation, and security-event retention belong to [Choose the Core technical architecture](10-choose-core-technical-architecture.md).
+The link is a bearer capability, so the whole design is about limiting what possession is worth. It
+defends against guessing, against leaking through logs, referrers, previews and caches, and against
+access outliving its purpose. It does not defend against somebody forwarding the link deliberately or
+taking a screenshot, and it does not pretend to.
 
-### Audit boundary
+The identical dead-link page is the part that is easy to get wrong. A page that said "this link has
+expired" would confirm that a Delivery exists, which turns the route into a way to ask questions
+about strangers' deliveries.
 
-The Dispatcher-visible Tracking Link History contains creation, copying, Rotation, Revocation, Reissue, and automatic Expiry, with actor, time, and applicable reason. Separate security-only evidence captures first successful access establishment, reuse attempts against unavailable links, and suspected bulk guessing using an internal link identity rather than the raw capability. Neither record stores Courier location or every page refresh, poll, or realtime update, so it does not become Recipient browsing history.
+The cancelled page keeps the Delivery Number but drops the address, which looks backwards until you
+see what each one is. The page tells the Recipient to phone somebody; withholding the only identifier
+that conversation can start from would be asking them to describe a delivery they cannot name. The
+Number identifies a Delivery to the team that already owns it. The address identifies where a person
+lives. Only one of those is worth protecting on a page that no longer needs it.
 
-The supporting primary-source review was the Tracking Link security research (archived).
+## What is built
+
+Creation, Copy Link, expiry, the identical dead-link page, and the fragment-to-Tracking-Session
+exchange. The raw capability is never stored — only a SHA-256 verifier — so a database copy cannot be
+turned back into a working link, and Copy Link re-derives the same link rather than reading one back.
+
+Revoke Link is built ([#59](https://github.com/Jamiedz999/delivery-glance/issues/59)). Replace Link
+and Reissue Link are [#60](https://github.com/Jamiedz999/delivery-glance/issues/60); cutting off a
+page that is already open is [#61](https://github.com/Jamiedz999/delivery-glance/issues/61); the
+Dispatcher-visible Link History is [#62](https://github.com/Jamiedz999/delivery-glance/issues/62).
+
+How the capability is generated, carried and exchanged is [ADR 10](10-choose-core-technical-architecture.md).
