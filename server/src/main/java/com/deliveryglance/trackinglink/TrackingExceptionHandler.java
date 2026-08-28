@@ -46,6 +46,18 @@ class TrackingExceptionHandler {
 				exception.getMessage());
 	}
 
+	/**
+	 * A Dispatcher acting on an already-revoked link — copying it, or revoking it again. Answered
+	 * with a plain {@code 409} rather than the generic Unavailable response, because this is the
+	 * operator's surface, not the Link Holder's, and telling the Dispatcher what happened is not an
+	 * oracle to anyone who could not already read the Delivery.
+	 */
+	@ExceptionHandler(TrackingLinkRevokedException.class)
+	ProblemDetail handleRevoked(TrackingLinkRevokedException exception) {
+		return problem(HttpStatus.CONFLICT, "tracking-link-revoked", "Tracking Link revoked",
+				exception.getMessage());
+	}
+
 	private static ProblemDetail unavailable() {
 		return problem(HttpStatus.NOT_FOUND, "tracking-link-unavailable", "Tracking link unavailable",
 				"This tracking link is no longer available. Contact the delivery team that shared it.");

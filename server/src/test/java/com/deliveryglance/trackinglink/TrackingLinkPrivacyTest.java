@@ -77,7 +77,7 @@ class TrackingLinkPrivacyTest {
 		// turned back into something a browser could present.
 		assertThat(columns).containsExactly("courier_location_sharing.reporting_secret_verifier",
 				"tracking_grant.link_id", "tracking_grant.secret_verifier", "tracking_link.link_id",
-				"tracking_link.token_verifier", "tracking_link_copy.link_id");
+				"tracking_link.token_verifier", "tracking_link_copy.link_id", "tracking_link_revocation.link_id");
 	}
 
 	@Test

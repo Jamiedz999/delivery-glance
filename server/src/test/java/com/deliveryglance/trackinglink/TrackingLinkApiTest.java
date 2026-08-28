@@ -116,6 +116,138 @@ class TrackingLinkApiTest {
 	}
 
 	@Test
+	void revokesTheLinkAndRecordsWhoWhyAndWhenWithNoTokenOrUrl() throws Exception {
+		String deliveryId = createDelivery();
+
+		assertThat(revoke(deliveryId, "RECIPIENT_REQUEST", "Recipient asked us to stop sharing.").getStatus())
+			.isEqualTo(204);
+
+		assertThat(this.jdbcClient.sql("SELECT status FROM tracking_link WHERE delivery_id = :id")
+			.param("id", UUID.fromString(deliveryId))
+			.query(String.class)
+			.single()).isEqualTo("revoked");
+
+		List<String> audit = this.jdbcClient.sql("""
+				SELECT a.email || '|' || r.reason || '|' || coalesce(r.note, '')
+				FROM tracking_link_revocation r
+				JOIN tracking_link l ON l.link_id = r.link_id
+				JOIN internal_account a ON a.id = r.actor_account_id
+				WHERE l.delivery_id = :id
+				""").param("id", UUID.fromString(deliveryId)).query(String.class).list();
+		assertThat(audit).singleElement()
+			.asString()
+			.isEqualTo(DemoAccounts.DISPATCHER_EMAIL + "|RECIPIENT_REQUEST|Recipient asked us to stop sharing.");
+
+		// The audit table has no place a raw token or Tracking URL could ever land.
+		List<String> columns = this.jdbcClient.sql("""
+				SELECT column_name FROM information_schema.columns WHERE table_name = 'tracking_link_revocation'
+				""").query(String.class).list();
+		assertThat(columns).noneMatch((column) -> column.contains("token") || column.contains("url"));
+	}
+
+	@Test
+	void endsAnAlreadyEstablishedGrantOnItsNextReadOnceTheLinkIsRevoked() throws Exception {
+		String deliveryId = createDelivery();
+		BrowserLikeClient holder = holderWhoOpened();
+		assertThat(exchange(holder, tokenOf(copiedUrl(deliveryId))).getStatus()).isEqualTo(204);
+		assertThat(holder.send(get("/api/tracking/snapshot")).getStatus()).isEqualTo(200);
+
+		assertThat(revoke(deliveryId, "SUSPECTED_EXPOSURE", null).getStatus()).isEqualTo(204);
+
+		MockHttpServletResponse snapshot = holder.send(get("/api/tracking/snapshot"));
+		assertThat(snapshot.getStatus()).isEqualTo(404);
+		assertThat((String) JsonPath.read(snapshot.getContentAsString(), "$.code")).isEqualTo(UNAVAILABLE_CODE);
+		// The cookie is cleared so the browser stops presenting a grant that can never work again.
+		assertThat(snapshot.getCookie(TrackingGrants.COOKIE_NAME).getMaxAge()).isZero();
+	}
+
+	@Test
+	void refusesToExchangeATokenForALinkThatWasRevokedAfterItWasCopied() throws Exception {
+		String deliveryId = createDelivery();
+		String token = tokenOf(copiedUrl(deliveryId));
+
+		assertThat(revoke(deliveryId, "WRONG_RECIPIENT", null).getStatus()).isEqualTo(204);
+
+		MockHttpServletResponse response = exchange(holderWhoOpened(), token);
+		assertThat(response.getStatus()).isEqualTo(404);
+		assertThat((String) JsonPath.read(response.getContentAsString(), "$.code")).isEqualTo(UNAVAILABLE_CODE);
+	}
+
+	@Test
+	void refusesToCopyARevokedLink() throws Exception {
+		String deliveryId = createDelivery();
+		assertThat(revoke(deliveryId, "ACCESS_NO_LONGER_NEEDED", null).getStatus()).isEqualTo(204);
+
+		MockHttpServletResponse response = this.dispatcher
+			.send(post("/api/deliveries/{id}/tracking-link/copy", deliveryId));
+		assertThat(response.getStatus()).isEqualTo(409);
+		assertThat((String) JsonPath.read(response.getContentAsString(), "$.code")).isEqualTo("tracking-link-revoked");
+	}
+
+	@Test
+	void refusesToRevokeAnAlreadyRevokedLinkRatherThanRecordingASecondReason() throws Exception {
+		String deliveryId = createDelivery();
+		assertThat(revoke(deliveryId, "SUSPECTED_EXPOSURE", null).getStatus()).isEqualTo(204);
+
+		MockHttpServletResponse second = revoke(deliveryId, "WRONG_RECIPIENT", null);
+		assertThat(second.getStatus()).isEqualTo(409);
+		assertThat((String) JsonPath.read(second.getContentAsString(), "$.code")).isEqualTo("tracking-link-revoked");
+
+		assertThat(this.jdbcClient.sql("""
+				SELECT count(*) FROM tracking_link_revocation r
+				JOIN tracking_link l ON l.link_id = r.link_id WHERE l.delivery_id = :id
+				""").param("id", UUID.fromString(deliveryId)).query(Integer.class).single()).isEqualTo(1);
+	}
+
+	@Test
+	void rejectsRevocationWithTheOtherReasonButNoNote() throws Exception {
+		String deliveryId = createDelivery();
+
+		MockHttpServletResponse response = revoke(deliveryId, "OTHER", null);
+		assertThat(response.getStatus()).isEqualTo(400);
+		assertThat((String) JsonPath.read(response.getContentAsString(), "$.code")).isEqualTo("invalid-request");
+
+		assertThat(this.jdbcClient.sql("SELECT status FROM tracking_link WHERE delivery_id = :id")
+			.param("id", UUID.fromString(deliveryId))
+			.query(String.class)
+			.single()).isEqualTo("active");
+	}
+
+	@Test
+	void rejectsARevocationReasonThatDoesNotApplyToEndingAccess() throws Exception {
+		String deliveryId = createDelivery();
+
+		// DELIVERY_STILL_ACTIVE is a reason to Reissue, not to end access without a replacement.
+		MockHttpServletResponse response = revoke(deliveryId, "DELIVERY_STILL_ACTIVE", "still on the way");
+		assertThat(response.getStatus()).isEqualTo(400);
+		assertThat((String) JsonPath.read(response.getContentAsString(), "$.code")).isEqualTo("invalid-request");
+
+		assertThat(this.jdbcClient.sql("SELECT status FROM tracking_link WHERE delivery_id = :id")
+			.param("id", UUID.fromString(deliveryId))
+			.query(String.class)
+			.single()).isEqualTo("active");
+	}
+
+	@Test
+	void refusesRevocationToEveryoneExceptADispatcher() throws Exception {
+		String deliveryId = createDelivery();
+
+		BrowserLikeClient courier = new BrowserLikeClient(this.mockMvc);
+		courier.signIn(DemoAccounts.COURIER_EMAIL, DemoAccounts.COURIER_PASSWORD);
+		assertThat(revokeAs(courier, deliveryId, "WRONG_RECIPIENT").getStatus()).isEqualTo(403);
+
+		BrowserLikeClient stranger = new BrowserLikeClient(this.mockMvc);
+		stranger.send(get("/api/system"));
+		assertThat(revokeAs(stranger, deliveryId, "WRONG_RECIPIENT").getStatus()).isEqualTo(401);
+
+		// Neither refused caller left an audit row behind.
+		assertThat(this.jdbcClient.sql("""
+				SELECT count(*) FROM tracking_link_revocation r
+				JOIN tracking_link l ON l.link_id = r.link_id WHERE l.delivery_id = :id
+				""").param("id", UUID.fromString(deliveryId)).query(Integer.class).single()).isZero();
+	}
+
+	@Test
 	void exchangesAValidTokenForAGrantThatReadsTheDelivery() throws Exception {
 		String deliveryId = createDelivery();
 		String reference = referenceOf(deliveryId);
@@ -151,8 +283,13 @@ class TrackingLinkApiTest {
 	}
 
 	@Test
-	void answersUnknownMalformedAndExpiredTokensWithOneIndistinguishableResponse() throws Exception {
+	void answersUnknownMalformedExpiredAndRevokedTokensWithOneIndistinguishableResponse() throws Exception {
 		String expiredToken = tokenOf(copiedUrl(createDelivery()));
+
+		String revokedDelivery = createDelivery();
+		String revokedToken = tokenOf(copiedUrl(revokedDelivery));
+		assertThat(revoke(revokedDelivery, "SUSPECTED_EXPOSURE", null).getStatus()).isEqualTo(204);
+
 		this.clock.advance(TrackingLinks.LIFETIME.plusSeconds(1));
 
 		// Exactly the right shape — 43 base64url characters, 256 bits — but no link was ever derived
@@ -160,8 +297,9 @@ class TrackingLinkApiTest {
 		String unknown = bodyOfRefusal("bm8tbGluay13YXMtZXZlci1kZXJpdmVkLWZyb20tdGg");
 		String malformed = bodyOfRefusal("not-a-token");
 		String expired = bodyOfRefusal(expiredToken);
+		String revoked = bodyOfRefusal(revokedToken);
 
-		assertThat(unknown).isEqualTo(malformed).isEqualTo(expired);
+		assertThat(unknown).isEqualTo(malformed).isEqualTo(expired).isEqualTo(revoked);
 		assertThat((String) JsonPath.read(unknown, "$.code")).isEqualTo(UNAVAILABLE_CODE);
 	}
 
@@ -545,6 +683,21 @@ class TrackingLinkApiTest {
 					{"commandId":"%s","expectedVersion":%d}
 					""".formatted(UUID.randomUUID(), expectedVersion)))
 			.getStatus()).isEqualTo(204);
+	}
+
+	private MockHttpServletResponse revoke(String deliveryId, String reason, String note) throws Exception {
+		String body = (note == null) ? "{\"reason\":\"%s\"}".formatted(reason)
+				: "{\"reason\":\"%s\",\"note\":\"%s\"}".formatted(reason, note);
+		return this.dispatcher.send(post("/api/deliveries/{id}/tracking-link/revoke", deliveryId)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(body));
+	}
+
+	private MockHttpServletResponse revokeAs(BrowserLikeClient client, String deliveryId, String reason)
+			throws Exception {
+		return client.send(post("/api/deliveries/{id}/tracking-link/revoke", deliveryId)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content("{\"reason\":\"%s\"}".formatted(reason)));
 	}
 
 	private void cancel(String deliveryId) throws Exception {
