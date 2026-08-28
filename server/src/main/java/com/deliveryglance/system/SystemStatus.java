@@ -10,6 +10,10 @@ package com.deliveryglance.system;
  * @param etaEnabled whether external travel-time ETA is configured on this deployment. False when no
  * provider base URL is set, and the Recipient view then shows no arrival window rather than a
  * control that can never populate.
+ * @param demoAccountsUnchanged whether both Internal Account rows still hold the fictional factory
+ * password hashes the first migration seeds. True lets the Sign-in page publish the two demo
+ * credentials; false when a deployment reseeded them, in which case the page cannot and does not.
  */
-record SystemStatus(String application, String status, boolean proofCaptureEnabled, boolean etaEnabled) {
+record SystemStatus(String application, String status, boolean proofCaptureEnabled, boolean etaEnabled,
+		boolean demoAccountsUnchanged) {
 }

@@ -14,7 +14,7 @@ import {
 } from './support/workspace'
 
 /**
- * The three screenshots in `docs/screenshots/`, taken by driving the product rather than by hand.
+ * The four screenshots in `docs/screenshots/`, taken by driving the product rather than by hand.
  *
  * Hand-taken screenshots go stale silently: the UI changes, the picture in the README does not, and
  * a reader is looking at a version of the application that no longer exists. Regenerating these is
@@ -45,6 +45,15 @@ const OUTPUT = '../docs/screenshots'
 const REFERENCE = 'DEMO-1001'
 
 test('captures the Dispatcher, Courier and Recipient surfaces', async ({ page, browser, dispatcher }) => {
+  // First, and before any data is made: the page a first-time visitor lands on. It needs no Delivery,
+  // so the fresh-database constraint below does not touch it — a fresh database still seeds the two
+  // factory accounts, which is exactly the state that makes the page publish their credentials.
+  await test.step('the Sign-in page, where a visitor arrives', async () => {
+    await page.goto('/sign-in')
+    await expect(page.getByRole('button', { name: 'Use the Dispatcher account' })).toBeVisible()
+    await capture(page, 'sign-in.png')
+  })
+
   await freshDatabase(dispatcher)
 
   await signIn(page, DISPATCHER)

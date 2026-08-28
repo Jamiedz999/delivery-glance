@@ -47,6 +47,11 @@ Then open <http://localhost:8080> and sign in.
 | Dispatcher | `dispatcher@delivery-glance.example` | `Dispatcher-Demo-2026!` |
 | Courier | `courier@delivery-glance.example` | `Courier-Demo-2026!` |
 
+The [Sign-in page](docs/screenshots/sign-in.png) shows these two accounts and fills the form for you
+— but only while they are still the seeded demo ones. A deployment that reseeds them gets a page that
+says it cannot supply credentials instead, because the page reads that from the server, not from this
+table.
+
 Two fictional accounts, seeded by the first Flyway migration. There is no registration, invitation or
 password reset; these are the only two. Sign in as each in **two different browser profiles** — one
 browser holds one session, and this is two people. Each account reaches only its own workspace: the

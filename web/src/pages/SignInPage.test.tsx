@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SignInPage } from './SignInPage'
+import { COURIER_ACCOUNT, DISPATCHER_ACCOUNT } from '../demoAccounts'
 import {
   jsonResponse,
   noContentResponse,
@@ -9,7 +10,33 @@ import {
   renderWithProviders,
   requestBodyStringOf,
   respondWith,
+  urlOf,
 } from '../testing/support'
+
+const CANNOT_SUPPLY = /this deployment does not publish sign-in credentials/i
+
+function systemStatus(demoAccountsUnchanged: boolean): Response {
+  return jsonResponse({
+    application: 'delivery-glance',
+    status: 'ok',
+    proofCaptureEnabled: false,
+    etaEnabled: false,
+    demoAccountsUnchanged,
+  })
+}
+
+/** Signed out, with the demo-accounts probe answering however the case needs. */
+function signedOut(system: () => Response) {
+  respondWith((url) => {
+    if (url === '/api/session') {
+      return problemResponse('authentication-required', 401)
+    }
+    if (url === '/api/system') {
+      return system()
+    }
+    return noContentResponse()
+  })
+}
 
 describe('SignInPage', () => {
   beforeEach(() => {
@@ -23,9 +50,7 @@ describe('SignInPage', () => {
   })
 
   it('signs in with the entered credentials and the CSRF header', async () => {
-    respondWith((url) =>
-      url === '/api/session' ? problemResponse('authentication-required', 401) : noContentResponse(),
-    )
+    signedOut(() => systemStatus(true))
     renderWithProviders(<SignInPage />)
     await screen.findByRole('button', { name: 'Sign in' })
 
@@ -44,11 +69,15 @@ describe('SignInPage', () => {
   })
 
   it('reports a rejected sign-in without saying which field was wrong', async () => {
-    respondWith((url) =>
-      url === '/api/session'
-        ? problemResponse('authentication-required', 401)
-        : problemResponse('invalid-credentials', 401),
-    )
+    respondWith((url) => {
+      if (url === '/api/session') {
+        return problemResponse('authentication-required', 401)
+      }
+      if (url === '/api/system') {
+        return systemStatus(true)
+      }
+      return problemResponse('invalid-credentials', 401)
+    })
     renderWithProviders(<SignInPage />)
     await screen.findByRole('button', { name: 'Sign in' })
 
@@ -75,5 +104,60 @@ describe('SignInPage', () => {
     renderWithProviders(<SignInPage />)
 
     await waitFor(() => expect(screen.queryByLabelText('Email')).not.toBeInTheDocument())
+  })
+
+  it('publishes the two demo accounts when the probe confirms they are unchanged', async () => {
+    signedOut(() => systemStatus(true))
+    renderWithProviders(<SignInPage />)
+
+    expect(await screen.findByRole('button', { name: 'Use the Dispatcher account' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Use the Courier account' })).toBeInTheDocument()
+    expect(screen.getByText(DISPATCHER_ACCOUNT.email)).toBeInTheDocument()
+    expect(screen.getByText(DISPATCHER_ACCOUNT.password)).toBeInTheDocument()
+    expect(screen.queryByText(CANNOT_SUPPLY)).not.toBeInTheDocument()
+  })
+
+  it('says it cannot supply credentials when the accounts were changed', async () => {
+    signedOut(() => systemStatus(false))
+    renderWithProviders(<SignInPage />)
+
+    expect(await screen.findByText(CANNOT_SUPPLY)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Use the Dispatcher account' })).not.toBeInTheDocument()
+  })
+
+  it('says the same when the probe fails rather than guessing the accounts changed', async () => {
+    signedOut(() => jsonResponse({ error: 'boom' }, 500))
+    renderWithProviders(<SignInPage />)
+
+    expect(await screen.findByText(CANNOT_SUPPLY)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Use the Dispatcher account' })).not.toBeInTheDocument()
+  })
+
+  it('renders neither the accounts nor the sentence while the probe is loading', async () => {
+    vi.mocked(fetch).mockImplementation((input) => {
+      const url = urlOf(input)
+      if (url === '/api/session') {
+        return Promise.resolve(problemResponse('authentication-required', 401))
+      }
+      if (url === '/api/system') {
+        return new Promise(() => {})
+      }
+      return Promise.resolve(noContentResponse())
+    })
+    renderWithProviders(<SignInPage />)
+
+    await screen.findByRole('button', { name: 'Sign in' })
+    expect(screen.queryByRole('button', { name: 'Use the Dispatcher account' })).not.toBeInTheDocument()
+    expect(screen.queryByText(CANNOT_SUPPLY)).not.toBeInTheDocument()
+  })
+
+  it('fills the form from the account a button offers', async () => {
+    signedOut(() => systemStatus(true))
+    renderWithProviders(<SignInPage />)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Use the Courier account' }))
+
+    expect(screen.getByLabelText('Email')).toHaveValue(COURIER_ACCOUNT.email)
+    expect(screen.getByLabelText('Password')).toHaveValue(COURIER_ACCOUNT.password)
   })
 })

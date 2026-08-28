@@ -787,9 +787,110 @@ td {
 
 /* ------------------------------------------------------------------ sign in */
 
+/*
+ * Two columns on a wide screen: the left explains the product and offers the two demo accounts, the
+ * right is the form. It reuses the Delivery detail's grid and breakpoint — `minmax(0, 1fr) 20rem`
+ * and 48rem — rather than inventing a second set. Below the breakpoint it stacks in DOM order, the
+ * lead above the form, so nothing uses CSS `order` to move the form away from where the keyboard and
+ * `accessibility.spec.ts` visit it.
+ */
 .auth {
-  max-width: 22rem;
+  max-width: 56rem;
   margin: clamp(var(--space-5), 8vh, 4rem) auto 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.auth-lead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 700;
+}
+
+.auth-brand h1 {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.auth-tagline {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.auth-steps {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.auth-script {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.auth-accounts h2,
+.auth-accounts-note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.auth-accounts h2 {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-block-end: var(--space-2);
+}
+
+.auth-accounts ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.auth-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.auth-account-detail {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.auth-account-role {
+  font-weight: 700;
+}
+
+.auth-account-cred {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.auth-form {
   padding: var(--space-6) var(--space-5);
   background: var(--surface);
   border: 1px solid var(--border);
@@ -797,39 +898,30 @@ td {
   box-shadow: var(--shadow);
 }
 
-.auth-brand {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  font-weight: 700;
-}
-
-.auth h1 {
-  margin: var(--space-4) 0 var(--space-1);
+.auth-form h2 {
+  margin: 0 0 var(--space-4);
   font-size: var(--text-xl);
-  text-align: center;
 }
 
-.auth-intro {
-  margin: 0 0 var(--space-5);
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-  text-align: center;
-}
-
-.auth .field {
+.auth-form .field {
   max-width: none;
 }
 
-.auth .btn-primary {
+.auth-form .btn-primary {
   width: 100%;
   margin-block-start: var(--space-2);
   padding-block: var(--space-3);
 }
 
-.auth [role='alert'] {
+.auth-form [role='alert'] {
   margin-block-end: var(--space-4);
+}
+
+@media (max-width: 48rem) {
+  .auth {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 26rem;
+  }
 }
 
 /* ------------------------------------------------------------------ courier */

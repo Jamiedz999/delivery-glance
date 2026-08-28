@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.deliveryglance.BrowserLikeClient;
@@ -26,6 +27,11 @@ class SecurityConfigTest {
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	// SystemController now depends on it, and this slice does not stand up the internal_account rows
+	// it reads. The policy tests here never look at the probe's answer, so an unstubbed mock is enough.
+	@MockitoBean
+	private DemoAccountsProbe demoAccountsProbe;
 
 	@Test
 	void deniesNonGetRequestsToSystemEndpoint() throws Exception {
