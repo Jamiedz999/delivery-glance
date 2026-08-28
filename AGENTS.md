@@ -16,7 +16,7 @@ Consequences worth stating outright:
 - **The GitHub Issue is the implementation spec**, in full. Nothing in this repository duplicates it. An Issue is read where the work happens, and a spec that lives one click away is a spec that gets skimmed.
 - **Later Backlog lives in GitHub Issues** under the `Later Backlog` milestone (#27–#33). ADRs and the roadmap are records — reasoned positions with reasons attached.
 - **Execution state lives only in GitHub** (the `ready` label, open/closed, milestones, dependency edges).
-- ADR numeric prefixes (`03`) are stable IDs from the original planning sequence; keep them. The `DG-0NN` implementation IDs no longer appear in Issue titles, but they remain the branch and commit key and are recorded in each Issue's footer, because merged history is full of them.
+- ADR numeric prefixes (`03`) are stable IDs from the original planning sequence; keep them.
 - **`implementation/INCIDENTAL-FINDINGS.md` is a note pad, not a queue.** Real problems spotted while implementing something else land there and never become Issues; one earns a plain PR when somebody picks it up. Entries leave by being deleted, not by being ticked.
 
 ## Agent skills
