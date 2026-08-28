@@ -7,6 +7,8 @@
  * anybody's address.
  */
 
+import { COURIER_ACCOUNT, DISPATCHER_ACCOUNT } from '../../src/demoAccounts'
+
 /** One of the two pre-provisioned Internal Accounts. There is no third, and no registration. */
 export interface Account {
   email: string
@@ -15,19 +17,21 @@ export interface Account {
 }
 
 /**
- * What the first Flyway migration seeds, written out rather than read from the environment. A
- * deployment whose `DEMO_*` values differ is a different demo, and a journey that adapted to
- * whatever it found would stop being able to say which accounts it proved anything about.
+ * What the first Flyway migration seeds. The email and password come from `src/demoAccounts.ts`, the
+ * single source the Sign-in page's fill buttons read too — one copy so a journey and a button cannot
+ * disagree about what signs in. The display name is a journey concern (it is what `signIn` waits for)
+ * and stays here. A deployment whose `DEMO_*` values differ is a different demo, and a journey that
+ * adapted to whatever it found would stop being able to say which accounts it proved anything about.
  */
 export const DISPATCHER: Account = {
-  email: 'dispatcher@delivery-glance.example',
-  password: 'Dispatcher-Demo-2026!',
+  email: DISPATCHER_ACCOUNT.email,
+  password: DISPATCHER_ACCOUNT.password,
   displayName: 'Dana the Dispatcher',
 }
 
 export const COURIER: Account = {
-  email: 'courier@delivery-glance.example',
-  password: 'Courier-Demo-2026!',
+  email: COURIER_ACCOUNT.email,
+  password: COURIER_ACCOUNT.password,
   displayName: 'Cory the Courier',
 }
 
