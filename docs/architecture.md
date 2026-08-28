@@ -5,8 +5,8 @@ Status: current
 This file answers two questions a reader of the repository should not have to reconstruct from the
 source: what the pieces are, and why there are so few of them. The vocabulary is
 [`CONTEXT.md`](../CONTEXT.md)'s; what the tests prove about any of it is
-[`docs/testing.md`](testing.md); what Core deliberately does not build is
-[Future Work 13–19](planning/map.md#future-work).
+[`docs/testing.md`](testing.md); what is deliberately not built is in the open
+[GitHub Issues](https://github.com/Jamiedz999/delivery-glance/issues).
 
 ## The shape of it
 
@@ -23,9 +23,9 @@ flowchart TB
 
     subgraph app["Delivery Glance · one Spring Boot application"]
         direction TB
-        identityaccess["<b>identityaccess</b><br/>Internal Accounts, roles"]
+        identityaccess["<b>identityaccess</b><br/>Staff Accounts, roles"]
         delivery["<b>delivery</b><br/>Delivery, lifecycle, transitions"]
-        dispatchmod["<b>dispatch</b><br/>eligibility, nearest three,<br/>Direct Assignment"]
+        dispatchmod["<b>dispatch</b><br/>eligibility, nearest three,<br/>Assignment"]
         couriermod["<b>courier</b><br/>On Duty"]
         location["<b>location</b><br/>sharing intent +<br/><i>Current Location: the only<br/>coordinates, in memory,<br/>one per Courier</i>"]
         trackinglink["<b>trackinglink</b><br/>HMAC derivation, Copy,<br/>Expiry, grants"]
@@ -37,7 +37,7 @@ flowchart TB
 
     dispatcher -->|"session cookie"| identityaccess
     courier -->|"session cookie"| identityaccess
-    recipient -->|"Tracking Grant cookie"| trackinglink
+    recipient -->|"Tracking Session cookie"| trackinglink
 
     dispatcher --> delivery
     dispatcher --> dispatchmod
@@ -93,7 +93,7 @@ sequenceDiagram
     participant M as Current Location<br/>(process memory)
     actor R as Recipient
 
-    Note over D,A: Direct Assignment
+    Note over D,A: Assignment
     D->>A: create Delivery
     A->>P: Delivery + first transition + Tracking Link<br/>(one transaction)
     D-->>R: Tracking Link, out of band
@@ -108,18 +108,18 @@ sequenceDiagram
         A->>M: replace the one snapshot, if it is newer
     end
 
-    D->>A: ask for the nearest Eligible Couriers
+    D->>A: ask for the nearest Available Couriers
     A->>M: usable positions
-    A-->>D: three Courier Display Names + distances<br/>(no coordinate leaves the server)
+    A-->>D: three Courier Names + distances<br/>(no coordinate leaves the server)
     D->>A: Direct assign
     A->>P: ASSIGNED + Assignment row
     Note right of P: two partial unique indexes decide<br/>a simultaneous second assignment:<br/>one 204, one 409
 
     Note over R,A: Tracking Link and SSE
     R->>A: open the link (capability in the URL fragment)
-    A-->>R: exchange fragment for a short-lived Tracking Grant cookie,<br/>then strip it from the address bar and history
+    A-->>R: exchange fragment for a short-lived Tracking Session cookie,<br/>then strip it from the address bar and history
     R->>A: GET snapshot (authorised by the grant)
-    A-->>R: Reference, state, Handoff Address — no map yet
+    A-->>R: Reference, state, Delivery Address — no map yet
     R->>A: EventSource /api/tracking/events
     A-->>R: connected
 
@@ -142,7 +142,7 @@ sequenceDiagram
     A->>P: DELIVERED, Assignment ended
     A-->>R: refresh hint
     R->>A: GET snapshot
-    A-->>R: Reference, Handoff Address, actual time —<br/>Courier name and every trace of location gone
+    A-->>R: Reference, Delivery Address, actual time —<br/>Courier name and every trace of location gone
 ```
 
 Two properties of that diagram carry most of the design.
@@ -153,7 +153,7 @@ screen arrives through the same authorised snapshot read the page does on load. 
 fetches the current snapshot and the changes it slept through are simply part of that answer. It also
 means a bug in the stream cannot leak anything, because the stream carries nothing to leak.
 
-**The page is honest while disconnected.** Location Freshness is computed by the browser from the
+**The page is honest while disconnected.** Location Age is computed by the browser from the
 reading's own timestamp, so a page that has lost its connection still reaches `Unavailable` at two
 minutes and removes the marker. It says it is reconnecting, and separately says it does not know
 where the Courier is. Those are two different questions and the page answers both.
@@ -183,7 +183,7 @@ runtime DDL and no JPA, so what the schema is, is what the migrations say.
 
 This is the choice that looks like a shortcut and is not.
 
-The product promises there is no Route History — no durable trail of where a Courier has been. The
+The product promises there is no Location History — no durable trail of where a Courier has been. The
 cheapest way to keep a promise like that is to have nowhere to break it. There is one
 `ConcurrentHashMap` holding at most one complete snapshot per Courier; it never appends; and a read
 past the two-minute limit deletes the snapshot rather than hiding it. Raw coordinates never reach
@@ -233,7 +233,7 @@ settles it — and leaves the part that is mostly timers.
 |---|---|---|
 | foreground-only Location Sharing | reporting while the app is backgrounded | the page can only promise what a browser will actually do. Reporting pauses honestly instead of pretending to continue |
 | one reusable seven-day Tracking Link | Rotation, Revocation, Reissue | a link that can be recovered needs a reason catalog, a history UI and a retention rule. Core ships the properties that make a public bearer link safe at all: high entropy, HMAC derivation with only a verifier stored, fragment-to-cookie exchange, one generic refusal, no raw token in any log |
-| Direct Assignment | invitations and Decline | keeps the concurrency invariant and drops the timers |
+| Assignment | invitations and Decline | keeps the concurrency invariant and drops the timers |
 | Current Location in memory only | any durable position | there is nothing to leak, and no migration that could turn it into a trail |
 | the Recipient's own timer for freshness | trusting the server to say | a disconnected page still tells the truth |
 | no ETA | travel-time estimates | an ETA needs a routing provider and an honest unavailable state. An invented one is worse than none |
@@ -247,7 +247,7 @@ discovered:
   #32 first.
 - **No Reassignment, Courier Withdrawal, Dispatcher Revocation or Undeliverable outcome.** A Delivery
   in trouble after pickup has no modelled way out. #29.
-- **Recipient-facing times render in the reader's own time zone**, not the Handoff Address's, which is
+- **Recipient-facing times render in the reader's own time zone**, not the Delivery Address's, which is
   what `CONTEXT.md` specifies. Closing it needs a coordinate-to-time-zone dataset; recorded in
   [`INCIDENTAL-FINDINGS.md`](planning/implementation/INCIDENTAL-FINDINGS.md).
 - **The Dispatcher has no button to copy a Tracking Link.** The endpoint exists and is tested; the

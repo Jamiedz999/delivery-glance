@@ -1,17 +1,24 @@
-# Choose the public project name
+# ADR 02 — The product is called Delivery Glance
 
-Type: grilling
-Status: resolved
-Blocked by: 01
+## The question
 
-## Question
+What should the product, the repository and the portfolio entry be called?
 
-Which candidate should become the shared product, repository, and portfolio name, prioritising immediate comprehension and natural pronunciation while avoiding a same-name project with substantially the same delivery-tracking function and language/technology stack? Exact name reuse with materially different projects is acceptable.
+## What we decided
 
-## Comments
+**Delivery Glance**, described as *"Real-time delivery tracking for the last mile."* The repository
+slug is `delivery-glance`.
 
-- A same-day focused check found no complete end-to-end twin, but did find exact-name repositories that closely overlap either the Spring-based live-courier-location function or the Spring Boot + React/Vite full-stack skeleton.
+## Why
 
-## Answer
+`Delivery` says what the product is about without anyone having to think. `Glance` says what the
+Recipient gets: status, location, and what happens next, all readable in one look.
 
-The shared product, repository, and portfolio name is **Delivery Glance**, with the descriptor **“Real-time delivery tracking for the last mile.”** `Delivery` makes the domain immediately legible; `Glance` expresses the Recipient's ability to understand status, location freshness, ETA, and next steps at a glance. The name remains direct while avoiding the category-label density and close same-stack/function neighbours found for `Delivery Tracker`. Use `delivery-glance` as the eventual repository slug, and repeat the availability check immediately before creating a public repository.
+`Delivery Tracker` was the obvious alternative and was rejected. A search found existing projects
+with that exact name doing substantially the same job on the same stack — Spring Boot plus React —
+which would make this one look derivative.
+
+## What is built
+
+The name is used everywhere: repository, package names (`com.deliveryglance`), the demo accounts, and
+the deployed site.

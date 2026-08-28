@@ -1,329 +1,348 @@
 # Delivery Glance
 
-Delivery Glance is a recipient-first product for following an active last-mile delivery. Dispatch and courier operations support that recipient experience but do not define the product's primary identity.
+Delivery Glance lets a Recipient follow a live delivery without an account. A Dispatcher creates the
+Delivery and assigns a Courier; the Courier shares their location and confirms handoff; the Recipient
+watches through a link that expires.
 
-This glossary names both the implemented Core language and intentionally preserved Later Backlog language. Defining a term here does not put it into Core; [Ticket 12](docs/adr/12-rescope-to-resume-ready-core.md) is the current scope boundary.
+This file is the glossary. It names the things in the product and nothing else — no implementation
+detail, no progress, no plans. Where a name here differs from the name in the code, the entry says so.
 
-## Language
+## Scope
 
-**Minimum Viable Product (MVP)**:
-The first deployed end-to-end version in which a Dispatcher assigns a Courier, the Courier progresses and shares Current Location for a Delivery, and its Recipient follows through a Tracking Link. It proves the product loop but has not yet earned the evidence and presentation expected of Core.
-_Avoid_: Prototype, finished portfolio project
+**Version 1**:
+The finished release: everything named in this glossary is built and tested. Work beyond it is
+tracked as open [GitHub Issues](https://github.com/Jamiedz999/delivery-glance/issues), not here.
+_Avoid_: Core, MVP, phase one
 
-**Core**:
-The resume-ready release that strengthens the MVP with enough security, failure handling, automated evidence, documentation, and demo quality to present as completed portfolio work. It deliberately excludes optional business branches and scale components from the Later Backlog.
-_Avoid_: Entire product roadmap, six-week bundle, MVP
-
-**Core Acceptance**:
-The evidence gate proving that Core's three-role happy path is repeatably deployable, protected at its important risks, usable on its target devices, and reproducible by another person from its documentation. Later Backlog work cannot begin before this gate passes.
-_Avoid_: Happy-path demo, feature freeze
-
-**Later Backlog**:
-An ordered set of optional, independently valuable product or scale increments considered only after Core Acceptance. Its presence records possible direction but creates no delivery promise.
-_Avoid_: Expansion Stage, committed Phase 2, unfinished Core
+## People
 
 **Delivery Team**:
-The single operational group whose Dispatchers coordinate and Couriers perform Deliveries in Core. It owns the configured Delivery Team Contact and pre-provisioned Internal Accounts; Core has no tenant or team-administration boundary.
+The one company that runs deliveries in this product. There is no second team and nothing to
+administer.
 _Avoid_: Fleet, tenant, marketplace
 
-**Internal Account**:
-A pre-provisioned identity for a Dispatcher or Courier in the single Delivery Team. Core includes sign-in but excludes self-registration, password recovery, invitations, and team-member administration; a Recipient never has an Internal Account.
-_Avoid_: Recipient account, public registration
-
-**Recipient**:
-The person expecting a delivery and using the tracking experience to understand its current progress.
-_Avoid_: Customer, user
-
-**Delivery**:
-A single fulfilment journey from pickup to handoff, with its own status, courier assignment, location, and—when the Later Backlog ETA increment is present—estimated arrival.
-_Avoid_: Order, parcel, shipment
-
-**Delivery Reference**:
-A non-sensitive identifier shown through a Tracking Link so the Recipient can distinguish the Delivery without exposing their name, phone number, or item contents.
-_Avoid_: Order number, Tracking Link token
-
-**Pickup Address**:
-The Delivery's internal origin, represented by a readable address and geographic point for eligibility and Travel-time Estimates. It is never exposed through a Tracking Link.
-_Avoid_: Public pickup marker, Handoff Address
-
-**Handoff Address**:
-The Delivery's intended destination, shown in full through a valid Tracking Link. The Recipient's contact details, item contents, and full pickup address are not part of this public identity.
-_Avoid_: Recipient profile, pickup location
-
-**Courier**:
-The person carrying out a Delivery and reporting its progress and current location.
-_Avoid_: Driver, rider
-
-**Courier Display Name**:
-The limited public name shown to a Recipient while a Delivery is Assigned or In Transit. It excludes the Courier's phone number, photo, rating, legal identity, and location history.
-_Avoid_: Courier profile, contact details
-
-**On Duty**:
-A Courier-declared condition indicating willingness to be considered for Delivery work. Only the Courier changes it; Direct Assignment, future matching outcomes, and future Reassignment do not implicitly take the Courier Off Duty.
-_Avoid_: Online, available
-
-**Courier Location Sharing**:
-The Courier-authorized, foreground-only condition that permits current position reports for eligibility and Active Delivery tracking. It begins only through an explicit Start action, is not implied by On Duty or an Active Delivery, and may be ended by the Courier without changing the Delivery lifecycle.
-_Avoid_: On Duty, automatic tracking, background tracking guarantee
-
-**Location Sharing Session**:
-The period of sharing intent created by one explicit Start action in the open Courier workspace. A temporary interruption may preserve that intent in the same page, but sign-out, close, or reload requires a new Start action.
-_Avoid_: Browser permission, permanent consent
-
-**Location Sharing Generation**:
-The identifier of one Location Sharing Session, issued when the Courier presses Start and named by every report that session sends. Pressing Start again issues a new one, which is what makes the previous session's reports refusable rather than merely unwelcome.
-_Avoid_: Session cookie, device identifier
-
-**Reporting Secret**:
-The high-entropy value issued once alongside a Location Sharing Generation and held only by the page that started it. Only its verifier is stored and it is never returned a second time, so a reloaded page cannot report for a session it did not start.
-_Avoid_: API key, permanent token
-
-**Location Sharing Interruption**:
-A temporary inability to produce position reports while a Location Sharing Session's intent remains, such as loss of foreground execution, connectivity, or a usable fix. It is shown separately from On Duty, Delivery state, and Location Freshness and may recover without another Start action while the same page remains open.
-_Avoid_: Stop sharing, Courier Withdrawal, Tracking Connection
-
-**Location Reporting Cadence**:
-The approximately ten-second target between Courier position reports while Location Sharing is operating normally. It is not a freshness guarantee or permission to buffer a route: each report's measurement time still determines Location Freshness, and recovery submits only the newest available position.
-_Avoid_: Recipient update latency, exact timer guarantee
-
-**Service Zone**:
-A geographic area in which a Courier agrees to perform Deliveries; an eligible Delivery's pickup and handoff points must both be covered.
-_Avoid_: Route, radius
-
-**Active Delivery**:
-A Delivery in the Assigned or In Transit state. In Core, a Courier can have at most one Active Delivery.
-_Avoid_: Open order, current job
-
-**Eligible Courier**:
-An On Duty Courier with fresh location data and no Active Delivery. A future Service Zone increment may additionally require coverage for both pickup and handoff, but distance ranking alone does not relax the current hard conditions.
-_Avoid_: Online courier, nearby courier
-
-**Tracking Link**:
-A reusable bearer capability created with a Delivery that gives its holder read-only access to that Delivery without an account. Each Delivery has at most one active Tracking Link, which follows it through Reassignment; in Core, possession of that link is the sole access proof, with no additional PIN or Recipient account.
-_Avoid_: Customer login, public tracking page, identity verification
-
-**Link Holder**:
-Any person or client presenting a valid Tracking Link, including but not necessarily the intended Recipient.
-_Avoid_: Authenticated Recipient, account holder
-
-**Tracking Grant**:
-The narrowly scoped, server-held access a Link Holder receives by presenting a Tracking Link once. It authorizes reading exactly one Delivery through one Tracking Link generation and is bounded by that link's expiry; it is not an Internal Account session and carries no role. This is the "access established through" a link that Rotation and Revocation invalidate.
-_Avoid_: Recipient login, tracking session cookie, Internal Account session
-
-**Tracking Link Expiry**:
-The automatic end of Tracking Link access at the earlier of twenty-four hours after a terminal Delivery outcome or seven days after link creation. Opening or reusing the link never extends this time.
-_Avoid_: Session timeout, first-open activation
-
-**Tracking Link Lifecycle**:
-The creation, validity, rotation, revocation, and expiry of read-only access, independent from the Delivery lifecycle. A Tracking Link change never transitions or cancels its Delivery.
-_Avoid_: Delivery status, Delivery cancellation
-
-**Tracking Link Rotation**:
-The reasoned Dispatcher replacement of a Delivery's active Tracking Link, immediately invalidating the old link and any access established through it while making the replacement the Delivery's sole active link. It preserves the existing expiry rather than extending access and does not change the Delivery.
-_Avoid_: Additional active link, Delivery reset
-
-**Tracking Link Revocation**:
-The reasoned Dispatcher ending of Tracking Link access without creating a replacement. It records a structured reason and optional internal note, immediately invalidating the link and any access established through it without changing the Delivery.
-_Avoid_: Delivery cancellation, link expiry
-
-**Tracking Link Reissue**:
-The reasoned Dispatcher creation of a new Tracking Link when the previous link has expired or been revoked but its Delivery remains non-terminal. It creates a new validity period rather than restoring or extending the unavailable link; a terminal Delivery cannot be reissued a link.
-_Avoid_: Automatic renewal, expired-link reactivation
-
-**Tracking Link Copy**:
-The Dispatcher action that copies the current Tracking Link for sharing through an existing external channel and records who copied it and when. It neither proves that a Recipient received the link nor creates, rotates, or extends one.
-_Avoid_: Link delivered, Recipient notified
-
-**Tracking Link Change Reason**:
-The structured explanation required for Rotation, Revocation, or Reissue, with an optional internal note. Its shared vocabulary is Wrong Recipient, Suspected Exposure, Recipient Request, Access No Longer Needed, Delivery Still Active, and Other, filtered to the applicable action.
-_Avoid_: Unstructured explanation, Delivery outcome
-
-**Tracking Link History**:
-The Dispatcher-visible record of link creation, copying, Rotation, Revocation, Reissue, and automatic expiry, including the responsible actor, time, and applicable Tracking Link Change Reason. It is distinct from security-only access evidence and is not a Recipient browsing history.
-_Avoid_: Recipient activity log, Delivery lifecycle
-
-**Unavailable Link View**:
-The single data-free public response used for an unknown, invalid, expired, or revoked Tracking Link. It does not reveal whether a Delivery exists, its state, or why access is unavailable.
-_Avoid_: Link-status diagnosis, Delivery lookup
-
-**Terminal Tracking View**:
-The privacy-reduced Tracking Link view available until expiry after a terminal outcome. Delivered shows the Delivery Reference, Handoff Address, result, and actual time; Cancelled or Undeliverable shows the Delivery Reference, a generic result, time, and Delivery Team Contact, and drops the Handoff Address; no terminal view exposes Courier identity, location, map, or ETA.
-_Avoid_: Live tracking, delivery history
-
-**Recipient Timeline**:
-A Recipient-facing view of meaningful Delivery milestones and their times, reflecting current public truth rather than serving as an immutable audit. It excludes Matching Round, Reassignment, and other internal dispatch activity, so a reversed Assignment returns the view to Awaiting Courier.
-_Avoid_: Audit log, event stream
-
-**Recipient Next Step**:
-A state-derived sentence describing the next externally meaningful Delivery action without exposing internal dispatch activity or implying an unconfirmed retry.
-_Avoid_: Dispatcher note, operational plan
-
-**Last Known Location**:
-The most recently reported Courier position, visible to a Recipient only while the Delivery is In Transit and never extrapolated into an unreported position. Its report time remains explicit whenever it is not live; ending permission or sharing withdraws its coordinates immediately but may leave that time visible.
-_Avoid_: Current location when freshness is unknown, route history
-
-**Route History**:
-A chronological collection or presentation of past Courier positions. Neither Core nor any defined Later Backlog increment exposes it through a product interface; Current Location and Last Known Location are not Route History.
-_Avoid_: Current Location, Recipient Timeline
-
-**Current Location**:
-The newest usable Courier position by its device-recorded measurement time, not by when a server or Recipient receives it. An older, delayed report never replaces it.
-_Avoid_: Latest-arrived location, inferred position
-
-**Location Accuracy**:
-The reported radius of uncertainty around a Courier position. Only a report accurate to within one hundred metres can replace Current Location; a poorer reading is disclosed but not promoted as usable.
-_Avoid_: Precision, exact position
-
-**Live Location**:
-A Last Known Location reported within the preceding thirty seconds and presented as current.
-_Avoid_: Any position less than two minutes old
-
-**Delayed Location**:
-A Last Known Location reported between thirty seconds and two minutes ago, retained with its age but without live treatment or animation.
-_Avoid_: Live location, stale location
-
-**Unavailable Location**:
-A Recipient-facing condition in which no Courier position exists or the last report is more than two minutes old. The Courier marker is absent while the last report time remains visible when known.
-_Avoid_: Frozen live marker, unknown current position
-
-**Tracking Connection**:
-The Recipient page's ability to receive automatic updates, expressed separately from Location Freshness. A reconnecting page retains timestamped facts but does not imply that the Courier location itself is unavailable.
-_Avoid_: Courier online status, location freshness
-
-**ETA Window**:
-A five-minute-rounded range of expected handoff times accompanied by its calculation time: approximately twenty minutes wide and provisional while Assigned, and approximately ten minutes wide while In Transit. It is absent while Awaiting Courier and replaced by the actual outcome time in a terminal state.
-_Avoid_: Exact arrival time, guaranteed delivery time
-
-**Travel-time Estimate**:
-An external estimate of journey duration used as an ETA Window input without exposing a planned route or providing navigation. While Assigned it combines Courier-to-pickup travel, a fixed five-minute pickup buffer, and pickup-to-handoff travel; while In Transit it covers Current Location to handoff.
-_Avoid_: Route plan, navigation instruction, straight-line ETA
-
-**ETA Freshness**:
-How recently an ETA Window was successfully recalculated from a usable Current Location. A failed travel-time request may retain the prior window for at most five minutes with its age disclosed; an Unavailable Location or older estimate makes ETA unavailable.
-_Avoid_: Location Freshness, silently reused ETA
-
-**Running Late**:
-A Recipient-facing condition in which an active Delivery has passed the upper bound of its ETA Window without reaching Delivered. It remains explicit when a new window is calculated rather than being hidden by silently moving the estimate.
-_Avoid_: Failed Delivery, automatic delay
-
-**Delivery Time Zone**:
-The Handoff Address's time zone, used for every Recipient-facing Delivery time regardless of the viewing device's current zone.
-_Avoid_: Browser time zone, UTC display
-
-**Delivery Team Contact**:
-A fixed phone number or email address offered after a Cancelled or Undeliverable outcome for questions only, without creating chat, retry, rescheduling, or address-change capabilities.
-_Avoid_: Support workflow, Recipient chat
+**Staff Account**:
+A sign-in for a Dispatcher or a Courier, created in advance. There is no registration, no invitation
+and no password reset.
+_Avoid_: Internal Account, user account
+_In code_: the `identityaccess` module
 
 **Dispatcher**:
-The member of a Delivery Team who creates Deliveries and assigns an Eligible Courier from the ranked Courier Recommendation. A later matching increment may let the Dispatcher authorize a Matching Round instead.
+The person who creates a Delivery and assigns a Courier to it.
 _Avoid_: Administrator, operator
 
-**Courier Recommendation**:
-An ordered shortlist of three Eligible Couriers suitable for a Delivery, or all Eligible Couriers when fewer than three exist. It supports Core Direct Assignment and may later propose participants in a Matching Round, but the recommendation itself never assigns a Courier.
-_Avoid_: Assignment, winner
+**Courier**:
+The person who collects the item, carries it, and hands it over.
+_Avoid_: Driver, rider
 
-**Direct Assignment**:
-The Core assignment mode in which a Dispatcher selects one Eligible Courier from the current Courier Recommendation and the system atomically creates the Assignment after revalidation, without a Match Invitation or Match Interest.
-_Avoid_: Match Selection, invitation, fastest response
+**Courier Name**:
+The name a Recipient sees while a Courier is carrying their Delivery. It is the only thing about the
+Courier that a Recipient ever sees.
+_Avoid_: Courier Display Name, courier profile
 
-**Recommendation Override**:
-A Dispatcher's reasoned change to the recommended Matching Round shortlist. It requires a structured reason, may include an internal note, and never makes an ineligible Courier eligible.
-_Avoid_: Forced assignment, eligibility override
+**Recipient**:
+The person waiting for the delivery.
+_Avoid_: Customer, user
 
-**Matching Round**:
-A Dispatcher-authorized, sixty-second attempt to find a Courier for one Delivery by inviting up to three top-ranked Eligible Couriers; only one can be active for a Delivery. At its close, current eligibility and the established ranking policy determine the winner rather than response speed.
-_Avoid_: First-come-first-served dispatch, claim race
+**Support Contact**:
+A phone number or email address shown to the Recipient after a Cancelled delivery, for questions
+only. It does not let them reschedule, redirect or chat.
+_Avoid_: Delivery Team Contact, support workflow
 
-**Match Invitation**:
-A request sent to a Courier to participate in a Matching Round. Receiving it neither reserves the Courier nor assigns the Delivery.
-_Avoid_: Assignment Invitation, assignment, job blast
+## The Delivery
 
-**Match Interest**:
-A Courier's willingness to carry a Delivery if selected at the end of its Matching Round; it may be withdrawn until the round closes and is then binding. A Courier can hold Match Interest in only one round at a time and is temporarily reserved by it, but is not yet assigned.
-_Avoid_: Acceptance, claim
+**Delivery**:
+One journey of one item, from pickup to handoff.
+_Avoid_: Order, parcel, shipment
 
-**Match Decline**:
-A Courier's explicit refusal of one Delivery, suppressing further invitations for that Delivery unless a Dispatcher restores invitation permission with a reason. It does not take the Courier Off Duty or change eligibility for other Deliveries.
-_Avoid_: Going offline, timeout
+**Delivery Number**:
+The identifier shown to the Recipient so they can tell one delivery from another. It reveals nothing
+about them or the item.
+_Avoid_: Delivery Reference, order number
 
-**Match Timeout**:
-The absence of a Courier response before a Matching Round closes, creating a five-minute invitation cooldown for that Delivery without taking the Courier Off Duty.
-_Avoid_: Decline, rejection
+**Pickup Address**:
+Where the Courier collects the item. The Recipient never sees it.
+_Avoid_: Origin, warehouse
 
-**Match Selection**:
-The single outcome of a Matching Round that revalidates and reranks interested Couriers, then assigns the highest-ranked Courier who remains eligible without requiring another acceptance.
-_Avoid_: Fastest response, random selection
+**Delivery Address**:
+Where the item is going. The Recipient sees this in full.
+_Avoid_: Handoff Address, destination
+_In code_: `handoffAddress`
 
-**Matching Round Cancellation**:
-A Dispatcher's reasoned end to a Matching Round before selection, releasing every Match Interest without penalising or suppressing any invited Courier.
-_Avoid_: Match Decline, Delivery cancellation
+**Active Delivery**:
+A Delivery that is Assigned or In Transit. A Courier can have only one at a time.
+_Avoid_: Open order, current job
 
-**Recommendation Decision**:
-A timestamped account of one recommendation and Matching Round, including candidate order and rationale, exclusion counts, invitations, responses, closing eligibility and ranking, final outcome, cancellation, and any Recommendation Override. It retains only decision evidence, not raw Courier location history.
-_Avoid_: GPS history, assignment result
+**Status Change**:
+A record that a Delivery moved from one state to the next, with the time and who did it.
+_Avoid_: Delivery Transition, status edit
 
-**Reassignment**:
-The reasoned pre-pickup end of an Assignment by Courier Withdrawal or Dispatcher Revocation. It returns the Delivery to Awaiting Courier, preserves assignment history, suppresses the former Courier from that Delivery unless a Dispatcher restores invitation permission with a reason, and does not automatically start another Matching Round.
-_Avoid_: Transfer, replacement after pickup
+**Delivery Time Zone**:
+The time zone of the Delivery Address. Every time shown to the Recipient uses it, whatever time zone
+their phone is in.
+_Avoid_: Browser time zone, UTC
 
-**Courier Withdrawal**:
-A Courier-initiated Reassignment before pickup, recorded with a Courier-specific structured reason and optional internal note. It does not implicitly change On Duty.
-_Avoid_: Match Interest withdrawal, cancellation
-
-**Dispatcher Revocation**:
-A Dispatcher-initiated Reassignment before pickup, recorded with a Dispatcher-specific structured reason and optional internal note. It does not implicitly change the Courier's On Duty condition.
-_Avoid_: Delivery cancellation, rejection
-
-**Location Freshness**:
-How recently a Courier location was reported; for Courier eligibility, only a report from the preceding two minutes is fresh. A stale report is never presented as live, and an explicit end to sharing or permission invalidates it immediately rather than waiting for its age threshold.
-_Avoid_: Live location when the last update is unknown or stale
-
-### Delivery lifecycle
+## Delivery states
 
 **Awaiting Courier**:
-The initial Delivery state in which no Courier has yet been selected to take responsibility for the Delivery.
-_Avoid_: Created, waiting
+No Courier has been assigned yet. This is where every Delivery starts.
+_Avoid_: Created, pending
 
 **Assigned**:
-A Delivery state in which a Courier has been atomically selected to take responsibility but has not yet collected the item. Core reaches it through Direct Assignment; a later matching increment may reach it through Match Selection.
-_Avoid_: Offered, selected
+A Courier is responsible for the Delivery but has not collected the item.
+_Avoid_: Offered, accepted
 
 **In Transit**:
-A Delivery state that begins when the Courier confirms pickup and ends with handoff or an undeliverable outcome.
-_Avoid_: Picked up, delivering, on route
+The Courier has collected the item and is carrying it.
+_Avoid_: Picked up, on route
 
 **Delivered**:
-The terminal Delivery state in which handoff to the Recipient has been confirmed.
+The Courier confirmed the handoff. The Delivery is finished.
 _Avoid_: Completed, closed
 
 **Cancelled**:
-The terminal Delivery state in which a Dispatcher stops the Delivery before pickup.
+A Dispatcher stopped the Delivery before pickup. The Delivery is finished.
 _Avoid_: Deleted, failed
 
-**Undeliverable**:
-The terminal Delivery state in which an item that has been picked up cannot be handed to the Recipient. A later attempt is a new Delivery.
-_Avoid_: Failed, retry pending
+**Delivery Confirmation**:
+The Courier tapping to confirm the handoff happened. Only this moves a Delivery to Delivered — being
+near the Delivery Address does not.
+_Avoid_: Handoff Confirmation, geofence completion
 
-**Delivery Transition**:
-A timestamped record that a Delivery moved from one lifecycle state to another, including the responsible actor and any applicable reason.
-_Avoid_: Status edit, status overwrite
+## Courier duty and location
 
-**Handoff Confirmation**:
-The current Courier's explicit confirmation that the item was transferred successfully, which is required for the Delivered transition. GPS proximity to the Handoff Address is not confirmation.
-_Avoid_: Geofence completion, arrival near destination
+**On Duty**:
+The Courier says they are willing to take work. Only the Courier changes it, and it shares no
+location by itself.
+_Avoid_: Online, available
+
+**Available Courier**:
+An On Duty Courier with a recent location and no Active Delivery. Only these can be assigned.
+_Avoid_: Eligible Courier, nearby courier
+
+**Location Sharing**:
+The Courier letting the app send their position. It starts only when they press Start — being On Duty
+or having a Delivery is not enough — and it works only while the page is in front of them.
+_Avoid_: Courier Location Sharing, automatic tracking, background tracking
+
+**Location Sharing Session**:
+One run of Location Sharing, from pressing Start until it stops. Signing out, closing the page or
+reloading ends it; the Courier must press Start again.
+_Avoid_: Browser permission, permanent consent
+
+**Session ID**:
+The identifier of one Location Sharing Session. Pressing Start again makes a new one, which is what
+lets the server reject reports from the previous session.
+_Avoid_: Location Sharing Generation, device identifier
+
+**Session Key**:
+A secret handed out once when a Location Sharing Session starts, held only by the page that started
+it. The server stores a hash of it and never gives it out again, so a reloaded page cannot report for
+a session it did not start.
+_Avoid_: Reporting Secret, API key
+
+**Sharing Paused**:
+Location Sharing is still wanted but cannot produce a position right now — the page lost focus, the
+network dropped, or the phone has no fix. It can recover on its own without pressing Start again.
+_Avoid_: Location Sharing Interruption, stopped sharing
+
+**Reporting Interval**:
+Roughly ten seconds between position reports while Location Sharing is working. It is a target, not a
+promise, and it never means positions are saved up and sent in a batch.
+_Avoid_: Location Reporting Cadence, guaranteed timer
+
+**Current Location**:
+The newest usable position, judged by when the phone measured it — not by when the server received
+it. A late report of an older position never replaces it.
+_Avoid_: Latest-arrived location, estimated position
+
+**Last Known Location**:
+The most recent position reported, shown to a Recipient only while the Delivery is In Transit. It is
+never guessed forward to where the Courier probably is now.
+_Avoid_: Predicted position, route so far
+
+**Location Accuracy**:
+How large a circle the phone thinks the position could be in. A reading worse than one hundred metres
+is shown but not used as the Current Location.
+_Avoid_: Precision, exact position
+
+**Location Age**:
+How long ago a position was measured. Under thirty seconds it counts as Live; up to two minutes,
+Delayed; past that, Unavailable.
+_Avoid_: Location Freshness
+
+**Live Location**:
+A position measured in the last thirty seconds, shown as current.
+_Avoid_: Any position older than that
+
+**Delayed Location**:
+A position between thirty seconds and two minutes old, shown with its age and without any animation.
+_Avoid_: Live location, stale location
+
+**Unavailable Location**:
+No position exists, or the newest one is over two minutes old. The Courier marker disappears; the
+time of the last report stays on screen.
+_Avoid_: Frozen marker, unknown position
+
+**Location History**:
+A record of where a Courier has been over time. **This product never builds one** — positions live in
+memory, one per Courier, overwritten and then deleted. It is named here so the promise has a name.
+_Avoid_: Route History, breadcrumb trail
+
+## Assignment
+
+**Courier Recommendation**:
+The three nearest Available Couriers for a Delivery, or all of them if there are fewer than three.
+The Dispatcher sees a distance, never a position.
+_Avoid_: Shortlist of winners, auto-assign
+
+**Assignment**:
+A Dispatcher picking one Courier from the Courier Recommendation. The database decides the race, so
+two Dispatchers cannot assign the same Courier.
+_Avoid_: Direct Assignment, claim, invitation
+
+## The Tracking Link
+
+**Tracking Link**:
+A link that lets whoever holds it read one Delivery, with no account. Each Delivery has at most one
+working link.
+_Avoid_: Customer login, public tracking page
+
+**Viewer**:
+Whoever opens a Tracking Link. Usually the Recipient, but the link cannot prove that.
+_Avoid_: Link Holder, authenticated recipient
+
+**Tracking Session**:
+What a Viewer gets after opening a valid Tracking Link: permission to read that one Delivery until
+the link expires. It is not a Staff Account sign-in and reaches nothing else.
+_Avoid_: Tracking Grant, recipient login
+_In code_: `TrackingGrants`
+
+**Tracking Link Expiry**:
+When a Tracking Link stops working: seven days after it was made, or twenty-four hours after the
+Delivery finished, whichever comes first. Opening it never extends this.
+_Avoid_: Session timeout
+
+**Tracking Link Lifecycle**:
+The making, replacing, revoking and expiring of a Tracking Link. None of it changes the Delivery.
+_Avoid_: Delivery status, delivery cancellation
+
+**Copy Link**:
+The Dispatcher copying the current Tracking Link to send through their own channel. It records who
+copied it and when, and proves nothing about whether the Recipient got it.
+_Avoid_: Tracking Link Copy, link delivered
+
+**Replace Link**:
+The Dispatcher swapping a Delivery's Tracking Link for a new one. The old link and any Tracking
+Session on it stop working at once, and the expiry time does not move.
+_Avoid_: Tracking Link Rotation, delivery reset
+
+**Revoke Link**:
+The Dispatcher switching off a Tracking Link with no replacement. The link and any Tracking Session
+on it stop working at once, and the Delivery is untouched.
+_Avoid_: Tracking Link Revocation, delivery cancellation
+
+**Reissue Link**:
+The Dispatcher making a fresh Tracking Link after the previous one expired or was revoked, while the
+Delivery is still running. It starts a new expiry rather than reviving the old link.
+_Avoid_: Tracking Link Reissue, automatic renewal
+
+**Link Change Reason**:
+The reason a Dispatcher must pick when they replace, revoke or reissue a link, with an optional
+private note. The choices are Wrong Recipient, Suspected Exposure, Recipient Request, Access No
+Longer Needed, Delivery Still Active and Other.
+_Avoid_: Tracking Link Change Reason, free-text reason
+
+**Link History**:
+What the Dispatcher can see about a link: when it was made, copied, replaced, revoked, reissued or
+expired, by whom, and why. It is not a record of the Recipient's browsing.
+_Avoid_: Tracking Link History, recipient activity log
+
+**Dead Link Page**:
+The one page shown for any link that does not work — unknown, tampered with, expired or revoked. It
+is identical in every case, so it cannot be used to find out whether a Delivery exists.
+_Avoid_: Unavailable Link View, error page with a reason
+
+**Finished Delivery Page**:
+What a working Tracking Link shows after the Delivery ends, until the link expires. Delivered shows
+the Delivery Number, Delivery Address, result and time; Cancelled shows the Delivery Number, a plain
+result, the time and the Support Contact. Neither shows the Courier, a map or an ETA.
+_Avoid_: Terminal Tracking View, delivery history
+
+## What the Recipient sees
+
+**Delivery Timeline**:
+The list of milestones and their times on the Recipient's page. It shows what is true now, so a
+reversed assignment puts it back to Awaiting Courier; it is not an audit log.
+_Avoid_: Recipient Timeline, event stream
+
+**What Happens Next**:
+One sentence on the Recipient's page saying the next thing that will visibly happen. It never shows
+what the Delivery Team is doing internally.
+_Avoid_: Recipient Next Step, dispatcher note
+
+**Live Connection**:
+Whether the Recipient's page is still receiving updates by itself. It is shown separately from
+Location Age — a page that is reconnecting still shows the facts it already has.
+_Avoid_: Tracking Connection, courier online status
+
+**Running Late**:
+An active Delivery has passed the end of its ETA Window and is not Delivered yet. It stays visible
+rather than being hidden by quietly moving the estimate.
+_Avoid_: Failed delivery, automatic delay
+
+## Arrival time
+
+**ETA Window**:
+A range of likely arrival times, rounded to five minutes, shown with when it was worked out. It is
+about twenty minutes wide while Assigned and about ten while In Transit, and there is none before a
+Courier is assigned.
+_Avoid_: Exact arrival time, guaranteed time
+
+**Travel Time**:
+How long a journey takes, according to an outside service. It feeds the ETA Window and never shows a
+route or gives directions.
+_Avoid_: Travel-time Estimate, route plan, straight-line distance
+
+**ETA Age**:
+How long ago the ETA Window was last worked out. A failed lookup keeps the old window for up to five
+minutes with its age shown; after that there is no ETA.
+_Avoid_: ETA Freshness, silently reused ETA
+
+## Proof and notifications
 
 **Proof of Delivery**:
-The photo and on-screen signature a Courier optionally captures at Handoff Confirmation as evidence the item was transferred. The image bytes are uploaded straight to a private object store and never pass through the application, which keeps only an immutable reference — object key, content hash, capture time — after EXIF/GPS metadata has been stripped. It is a deliberate extension past Core's minimal scope ([Issue 50](https://github.com/Jamiedz999/delivery-glance/issues/50)), off unless configured.
+A photo and a signature the Courier can take at handoff. The image goes straight to private storage
+and never through the app, which keeps only a reference to it.
 _Avoid_: Delivery photo in the database, mandatory proof
 
 **Proof Privacy**:
-The rule that a Recipient is told only that a Delivery was confirmed with proof on file, never shown the image; the photo and signature are visible to the Delivery Team alone. EXIF/GPS is stripped before anything that outlives the request is stored, regardless of who may later view it.
-_Avoid_: Recipient-visible delivery photo, retained location metadata
+The Recipient is told only that proof was taken, never shown it. Location data is stripped from the
+photo before anything is stored.
+_Avoid_: Recipient-visible photo, retained photo location
 
-**Off-band Notification**:
-An email or SMS sent to a Recipient when a Delivery changes state — assigned, in transit, delivered, cancelled — reaching them when no tracking page is open. It is decoupled from the state-change command through a transactional outbox and an event pipeline, so a slow or failing provider never blocks a Courier or Dispatcher, and no notification is sent twice. It complements the tracking page's in-page live updates rather than replacing them, and is a deliberate extension past Core's minimal scope ([Issue 51](https://github.com/Jamiedz999/delivery-glance/issues/51)), off unless configured. The message is state-derived and reveals no dispatch internals; cancelled implies no retry.
-_Avoid_: Push notification, courier-proximity ping, sending on the request thread
+**Delivery Notification**:
+An email or SMS to the Recipient when their Delivery changes state, so they hear about it with no
+page open. It is sent off to one side, so a slow provider never holds up a Courier or a Dispatcher.
+_Avoid_: Off-band Notification, push notification
 
 **Notification Opt-in**:
-The channel — an email address or phone number — a Recipient volunteers from the tracking page to receive Off-band Notifications about that one Delivery, with a consent time and a revoke path. It is the sole way contact is captured: the Delivery Team never records or holds a Recipient's contact, and authority to create or revoke one is the Tracking Link grant alone. A revoke suppresses even a message already queued ([ADR 13](docs/adr/13-notify-recipient-off-band.md)).
-_Avoid_: Dispatcher-entered recipient contact, stored Recipient PII, mailing list
+An email address or phone number the Recipient gives on the tracking page to get Delivery
+Notifications about that one Delivery. It is the only way the Delivery Team ever holds a Recipient's
+contact details, and the Recipient can take it back.
+_Avoid_: Dispatcher-entered contact, mailing list
+
+## What this product does not do
+
+These are permanent boundaries, not a to-do list:
+
+- Route planning, navigation and multi-stop optimisation
+- Payments, billing and subscriptions
+- Native mobile apps
+- Letting a Recipient reschedule, redirect, cancel or chat
+- Any interface that shows where a Courier has been (see **Location History**)
+- Machine-learning arrival times
+- Serving more than one Delivery Team
+- Reporting: dashboards, heatmaps, courier performance
+- Bulk import, export or editing of Deliveries
+- Self-registration, password reset and managing team members

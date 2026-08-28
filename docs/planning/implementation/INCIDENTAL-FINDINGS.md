@@ -1,17 +1,14 @@
-# Incidental findings
+# Problems found in passing
 
-Status: current
+Things noticed while working on something else. They are real, and they are not the thing that found
+them.
 
-Things noticed while implementing something else. They are real, they are not the Issue that
-found them, and the alternative to writing them here is a PR body nobody rereads — which is exactly
-how ADR 04's callout below went stale for a Sprint.
+Each entry says what is wrong, how it was found, and why it was not fixed on the spot. Writing it
+here rather than widening the change in flight is the point — and better than a pull-request body
+nobody rereads.
 
-This file is **not** a queue. The [GitHub Issues](https://github.com/Jamiedz999/delivery-glance/issues) are the queue, it is fixed at nine Issues, and
-nothing here becomes a GitHub Issue. An entry earns a plain PR when someone picks it up, the way
-tooling work already does. Delete an entry when it is fixed; a list of things already done is worse
-than no list.
-
-Each entry says what is wrong, how it was found, and why it was not fixed on the spot.
+This is a holding area, not a queue. An entry leaves it by being opened as a GitHub Issue, or by
+being fixed. Delete it when it goes; a list of things already done is worse than no list.
 
 ## Open
 
@@ -44,13 +41,11 @@ The README's walkthrough works because its human switches browser profiles betwe
 reload works too — at the cost of ending sharing, which is the documented and correct consequence
 of reloading. Neither is something a Courier watching for work would think to do.
 
-Ticket 12 allows for it: "Dispatcher and Courier pages may refetch after their own commands and use
-modest polling for changes." The polling was never implemented.
+Modest polling after a page's own commands was always allowed. It was never implemented.
 
 Found during DG-027, when the E2E journey's Courier stood waiting for an assignment that had already
 happened; `web/e2e/support/workspace.ts` reloads and says why. Not fixed there because adding a poll
-is new product behaviour, which `ISSUE-WORKFLOW.md` returns to refinement rather than letting a test
-Issue introduce.
+is new product behaviour, and a test-focused Issue is not where that belongs.
 
 Fix: give `currentCourierDelivery` a modest `refetchInterval` while a Courier is On Duty, and
 nothing while they are not — an off-duty Courier has no Delivery to hear about.
@@ -94,24 +89,6 @@ build contract command covers, and TECHNICAL-BASELINE is where that is decided.
 Fix: decide whether `npm run check` or the image build is the one that should be narrow, then make
 `TECHNICAL-BASELINE.md`'s Core build contracts say so.
 
-### ADR 04's Core scope callout describes assignment that Core does not implement
-
-`docs/adr/04-define-courier-recommendation-and-assignment.md:13` says Core "uses atomic Direct
-Assignment **from the nearest-three recommendation**". It does not. `Dispatches.assign` revalidates
-eligibility only, and `DispatchApiTest.assignmentRevalidatesEligibilityWithoutRequiringTheCourierToRemainInTheNearestThree`
-deliberately pins that.
-
-The decision was deliberate and is explained in PR #16 — which is the problem. `AGENTS.md` says each
-ADR's callout names what Core actually implements, so a reader who trusts the callout is misled, and
-the correction lives somewhere they will not look.
-
-Found during DG-024 handoff review. Not fixed there because a callout amendment is its own docs PR
-and DG-024 had no business editing ADR 04.
-
-Fix: amend the callout to say Core assigns any currently Eligible Courier with eligibility
-revalidated at assignment time, and that ADR 04's structured Recommendation Override reason stays
-with Future Work 16. Leave the rest of the ADR alone; its preserved full-product design is intended.
-
 ### Recipient-facing times are shown in the reader's time zone, not the Handoff Address's
 
 CONTEXT's **Delivery Time Zone** is "the Handoff Address's time zone, used for every Recipient-facing
@@ -133,25 +110,6 @@ gap between the ADR and the product.
 Fix: decide whether Core carries a coordinate-to-time-zone dataset at all. If not, amend ADR 05's
 callout and CONTEXT's Delivery Time Zone to say Core shows the reader's zone, so the glossary stops
 describing something the product does not do.
-
-### A Dispatcher cannot copy a Tracking Link without leaving the application
-
-`POST /api/deliveries/{id}/tracking-link/copy` exists, is Dispatcher-only and is tested, but no
-button anywhere in `web/src/pages/DeliveryDetailPage.tsx` calls it. The only way a human reaches a
-Tracking Link today is a `curl` session or the browser console, which is why the README's Recipient
-demo path has to describe one.
-
-DG-024 specified the endpoint and said nothing about a control; DG-025 is scoped to the Recipient's
-side of the link. So the button belongs to neither, and the queue takes no additions.
-
-Found while writing DG-025's demo path, when there turned out to be nothing to press. Not fixed
-there because a new control in the Dispatcher workspace is new product behaviour, which
-`ISSUE-WORKFLOW.md` says returns to refinement rather than silently expanding a PR.
-
-Fix: one button on the Delivery detail page that calls the endpoint and writes the returned URL to
-the clipboard, showing the expiry the response already carries. It must not render the URL into the
-DOM or the page history — the response is the one place in the application that holds a raw
-capability.
 
 ### The bundled application's static assets have no cache policy
 

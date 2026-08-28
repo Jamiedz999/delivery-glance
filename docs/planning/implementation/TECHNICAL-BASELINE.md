@@ -1,107 +1,118 @@
-# Delivery Glance Core technical baseline
+# Technical baseline
 
-Status: current
-Supersedes for Core implementation: the heavier parts of [Ticket 10](../../adr/10-choose-core-technical-architecture.md)
-Scope authority: [Ticket 12](../../adr/12-rescope-to-resume-ready-core.md)
+The one place that says what the stack is, how the repository is laid out, and where the module seams
+are. [ADR 10](../../adr/10-choose-core-technical-architecture.md) says why.
 
-## Purpose
+## The stack
 
-This is the single implementation source for the Core stack, repository shape and module seams. Research explains why; implementation Issues say what to build next. An Agent must not infer extra Core dependencies from the complete-product research or prototypes.
-
-## Locked Core stack
-
-| Concern | Choice for Core |
+| Concern | Choice |
 |---|---|
-| Backend | Java 25 LTS, Spring Boot 4.1 current patch, Maven Wrapper, Spring MVC, Spring Security, Bean Validation, Spring `JdbcClient` |
-| Durable data | PostgreSQL 18 current patch, HikariCP, Flyway only; no JPA/Hibernate and no runtime schema generation |
-| Sessions | Opaque same-origin Spring Security sessions; Spring Session JDBC when Internal Accounts arrive; secure cookies and CSRF stay enabled |
-| Frontend | Node 24 LTS, React 19.2 current patch, strict TypeScript, Vite 8.1, React Router, TanStack Query |
-| Realtime | Normal HTTP commands/queries plus same-origin `EventSource`; Spring MVC `SseEmitter` emits refresh hints, never authoritative state |
-| Map | Bundled `maplibre-gl`; production style/tile URL is an environment input and carries no Delivery or Tracking token |
-| Verification | JUnit, AssertJ, Testcontainers PostgreSQL, Vitest, Testing Library, Playwright and axe-core, introduced by the Issue that first needs them |
-| Packaging | Docker Compose for local PostgreSQL; one multi-stage application image containing the Boot app and compiled React assets |
-| Operations | Actuator health, request correlation and redacted logs; no monitoring platform is required for Core |
+| Backend | Java 25, Spring Boot 4.1, Maven Wrapper, Spring MVC, Spring Security, Bean Validation, `JdbcClient` |
+| Database | PostgreSQL 18, HikariCP, Flyway only. No JPA/Hibernate, no runtime schema generation |
+| Sessions | Opaque same-origin Spring Security sessions, Spring Session JDBC; secure cookies and CSRF stay on |
+| Frontend | Node 24, React 19, strict TypeScript, Vite, React Router, TanStack Query |
+| Live updates | HTTP commands and queries plus same-origin `EventSource`. `SseEmitter` sends refresh hints, never state |
+| Map | Bundled `maplibre-gl`. The tile URL is a deployment input and carries no Delivery or link token |
+| Testing | JUnit, AssertJ, Testcontainers, Vitest, Testing Library, Playwright, axe-core |
+| Packaging | Docker Compose for local PostgreSQL; one multi-stage image holding the app and the compiled assets |
+| Operations | Actuator health, request correlation, redacted logs. No monitoring platform required |
 
-Versions are pinned in lock/build files by Issue 20. A later patch-version update is allowed only in its own dependency PR with the full verification suite; it does not reopen the architecture decision.
+Versions are pinned in the lock and build files. A patch bump goes in its own dependency PR with the
+full suite; it does not reopen the architecture decision.
 
 ## Repository shape
-
-Issue 20 creates only the files needed for a runnable walking skeleton:
 
 ```text
 delivery-glance/
 ├── .github/workflows/ci.yml
-├── server/
-│   ├── .mvn/wrapper/...
-│   ├── mvnw
-│   ├── mvnw.cmd
-│   ├── pom.xml
-│   └── src/
-│       ├── main/java/com/deliveryglance/...
-│       ├── main/resources/
-│       │   ├── application.yml
-│       │   └── db/migration/
-│       └── test/java/com/deliveryglance/...
-├── web/
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── tsconfig*.json
-│   ├── vite.config.ts
-│   └── src/...
-├── scripts/
-├── compose.yaml
-├── Dockerfile
-├── .env.example
-└── README.md
+├── server/          Maven Wrapper, pom.xml, src/main + src/test, db/migration
+├── web/             package.json, lockfile, tsconfig, vite.config.ts, src/, e2e/
+├── lambda/          proof-processor, notification-sender
+├── infra/           deployment definitions
+├── scripts/         scan-repository.sh, check-deployment.sh
+├── compose.yaml     plus compose.proof.yaml and compose.notify.yaml
+└── Dockerfile
 ```
 
-- Development uses Vite's same-origin-looking `/api` proxy to Boot.
-- Production builds the React assets first, places them in the Boot jar, and serves browser-history routes from the same application origin.
-- `server/target`, `web/node_modules`, `web/dist`, local environment files and secrets are ignored. Lockfiles and Maven Wrapper files are committed.
-- `scripts/` holds checks that have no build to belong to, because what they assert is not about the code: `scan-repository.sh` is about this repository's contents and history, and `check-deployment.sh` is about a running deployment neither Maven nor npm knows the address of. They are plain shell with no dependencies, so anybody can read one before running it against their own host.
-- Root scripts that would only compose the canonical commands below are still not wanted; they would create a second build system saying the same thing twice.
+- Development uses Vite's `/api` proxy to Boot so it looks same-origin.
+- Production builds the React assets into the Boot jar and serves everything from one origin.
+- `scripts/` holds checks with no build to belong to, because what they assert is not about the code:
+  `scan-repository.sh` is about this repository's contents and history, `check-deployment.sh` is about
+  a running deployment neither Maven nor npm knows the address of. Plain shell, no dependencies, so
+  anybody can read one before pointing it at their own host.
+- No root script that only composes the commands below. That would be a second build system saying
+  the same thing twice.
 
-## Deep modules and seams
+## Modules and seams
 
-The backend is one executable with business modules, not a collection of technical `controller/service/repository` layers spanning the whole application.
+The backend is one executable made of business modules, not `controller/service/repository` layers
+spanning the whole application.
 
-| Module | Introduced by | Owns | Small interface exposed to peers |
-|---|---:|---|---|
-| `system` | 20 | health-adjacent build/runtime proof | read-only system status |
-| `identityaccess` | 21 | Internal Accounts, roles and session-facing policy | current actor and authorization checks |
-| `delivery` | 21 | Delivery data, lifecycle and transitions | guarded commands and role-specific queries |
-| `courier` | 22 | Courier identity, display name and On Duty state | availability commands and coordinate-free facts |
-| `location` | 22 | sharing intent and the sole latest location snapshot | report/stop commands and freshness-filtered reads |
-| `dispatch` | 23 | eligibility, nearest-three recommendation and atomic Direct Assignment | recommend and assign use cases |
-| `trackinglink` | 24 | link derivation/verifier, Copy, Expiry and derived grants | Dispatcher link commands and link-holder authorization |
-| `recipientview` | 25 | privacy-reduced Recipient projection | one authorized snapshot query and subscription scope |
-| `demo` | 28 | putting the demo back to its starting state | one Dispatcher-only reset command, and only where the demo switch is on |
+| Module | Owns | Interface exposed to peers |
+|---|---|---|
+| `system` | build and runtime proof | read-only system status |
+| `identityaccess` | Staff Accounts, roles, session policy | current actor and authorization checks |
+| `delivery` | Delivery data, lifecycle, Status Changes | guarded commands and role-specific queries |
+| `courier` | Courier identity, name, On Duty | availability commands, coordinate-free facts |
+| `location` | sharing intent and the one latest position | report/stop commands, age-filtered reads |
+| `dispatch` | availability, nearest-three shortlist, atomic assignment | recommend and assign |
+| `trackinglink` | link derivation, verifier, Copy, expiry, revocation, sessions | Dispatcher link commands, Viewer authorization |
+| `recipientview` | the privacy-reduced Recipient projection | one authorized snapshot query |
+| `eta` | ETA Windows and the travel-time port | window reads and recalculation triggers |
+| `notification` | the outbox, relay and opt-in subscriptions | one write on a Status Change |
+| `proof` | proof references and upload authorization | capture and reference reads |
+| `demo` | putting the demo back to its start | one Dispatcher-only reset, only when the demo switch is on |
 
-Implementation details, SQL repositories, web DTOs and provider DTOs stay package-private where Java allows it. Controllers call module interfaces; they do not reach into another module's repository. Test behaviour through the module/API interface. A `shared` package may hold `Clock`, identifiers, error primitives and credential primitives — issuing a random secret, digesting it, comparing in constant time — but never generic business services or speculative repository abstractions. The test for a credential primitive is that it knows nothing about what the secret means: `Secrets` arrived only when a second module needed the same three operations, and the policy about what each secret authorizes and how long it lives stays in the module that owns it.
+Implementation classes, SQL repositories and DTOs stay package-private where Java allows. Controllers
+call module interfaces; they never reach into another module's repository. Test through the interface.
 
-Create a new seam only when it hides real complexity or has a real second side. For Core:
+A `shared` package may hold `Clock`, identifiers, error primitives and credential primitives —
+issuing a random secret, digesting it, comparing in constant time — but never business services or
+speculative abstractions. The test for a credential primitive is that it knows nothing about what the
+secret means: `Secrets` arrived only when a second module needed the same three operations, and the
+policy about what each secret authorizes stays in the module that owns it.
 
-- `LatestLocationStore` was expected to be a seam justified by two real implementations, production memory and a deterministic fake-clock one. Issue 22 found that a test only has to move the injected `Clock` by hand, so the second implementation never had a job to do. It is one in-memory class with no interface in front of it.
-- Map rendering is isolated behind one React component because tests use a local no-network substitute and production uses MapLibre.
-- Redis, Kafka, PostGIS, WebFlux, microservices and a generic event bus are not seams or dependencies yet.
-- ETA/geocoding provider ports are not created until Future Work 13 is actually pulled.
+**Create a seam only when it hides real complexity or has a real second side.**
 
-`demo` is the one module allowed to write another module's tables, and the exception is written here rather than left as an argument inside the class that takes it. `DemoResetRepository` names and empties eight tables owned by `delivery`, `dispatch`, `trackinglink`, `courier` and `location`. The alternative was a `deleteEverything()` on each of those five — destructive methods living permanently in production code, reachable by any caller in the process, to serve one fixture. One class that exists only when the demo switch is on, and that names every table it empties, is the smaller hole. The exception is bounded three ways: it may only delete, never read or update; it must not touch `internal_account`, Spring Session or Flyway's own tables; and it creates its fictional Deliveries through `delivery`'s ordinary use case rather than by insert, so demo data cannot take a shape the product would refuse to make.
+- `LatestLocationStore` was expected to need an interface with a production and a fake-clock
+  implementation. It does not — a test moves the injected `Clock` by hand — so it is one class with
+  no interface in front of it.
+- Map rendering is behind one React component, because tests use a local no-network substitute and
+  production uses MapLibre.
+- Redis, Kafka, PostGIS, WebFlux, microservices and a generic event bus are not seams here. Their
+  triggers are in [ADR 10](../../adr/10-choose-core-technical-architecture.md).
 
-`location.SharedPositionReset` is the seam that exception still needs. Coordinates are never in the database, so emptying `courier_location_sharing` would end every session and leave the positions those sessions produced — which is why forgetting them is a method on the module that owns them rather than another table in the list above.
+`demo` is the one module allowed to write another module's tables, and the exception is written here
+rather than argued inside the class that takes it. `DemoResetRepository` names and empties the tables
+owned by `delivery`, `dispatch`, `trackinglink`, `courier` and `location`. The alternative was a
+`deleteEverything()` on each of those five — destructive methods living permanently in production
+code, reachable by any caller, to serve one fixture. One class that exists only when the demo switch
+is on, and that names every table it empties, is the smaller hole. It is bounded three ways: it may
+only delete; it must not touch `internal_account`, Spring Session or Flyway's tables; and it creates
+its fictional Deliveries through `delivery`'s ordinary use case, so demo data cannot take a shape the
+product would refuse to make.
 
-## Runtime and data rules
+`location.SharedPositionReset` is the seam that exception still needs. Coordinates are never in the
+database, so emptying `courier_location_sharing` would end every session and leave the positions
+those sessions produced — which is why forgetting them is a method on the module that owns them.
 
-- PostgreSQL is authoritative for Internal Accounts, Deliveries, lifecycle transitions, Assignments and Tracking Link metadata.
-- Process memory owns only the newest usable Courier location. Restarting the app intentionally makes location Unavailable until a fresh report arrives.
-- Raw Courier coordinates never enter PostgreSQL, Kafka, logs, metrics, traces or audit tables.
-- HTTP commands change durable facts. SSE carries only scoped invalidation/version hints; every reconnect rereads an authorized snapshot.
-- Unsafe authenticated requests use CSRF protection. Internal routes require an Internal Account role. Recipient routes require only the derived Tracking Link grant and never inherit internal authority.
-- The frontend receives role-specific DTOs. It never receives a broad domain object and hides sensitive fields with CSS.
+## Runtime rules
 
-## Core build contracts
+- PostgreSQL is authoritative for accounts, Deliveries, Status Changes, Assignments and Tracking Link
+  metadata.
+- Process memory owns only the newest usable Courier position. Restarting makes location Unavailable
+  until a fresh report arrives. That is intended.
+- Raw coordinates never enter PostgreSQL, a queue, logs, metrics, traces or any audit table.
+- HTTP changes durable facts. SSE carries only version hints; every reconnect re-reads an authorized
+  snapshot.
+- Unsafe authenticated requests use CSRF protection. Internal routes require a role. Recipient routes
+  require only the Tracking Session and never inherit internal authority.
+- The frontend receives role-specific DTOs. It never receives a broad domain object and hides fields
+  with CSS.
 
-Issue 20 must establish these commands; later Issues keep them green:
+## Build contracts
+
+These must stay green:
 
 ```bash
 (cd server && ./mvnw verify)
@@ -113,9 +124,10 @@ curl --fail --silent http://localhost:8080/api/system
 docker compose down
 ```
 
-`npm run check` must run TypeScript checking, unit tests once, and a production build. `mvnw verify` must include backend tests and architecture rules that have been introduced so far. CI runs the same contracts from a clean checkout.
+`npm run check` runs TypeScript checking, unit tests once, and a production build. CI runs all of it
+from a clean checkout.
 
-Issue 27 added one more, because the cross-role journeys need a running target rather than a build:
+The cross-role journeys need a running target rather than a build:
 
 ```bash
 TRACKING_MAP_STYLE_URL=http://127.0.0.1:9099/style.json docker compose up --build --wait
@@ -123,24 +135,17 @@ npm --prefix web run e2e
 docker compose down
 ```
 
-The Playwright journeys live in `web/e2e/` inside the existing frontend project rather than in a third build, and `npm run check` type-checks them. What each of them is evidence for, and what none of them claims, is [`docs/testing.md`](../../testing.md).
+They live in `web/e2e/` inside the frontend project rather than in a third build, and `npm run check`
+type-checks them. What each is evidence for, and what none of them claims, is
+[`docs/testing.md`](../../testing.md).
 
-Issue 28 added two shell checks in `scripts/`, because the claims they back are about the repository and the deployment rather than about the code:
+Two shell checks back claims about the repository and the deployment rather than about the code:
 
 ```bash
 scripts/scan-repository.sh                        # credentials, tokens, addresses, coordinates
 scripts/check-deployment.sh <base-url>            # headers, refusals and cookies of a running target
 ```
 
-Both are in CI: the scan as its own job over an unshallowed clone, and the deployment check inside the packaging job against the image it has just started. Neither needs a credential, which is what lets the second one be pointed at a public deployment by anybody.
-
-## Explicitly absent from Core
-
-- Redis, Kafka, PostGIS, WebFlux, WebSocket, microservices, Kubernetes, CQRS and event sourcing.
-- JPA/Hibernate and a generic repository layer.
-- External ETA/geocoding calls, Service Zones and route planning.
-- Matching Round timers, invitations, interests, decline/cooldown and overrides.
-- Tracking Link Rotation, Revocation, Reissue and a link-administration history UI.
-- Durable Courier coordinate history, background-location claims and three-role realtime fan-out.
-
-Those omissions are preserved as [Future Work Issues 13–19](../map.md#future-work), not silently forgotten work.
+Both are in CI: the scan as its own job over an unshallowed clone, the deployment check inside the
+packaging job against the image it just started. Neither needs a credential, which is what lets the
+second one be pointed at a public deployment by anybody.

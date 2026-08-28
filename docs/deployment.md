@@ -28,7 +28,7 @@ on `5432` and defaults every secret to a development value.
 ### 1 · A PostgreSQL 18 database, and nothing else stateful
 
 Point the application at it and Flyway does the rest on first start: it creates every table,
-including Spring Session's, and seeds the two fictional Internal Accounts. There is no runtime DDL
+including Spring Session's, and seeds the two fictional Staff Accounts. There is no runtime DDL
 and no manual migration step.
 
 ```
@@ -57,7 +57,7 @@ forward to the container's `8080`. Then tell the application:
 SESSION_COOKIE_SECURE=true
 ```
 
-The Tracking grant cookie already defaults to `Secure` in `application.yml`; it is the plain-HTTP
+The Tracking Session cookie already defaults to `Secure` in `application.yml`; it is the plain-HTTP
 local demo that opts out, which is the right way round for a bearer capability. So there is nothing
 to set for it, and `TRACKING_COOKIE_SECURE` should simply be left alone in a deployment.
 
@@ -164,7 +164,7 @@ is the reason the switch exists: a hosted database usually cannot be dropped and
 `.env.example`, and with it off the route is refused by the security policy rather than merely
 unmapped.
 
-It does **not** touch the two Internal Accounts, and that is a deliberate narrowing of what a reset
+It does **not** touch the two Staff Accounts, and that is a deliberate narrowing of what a reset
 might be expected to do. They are seeded by `V1__internal_account.sql` and are already fictional;
 recreating them would mean the application carrying bcrypt hashes at runtime and becoming a second
 source of truth for credentials that Flyway already owns. So a reset restores the demo's *data* and
@@ -194,7 +194,7 @@ docker compose -f compose.yaml -f compose.proof.yaml up --build
 Nothing above depends on any of this: the default `docker compose up`, the deployment check and the
 journeys all run with proof disabled, exactly as they did before the epic.
 
-The second deliberate exception is **off-band notification** ([Issue 51](https://github.com/Jamiedz999/delivery-glance/issues/51)),
+The second deliberate exception is **delivery notification** ([Issue 51](https://github.com/Jamiedz999/delivery-glance/issues/51)),
 the portfolio-expansion epic that reverses Core's no-Recipient-contact stance under one narrow term:
 the Recipient volunteers an email or phone from the tracking page (see
 [ADR 13](adr/13-notify-recipient-off-band.md)). It introduces a transactional outbox, an SQS queue
