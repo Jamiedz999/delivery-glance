@@ -1,6 +1,9 @@
 # Provider binaries and init artifacts — re-created by `terraform init`.
 .terraform/
 
+# Lambda zips built by archive_file at plan time (notify/). Re-created on every plan.
+.build/
+
 # State and any local plan output. Core state lives in the S3 backend; bootstrap state is local by
 # design but still not committed — its resources already exist and can be re-imported (see README).
 *.tfstate

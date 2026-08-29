@@ -18,6 +18,9 @@ core/        the Core deployment: ECR, the GitHub OIDC role, the EC2 role, the s
              the instance and its Elastic IP
 proof/       Proof of Delivery (#50) on real AWS: the private bucket, the processing Lambda and its
              trigger, and the app IAM — a separate state, gated behind enable_proof (default off)
+notify/      Delivery Notification (#51) on real AWS: the work queue, its DLQ, the consumer Lambda
+             and its trigger, the SES sender and the app IAM — a separate state, gated behind
+             enable_notify (default off)
 ```
 
 ## The backend
@@ -67,7 +70,6 @@ gh api repos/Jamiedz999/delivery-glance/actions/oidc/customization/sub
 
 ## What is not here
 
-This codifies **Core only**. Proof of Delivery (`proof/`, #50) and Delivery Notification (#51) are
-separate, gated modules on top of this foundation, each with its own state boundary — so core's plan
-stays a strict no-op no matter which of them is on. `proof/` is built; see its README. Delivery
-Notification is still to come.
+This codifies **Core only**. Proof of Delivery (`proof/`, #50) and Delivery Notification (`notify/`,
+#51) are separate, gated modules on top of this foundation, each with its own state boundary — so
+core's plan stays a strict no-op no matter which of them is on. Both are built; see their READMEs.
