@@ -9,36 +9,56 @@ import com.deliveryglance.DemoAccounts;
 import com.deliveryglance.IntegrationTest;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.scheduling.config.CronTask;
+import org.springframework.scheduling.config.ScheduledTask;
+import org.springframework.scheduling.config.ScheduledTaskHolder;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.type;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 /**
- * The demo reset, with the switch on.
+ * The demo box: the switch on and a schedule configured, which is the only deployment that heals
+ * itself.
  *
- * <p>It runs in its own Spring context — and therefore its own PostgreSQL container — for the same
- * reason the reset exists at all: it empties the tables every other integration test writes to, so
- * sharing a database with them would make this class the reason they fail.
+ * <p>The cron is a daily one in the small hours, so nothing here waits on a timer. What the schedule
+ * is for in this test is the wiring — with it set the self-heal bean exists, and the pass it makes
+ * when the application is ready is what the first test reads. The recurring pass is the same method,
+ * so the second test calls it the way the scheduler would rather than sleeping until it fires.
+ *
+ * <p>Like {@link DemoResetTest} it runs in its own Spring context and its own PostgreSQL container,
+ * because a class that empties every table would otherwise be the reason other tests fail.
+ *
+ * <p>The order is fixed, and it is the startup pass that needs it: the board it reads is the one the
+ * application was started with, and a sibling that reset the demo first would satisfy the assertion
+ * with its own work and leave the startup seed unproven.
  */
 @IntegrationTest
-@TestPropertySource(properties = "delivery-glance.demo.reset-enabled=true")
-class DemoResetTest {
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@TestPropertySource(properties = { "delivery-glance.demo.reset-enabled=true",
+		"delivery-glance.demo.reset-schedule=0 0 4 * * *" })
+class DemoSelfHealTest {
 
 	@Autowired
 	private MockMvc mockMvc;
 
 	@Autowired
-	private ApplicationContext context;
+	private DemoSelfHeal selfHeal;
+
+	@Autowired
+	private ScheduledTaskHolder scheduledTasks;
 
 	private BrowserLikeClient dispatcher;
 
@@ -53,108 +73,69 @@ class DemoResetTest {
 	}
 
 	@Test
-	void replacesEveryDeliveryWithTheFictionalOnesAndSaysWhichItMade() throws Exception {
-		String strayId = idOf(createDelivery("DG-LEFT-BEHIND"));
-
-		MockHttpServletResponse response = reset();
-
-		assertThat(response.getStatus()).isEqualTo(200);
-		assertThat(JsonPath.<List<String>>read(response.getContentAsString(), "$.createdReferences"))
-			.containsExactly("DEMO-1001", "DEMO-1002");
+	@Order(1)
+	void showsTheFictionalDeliveriesFromStartupWithoutAnybodyCallingTheReset() throws Exception {
+		// Nothing in this test created them, and no reset was posted: a visitor arriving at a freshly
+		// deployed demo sees the walkthrough's starting board rather than an empty one.
 		assertThat(listedReferences()).containsExactlyInAnyOrder("DEMO-1001", "DEMO-1002");
-		assertThat(this.dispatcher.send(get("/api/deliveries/{id}", strayId)).getStatus()).isEqualTo(404);
-	}
 
-	@Test
-	void makesEachFictionalDeliveryTheSameWayTheDispatcherWouldHave() throws Exception {
-		reset();
-		String id = demoDeliveryId("DEMO-1001");
-
-		String body = this.dispatcher.send(get("/api/deliveries/{id}", id)).getContentAsString();
-
+		// And they were made the way the Dispatcher's own form makes one. A reset with nobody acting
+		// could only have written rows that resemble a Delivery; this one is attributed.
+		String body = this.dispatcher.send(get("/api/deliveries/{id}", demoDeliveryId("DEMO-1001")))
+			.getContentAsString();
 		assertThat((String) JsonPath.read(body, "$.state")).isEqualTo("AWAITING_COURIER");
-		assertThat((Integer) JsonPath.read(body, "$.version")).isZero();
-		assertThat(JsonPath.<List<Object>>read(body, "$.transitions")).hasSize(1);
 		assertThat((String) JsonPath.read(body, "$.transitions[0].actorDisplayName"))
 			.isEqualTo(DemoAccounts.DISPATCHER_DISPLAY_NAME);
-		assertThat(JsonPath.<Object>read(body, "$.assignment")).isNull();
-		// Made through the Dispatcher's own use case, so the Tracking Link that always arrives with a
-		// Delivery arrived with this one too rather than having to be added afterwards.
-		assertThat(this.dispatcher.send(post("/api/deliveries/{id}/tracking-link/copy", id)).getStatus())
-			.isEqualTo(200);
 	}
 
 	@Test
-	void endsTheCouriersDutyAndForgetsTheirSharedPosition() throws Exception {
+	@Order(2)
+	void putsADrivenDemoBackToTheStateTheWalkthroughStartsFrom() throws Exception {
+		String stray = idOf(createDelivery("DG-DRIFTED"));
 		setDuty(true);
 		reportAPosition(startSharing());
-		assertThat(freshness()).isEqualTo("LIVE");
-
-		reset();
-
-		String me = this.courier.send(get("/api/couriers/me")).getContentAsString();
-		assertThat((Boolean) JsonPath.read(me, "$.onDuty")).isFalse();
-		assertThat(JsonPath.<Object>read(me, "$.sharing")).isNull();
-		// Coordinates live in memory, so deleting the sharing row alone would not have removed them:
-		// a Courier who had stopped sharing would still be on somebody's map for up to two minutes.
-		assertThat((String) JsonPath.read(me, "$.location.freshness")).isEqualTo("UNAVAILABLE");
-	}
-
-	@Test
-	void makesEveryTrackingLinkIssuedBeforeItUnusable() throws Exception {
-		reset();
 		String token = tokenOf(this.dispatcher.send(post("/api/deliveries/{id}/tracking-link/copy",
 				demoDeliveryId("DEMO-1001"))));
 
-		reset();
+		this.selfHeal.restoreTheWalkthroughState();
 
-		MockHttpServletResponse exchange = this.dispatcher.send(post("/api/tracking-session")
-			.contentType(MediaType.APPLICATION_JSON)
-			.content("{\"token\":\"%s\"}".formatted(token)));
-		assertThat(exchange.getStatus()).isEqualTo(404);
-	}
-
-	@Test
-	void leavesTheTwoInternalAccountsAlone() throws Exception {
-		reset();
-
-		BrowserLikeClient returning = new BrowserLikeClient(this.mockMvc);
-		assertThat(returning.signIn(DemoAccounts.DISPATCHER_EMAIL, DemoAccounts.DISPATCHER_PASSWORD).getStatus())
-			.isEqualTo(204);
-		assertThat(returning.signIn(DemoAccounts.COURIER_EMAIL, DemoAccounts.COURIER_PASSWORD).getStatus())
-			.isEqualTo(204);
-	}
-
-	@Test
-	void canBeRunAgainAndProducesTheSameDemoEachTime() throws Exception {
-		reset();
-
-		MockHttpServletResponse second = reset();
-
-		assertThat(JsonPath.<List<String>>read(second.getContentAsString(), "$.createdReferences"))
-			.containsExactly("DEMO-1001", "DEMO-1002");
 		assertThat(listedReferences()).containsExactlyInAnyOrder("DEMO-1001", "DEMO-1002");
+		assertThat(this.dispatcher.send(get("/api/deliveries/{id}", stray)).getStatus()).isEqualTo(404);
+		String me = this.courier.send(get("/api/couriers/me")).getContentAsString();
+		assertThat((Boolean) JsonPath.read(me, "$.onDuty")).isFalse();
+		assertThat(JsonPath.<Object>read(me, "$.sharing")).isNull();
+		assertThat((String) JsonPath.read(me, "$.location.freshness")).isEqualTo("UNAVAILABLE");
+		assertThat(exchange(token).getStatus()).isEqualTo(404);
 	}
 
 	@Test
-	void isNotResetOnATimerUnlessADeploymentAsksForOne() {
-		// The switch on and no schedule is what local Compose and every other test run: the reset is
-		// there to be pressed, and nothing wipes a demo somebody is halfway through recording.
-		assertThat(this.context.getBeanNamesForType(DemoSelfHeal.class)).isEmpty();
-	}
+	@Order(3)
+	void healingTheDemoDoesNotOpenTheResetToAnybodyNewer() throws Exception {
+		// The schedule is an internal bean call. The route it shares a reset with keeps every one of
+		// its refusals, so a scheduled demo is not a demo anyone can wipe.
+		this.selfHeal.restoreTheWalkthroughState();
 
-	@Test
-	void isRefusedForACourier() throws Exception {
 		assertThat(this.courier.send(post("/api/demo/reset")).getStatus()).isEqualTo(403);
-	}
-
-	@Test
-	void isRefusedWithoutTheCsrfHeaderEvenForTheDispatcher() throws Exception {
 		assertThat(this.dispatcher.sendWithoutCsrfHeader(post("/api/demo/reset")).getStatus()).isEqualTo(403);
 	}
 
-	private MockHttpServletResponse reset() throws Exception {
-		return this.dispatcher.send(post("/api/demo/reset"));
+	@Test
+	@Order(4)
+	void keepsHealingAfterwards() {
+		// The two tests above drive the method the recurring pass calls. This is the pass itself being
+		// scheduled: the configured cron is registered against that method, so a demo left alone heals
+		// without anybody calling anything. Sitting through a real tick is the only stronger proof,
+		// and it is not one a test suite can afford.
+		List<ScheduledTask> healing = this.scheduledTasks.getScheduledTasks()
+			.stream()
+			.filter((task) -> task.toString().endsWith("restoreTheWalkthroughState"))
+			.toList();
+
+		assertThat(healing).singleElement()
+			.extracting(ScheduledTask::getTask)
+			.asInstanceOf(type(CronTask.class))
+			.extracting(CronTask::getExpression)
+			.isEqualTo("0 0 4 * * *");
 	}
 
 	private MockHttpServletResponse createDelivery(String reference) throws Exception {
@@ -172,7 +153,7 @@ class DemoResetTest {
 	private String demoDeliveryId(String reference) throws Exception {
 		List<String> ids = JsonPath.read(this.dispatcher.send(get("/api/deliveries")).getContentAsString(),
 				"$[?(@.reference == '%s')].id".formatted(reference));
-		assertThat(ids).as("the reset should have created %s", reference).hasSize(1);
+		assertThat(ids).as("the demo should hold %s", reference).hasSize(1);
 		return ids.getFirst();
 	}
 
@@ -196,8 +177,9 @@ class DemoResetTest {
 		assertThat((String) JsonPath.read(response.getContentAsString(), "$.outcome")).isEqualTo("ACCEPTED");
 	}
 
-	private String freshness() throws Exception {
-		return JsonPath.read(this.courier.send(get("/api/couriers/me")).getContentAsString(), "$.location.freshness");
+	private MockHttpServletResponse exchange(String token) throws Exception {
+		return this.dispatcher.send(post("/api/tracking-session").contentType(MediaType.APPLICATION_JSON)
+			.content("{\"token\":\"%s\"}".formatted(token)));
 	}
 
 	private static String idOf(MockHttpServletResponse response) throws Exception {

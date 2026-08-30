@@ -130,6 +130,13 @@ delivery-glance:
     # security policy reads this same value: with it off the route is refused rather than merely
     # unmapped. Turn it on only where every row is fictional and losing all of them is the point.
     reset-enabled: ${DEMO_RESET_ENABLED:false}
+    # How often the demo puts itself back to the walkthrough's starting state, as a Spring cron
+    # expression, so a public demo that strangers have driven heals rather than drifting. Unset is
+    # no schedule and the default: the demo then changes only when somebody presses the reset. Set
+    # it only alongside the switch above, and off-peak — a reset mid-walkthrough is a recording
+    # ruined. The demo also seeds itself once at startup when a schedule is configured, so a fresh
+    # deployment is never an empty board.
+    reset-schedule: ${DEMO_RESET_SCHEDULE:}
 
 management:
   endpoints:

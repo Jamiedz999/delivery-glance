@@ -43,6 +43,9 @@ services:
       # `docker compose down -v` removes the volume — so the endpoint is for deployments that
       # cannot delete their database, not for this one. See .env.example.
       DEMO_RESET_ENABLED: ${DEMO_RESET_ENABLED:-false}
+      # Unset, so nothing here resets itself: a local demo is one person's and keeps whatever they
+      # left it in. The schedule is for a public box; see .env.example.
+      DEMO_RESET_SCHEDULE: ${DEMO_RESET_SCHEDULE:-}
       # Only used the first time Flyway runs against an empty database; see .env.example.
       DEMO_DISPATCHER_EMAIL: ${DEMO_DISPATCHER_EMAIL:-dispatcher@delivery-glance.example}
       DEMO_DISPATCHER_DISPLAY_NAME: ${DEMO_DISPATCHER_DISPLAY_NAME:-Dana the Dispatcher}

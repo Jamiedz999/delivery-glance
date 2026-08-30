@@ -164,6 +164,36 @@ is the reason the switch exists: a hosted database usually cannot be dropped and
 `.env.example`, and with it off the route is refused by the security policy rather than merely
 unmapped.
 
+A public demo also drifts. Once a visitor assigns a Courier or completes a Delivery, the shared
+board stays that way, and the next visitor arrives at somebody else's half-finished walkthrough. A
+schedule is what heals it:
+
+```
+DEMO_RESET_SCHEDULE=0 0 4 * * *
+```
+
+A Spring cron expression — second, minute, hour, day, month, weekday — and blank, the default, means
+never. With one set the demo runs the same reset the route runs: once shortly after startup, so a
+fresh deployment shows the two fictional Deliveries rather than an empty board, and then on that
+cadence. **Pick an off-peak hour.** A reset that lands mid-walkthrough is a recording ruined, and
+04:00 UTC is what this project's own demo uses.
+
+On this project's own box the switch is already on and the compose file is hand-managed on the
+instance, which is imported with `ignore_changes = [ami, user_data]`. So the schedule is set through
+the SSM path the deploy workflow uses, **never** as a Terraform `user_data` edit — that would replace
+the box and take the Caddy certificate and the Postgres volume with it:
+
+```bash
+scripts/set-demo-schedule-on-box.sh          # 0 0 4 * * * unless DEMO_RESET_SCHEDULE says otherwise
+```
+
+Run it after the image carrying the self-heal is deployed; an older image ignores the variable.
+
+The scheduled reset is an internal call, not a request. It changes nothing about who may reach
+`POST /api/demo/reset`: still Dispatcher-only, still CSRF-protected, still refused outright while
+`DEMO_RESET_ENABLED` is off — and the schedule does nothing at all without that switch, so a
+deployment cannot acquire a data-wiping timer by setting a cron alone.
+
 It does **not** touch the two Staff Accounts, and that is a deliberate narrowing of what a reset
 might be expected to do. They are seeded by `V1__internal_account.sql` and are already fictional;
 recreating them would mean the application carrying bcrypt hashes at runtime and becoming a second
