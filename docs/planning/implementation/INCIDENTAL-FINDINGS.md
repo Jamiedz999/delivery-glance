@@ -346,6 +346,30 @@ committed JSON the web bundle imports and the Lambda loads, or a generated file 
 and add a check (a script in CI, or a doc test) that fails when `copy.ts` and `handler.py` disagree,
 so drift is caught rather than shipped.
 
+### A blank feature property still satisfies `@ConditionalOnProperty`, so the gated beans are built
+
+`application.yml` gives each optional feature a blank default so a deployment can set it under a
+readable environment variable name — `provider-base-url: ${ETA_PROVIDER_BASE_URL:}` and the same
+shape for `proof.bucket` and `notification.queue-url`. The beans behind them are gated with
+`@ConditionalOnProperty`, whose condition asks the environment whether the property is *present*, not
+whether it has a value: a present-but-empty property matches anything except the string `false`. So
+on a deployment that configured none of them, the gated bean is built anyway — `EtaConfig` hands
+`HttpTravelTimeAdapter` an empty base URL rather than leaving `TravelTimePort` absent as its comment
+describes.
+
+Found while adding the demo's scheduled self-heal (#75). The same shape there was not a quiet
+mismatch but a hard failure: the bean carries `@Scheduled(cron = ...)`, an empty cron is invalid, and
+every context with the demo switch on and no schedule refused to start until the condition was
+changed to an expression that tests the value's length. That is the evidence the eta, proof and
+notification gates share the defect — the condition matched a blank property in a running test
+context.
+
+Not fixed here because the demo module's own gate is the change this ticket asked for, and the other
+three are another module's contract each: what `etaEnabled` in `/api/system` should mean when a bean
+exists but has nothing to call, whether the adapter should refuse to construct, and whether the
+right fix is one shared "configured" predicate. Whichever way, `EtaCalculations`'s `ObjectProvider`
+lookups are written expecting absence, and today they get an object.
+
 ## Recently cleared
 
 *(Nothing. Entries move out of this file by being deleted, not by being marked done.)*

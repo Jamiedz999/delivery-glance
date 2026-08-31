@@ -7,6 +7,7 @@ import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -29,6 +30,9 @@ class DemoResetDisabledTest {
 	@Autowired
 	private MockMvc mockMvc;
 
+	@Autowired
+	private ApplicationContext context;
+
 	@Test
 	void refusesTheResetForTheDispatcherWhoWouldOtherwiseBeAllowedIt() throws Exception {
 		BrowserLikeClient dispatcher = new BrowserLikeClient(this.mockMvc);
@@ -38,6 +42,14 @@ class DemoResetDisabledTest {
 
 		assertThat(response.getStatus()).isEqualTo(403);
 		assertThat((String) JsonPath.read(response.getContentAsString(), "$.code")).isEqualTo("access-denied");
+	}
+
+	@Test
+	void buildsNeitherTheResetNorTheSchedulerThatWouldCallIt() {
+		// The demo switch is the master switch, and the self-heal hangs off the same class the reset
+		// does. A deployment that never asked for a demo cannot acquire one by configuring a cron.
+		assertThat(this.context.getBeanNamesForType(DemoReset.class)).isEmpty();
+		assertThat(this.context.getBeanNamesForType(DemoSelfHeal.class)).isEmpty();
 	}
 
 	@Test
